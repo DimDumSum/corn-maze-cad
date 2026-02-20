@@ -2,7 +2,7 @@
  * Toolbar Component - Main toolbar with tool selection, actions, and view toggles
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import {
   MousePointer,
   Hand,
@@ -145,34 +145,13 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
   // Maze algorithm dropdown state
   const [showAlgoMenu, setShowAlgoMenu] = useState(false);
 
-  // Refs for dropdown click-outside detection
-  const importMenuRef = useRef<HTMLDivElement>(null);
-  const algoMenuRef = useRef<HTMLDivElement>(null);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const anyMenuOpen = showImportMenu || showAlgoMenu || showExportMenu;
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (
-        showImportMenu && importMenuRef.current && !importMenuRef.current.contains(target)
-      ) {
-        setShowImportMenu(false);
-      }
-      if (
-        showAlgoMenu && algoMenuRef.current && !algoMenuRef.current.contains(target)
-      ) {
-        setShowAlgoMenu(false);
-      }
-      if (
-        showExportMenu && exportMenuRef.current && !exportMenuRef.current.contains(target)
-      ) {
-        setShowExportMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showImportMenu, showAlgoMenu, showExportMenu]);
+  const closeAllMenus = () => {
+    setShowImportMenu(false);
+    setShowAlgoMenu(false);
+    setShowExportMenu(false);
+  };
 
   // Maze stats panel state
   const [showStats, setShowStats] = useState(false);
@@ -408,9 +387,14 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
 
       <div className="toolbar-separator" />
 
+      {/* Invisible backdrop to close any open dropdown */}
+      {anyMenuOpen && (
+        <div className="dropdown-backdrop" onClick={closeAllMenus} />
+      )}
+
       {/* Action Section */}
       <div className="toolbar-section actions">
-        <div ref={importMenuRef} style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }}>
           <button
             className="toolbar-dropdown-button"
             onClick={() => { setShowImportMenu(!showImportMenu); setShowAlgoMenu(false); setShowExportMenu(false); }}
@@ -434,7 +418,7 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
           )}
         </div>
         <ActionButton Icon={ImagePlus} label="Import Image" onClick={() => setShowImageImportDialog(true)} />
-        <div ref={algoMenuRef} style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }}>
           <button
             className="toolbar-dropdown-button"
             onClick={() => { setShowAlgoMenu(!showAlgoMenu); setShowImportMenu(false); setShowExportMenu(false); }}
@@ -472,7 +456,7 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
             </span>
           )}
         </button>
-        <div ref={exportMenuRef} style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }}>
           <button
             className="toolbar-dropdown-button"
             onClick={() => { setShowExportMenu(!showExportMenu); setShowImportMenu(false); setShowAlgoMenu(false); }}
