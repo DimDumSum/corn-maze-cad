@@ -498,9 +498,9 @@ electron_1.app.whenReady().then(async () => {
                     "default-src 'self'; " +
                         "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
                         "style-src 'self' 'unsafe-inline'; " +
-                        "img-src 'self' data: blob:; " +
+                        "img-src 'self' data: blob: https://*.arcgisonline.com https://*.tile.openstreetmap.org; " +
                         "font-src 'self' data:; " +
-                        "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
+                        "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://nominatim.openstreetmap.org https://*.arcgisonline.com https://*.tile.openstreetmap.org"
                 ],
             },
         });

@@ -18,4 +18,11 @@ electron_1.contextBridge.exposeInMainWorld('electronAPI', {
     onZoomIn: (callback) => electron_1.ipcRenderer.on('menu:zoom-in', () => callback()),
     onZoomOut: (callback) => electron_1.ipcRenderer.on('menu:zoom-out', () => callback()),
     onZoomReset: (callback) => electron_1.ipcRenderer.on('menu:zoom-reset', () => callback()),
+    // Menu events for save/load/undo/redo
+    onMenuSave: (callback) => electron_1.ipcRenderer.on('menu:save', () => callback()),
+    onMenuSaveAs: (callback) => electron_1.ipcRenderer.on('menu:save-as', (_event, path) => callback(path)),
+    onMenuOpen: (callback) => electron_1.ipcRenderer.on('menu:open', (_event, path) => callback(path)),
+    onMenuNew: (callback) => electron_1.ipcRenderer.on('menu:new', () => callback()),
+    onMenuUndo: (callback) => electron_1.ipcRenderer.on('menu:undo', () => callback()),
+    onMenuRedo: (callback) => electron_1.ipcRenderer.on('menu:redo', () => callback()),
 });
