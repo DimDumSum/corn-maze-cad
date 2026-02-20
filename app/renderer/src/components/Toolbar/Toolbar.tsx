@@ -27,7 +27,15 @@ import {
   AlertTriangle,
   BarChart3,
   Save,
-  FolderOpen as FolderOpenIcon,
+  LogIn,
+  LogOut,
+  ShieldAlert,
+  Route,
+  GitBranch,
+  Map,
+  Navigation,
+  FileText,
+  Tractor,
   type LucideIcon,
 } from 'lucide-react';
 import type { MazeAlgorithm, MazeMetrics } from '../../api/client';
@@ -84,7 +92,7 @@ function ActionButton({ Icon, label, onClick, disabled = false }: ActionButtonPr
   );
 }
 
-export type ExportFormat = 'kml' | 'png' | 'shapefile';
+export type ExportFormat = 'kml' | 'png' | 'shapefile' | 'gpx' | 'dxf' | 'printable' | 'prescription';
 
 interface ToolbarProps {
   onImportField: () => void;
@@ -114,6 +122,8 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoa
     setMaze,
     field,
     pushSnapshot,
+    showCornRowGrid,
+    setShowCornRowGrid,
   } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer } = useConstraintStore();
 
@@ -339,6 +349,11 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoa
     { name: 'move', Icon: Move, label: 'Move', shortcut: 'G' },
     { name: 'flip', Icon: FlipHorizontal, label: 'Flip', shortcut: 'F' },
     { name: 'measure', Icon: Ruler, label: 'Measure', shortcut: 'M' },
+    { name: 'entrance', Icon: LogIn, label: 'Place Entrance', shortcut: '1' },
+    { name: 'exit', Icon: LogOut, label: 'Place Exit', shortcut: '2' },
+    { name: 'emergency_exit', Icon: ShieldAlert, label: 'Emergency Exit', shortcut: '3' },
+    { name: 'solution_path', Icon: Route, label: 'Solution Path', shortcut: '4' },
+    { name: 'dead_end', Icon: GitBranch, label: 'Dead End', shortcut: '5' },
   ];
 
   return (
@@ -407,6 +422,18 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoa
               <button className="export-dropdown-item" onClick={() => { onExport('shapefile'); setShowExportMenu(false); }}>
                 Shapefile
               </button>
+              <button className="export-dropdown-item" onClick={() => { onExport('gpx'); setShowExportMenu(false); }}>
+                GPX (GPS Devices)
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onExport('dxf'); setShowExportMenu(false); }}>
+                DXF (AutoCAD)
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onExport('printable'); setShowExportMenu(false); }}>
+                Printable Map (PNG)
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onExport('prescription'); setShowExportMenu(false); }}>
+                Prescription Map (Planting)
+              </button>
             </div>
           )}
         </div>
@@ -433,6 +460,10 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoa
         <label className="toolbar-checkbox">
           <input type="checkbox" checked={snapToGrid} onChange={toggleSnap} />
           <span>Snap</span>
+        </label>
+        <label className="toolbar-checkbox">
+          <input type="checkbox" checked={showCornRowGrid} onChange={() => setShowCornRowGrid(!showCornRowGrid)} />
+          <span>Corn Rows</span>
         </label>
       </div>
 

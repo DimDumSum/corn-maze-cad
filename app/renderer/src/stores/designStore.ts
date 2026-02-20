@@ -8,7 +8,8 @@
  */
 
 import { create } from 'zustand';
-import type { FieldBoundary, MazeWalls } from '../../../shared/types';
+import type { FieldBoundary, MazeWalls, Layer, EntranceExit, DifficultyPhase, CornRowGrid, AerialUnderlay } from '../../../shared/types';
+import { DEFAULT_LAYERS, AUTOSAVE_INTERVAL_MS } from '../../../shared/constants';
 
 const MAX_HISTORY_SIZE = 50;
 
@@ -71,20 +72,42 @@ interface DesignState {
   constraintZones: ConstraintZone[];
   maze: MazeWalls | null; // Computed result, not source of truth
 
+  // === LAYER SYSTEM ===
+  layers: Layer[];
+
+  // === ENTRANCE / EXIT STATE ===
+  entrances: EntranceExit[];
+  exits: EntranceExit[];
+  emergencyExits: EntranceExit[];
+
+  // === DIFFICULTY PHASES ===
+  difficultyPhases: DifficultyPhase[];
+  activeDifficultyPhase: string | null;
+
+  // === CORN ROW GRID ===
+  cornRowGrid: CornRowGrid | null;
+  showCornRowGrid: boolean;
+
+  // === AERIAL UNDERLAY ===
+  aerialUnderlay: AerialUnderlay | null;
+
   // === SELECTION STATE ===
   selectedElementIds: Set<string>;
   hoveredElementId: string | null;
   transformState: TransformState;
 
   // === VERTEX EDITING STATE ===
-  vertexEditingElementId: string | null;  // Which element is in vertex edit mode
-  selectedVertexIndices: number[];         // Which vertices are selected
-  hoveredVertexIndex: number | null;       // Which vertex is being hovered
+  vertexEditingElementId: string | null;
+  selectedVertexIndices: number[];
+  hoveredVertexIndex: number | null;
 
   // === VALIDATION STATE ===
   violations: Violation[];
   showViolationsOnCanvas: boolean;
   isCarving: boolean;
+
+  // === PROGRESS INDICATOR ===
+  operationProgress: { active: boolean; message: string; percent: number };
 
   // === HISTORY STATE (Snapshot-based, includes maze for carve undo) ===
   undoStack: UndoSnapshot[];
@@ -93,6 +116,7 @@ interface DesignState {
   // === PROJECT METADATA ===
   isDirty: boolean;
   projectPath: string | null;
+  lastAutosave: number | null;
 
   // === DESIGN ELEMENT ACTIONS (with automatic history) ===
   addDesignElement: (element: Omit<DesignElement, 'id'>) => string;
@@ -140,6 +164,35 @@ interface DesignState {
   moveSelectedVertices: (delta: [number, number]) => void;
   deleteSelectedVertices: () => void;
 
+  // === LAYER ACTIONS ===
+  setLayers: (layers: Layer[]) => void;
+  updateLayer: (id: string, updates: Partial<Layer>) => void;
+  toggleLayerVisibility: (id: string) => void;
+  toggleLayerLock: (id: string) => void;
+
+  // === ENTRANCE / EXIT ACTIONS ===
+  addEntrance: (position: [number, number]) => string;
+  addExit: (position: [number, number]) => string;
+  addEmergencyExit: (position: [number, number]) => string;
+  removeEntranceExit: (id: string) => void;
+  setEntrances: (entrances: EntranceExit[]) => void;
+  setExits: (exits: EntranceExit[]) => void;
+  setEmergencyExits: (exits: EntranceExit[]) => void;
+
+  // === DIFFICULTY PHASE ACTIONS ===
+  setDifficultyPhases: (phases: DifficultyPhase[]) => void;
+  setActiveDifficultyPhase: (phase: string | null) => void;
+
+  // === CORN ROW GRID ACTIONS ===
+  setCornRowGrid: (grid: CornRowGrid | null) => void;
+  setShowCornRowGrid: (show: boolean) => void;
+
+  // === AERIAL UNDERLAY ACTIONS ===
+  setAerialUnderlay: (underlay: AerialUnderlay | null) => void;
+
+  // === PROGRESS ACTIONS ===
+  setOperationProgress: (progress: { active: boolean; message: string; percent: number }) => void;
+
   // === PROJECT MANAGEMENT ===
   resetProject: () => void;
   markSaved: () => void;
@@ -152,6 +205,15 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   designElements: [],
   constraintZones: [],
   maze: null,
+  layers: DEFAULT_LAYERS.map(l => ({ ...l })),
+  entrances: [],
+  exits: [],
+  emergencyExits: [],
+  difficultyPhases: [],
+  activeDifficultyPhase: null,
+  cornRowGrid: null,
+  showCornRowGrid: false,
+  aerialUnderlay: null,
   selectedElementIds: new Set<string>(),
   hoveredElementId: null,
   transformState: {
@@ -168,10 +230,12 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   violations: [],
   showViolationsOnCanvas: false,
   isCarving: false,
+  operationProgress: { active: false, message: '', percent: 0 },
   undoStack: [],
   redoStack: [],
   isDirty: false,
   projectPath: null,
+  lastAutosave: null,
 
   // === DESIGN ELEMENT ACTIONS ===
 
@@ -687,6 +751,88 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     }
   },
 
+  // === LAYER ACTIONS ===
+
+  setLayers: (layers) => set({ layers }),
+
+  updateLayer: (id, updates) => {
+    set(state => ({
+      layers: state.layers.map(l => l.id === id ? { ...l, ...updates } : l),
+    }));
+  },
+
+  toggleLayerVisibility: (id) => {
+    set(state => ({
+      layers: state.layers.map(l => l.id === id ? { ...l, visible: !l.visible } : l),
+    }));
+  },
+
+  toggleLayerLock: (id) => {
+    set(state => ({
+      layers: state.layers.map(l => l.id === id ? { ...l, locked: !l.locked } : l),
+    }));
+  },
+
+  // === ENTRANCE / EXIT ACTIONS ===
+
+  addEntrance: (position) => {
+    const id = `ent-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    set(state => ({
+      entrances: [...state.entrances, { id, type: 'entrance', position, label: `Entrance ${state.entrances.length + 1}` }],
+      isDirty: true,
+    }));
+    return id;
+  },
+
+  addExit: (position) => {
+    const id = `exit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    set(state => ({
+      exits: [...state.exits, { id, type: 'exit', position, label: `Exit ${state.exits.length + 1}` }],
+      isDirty: true,
+    }));
+    return id;
+  },
+
+  addEmergencyExit: (position) => {
+    const id = `emrg-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    set(state => ({
+      emergencyExits: [...state.emergencyExits, { id, type: 'emergency_exit', position, label: `Emergency ${state.emergencyExits.length + 1}` }],
+      isDirty: true,
+    }));
+    return id;
+  },
+
+  removeEntranceExit: (id) => {
+    set(state => ({
+      entrances: state.entrances.filter(e => e.id !== id),
+      exits: state.exits.filter(e => e.id !== id),
+      emergencyExits: state.emergencyExits.filter(e => e.id !== id),
+      isDirty: true,
+    }));
+  },
+
+  setEntrances: (entrances) => set({ entrances, isDirty: true }),
+  setExits: (exits) => set({ exits, isDirty: true }),
+  setEmergencyExits: (exits) => set({ emergencyExits: exits, isDirty: true }),
+
+  // === DIFFICULTY PHASE ACTIONS ===
+
+  setDifficultyPhases: (phases) => set({ difficultyPhases: phases }),
+  setActiveDifficultyPhase: (phase) => set({ activeDifficultyPhase: phase }),
+
+  // === CORN ROW GRID ACTIONS ===
+
+  setCornRowGrid: (grid) => set({ cornRowGrid: grid }),
+  setShowCornRowGrid: (show) => set({ showCornRowGrid: show }),
+
+  // === AERIAL UNDERLAY ACTIONS ===
+
+  setAerialUnderlay: (underlay) => set({ aerialUnderlay: underlay, isDirty: true }),
+
+  // === PROGRESS ACTIONS ===
+
+  setOperationProgress: (progress) => set({ operationProgress: progress }),
+
   // === PROJECT MANAGEMENT ===
 
   resetProject: () => {
@@ -698,6 +844,15 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       designElements: [],
       constraintZones: [],
       maze: null,
+      layers: DEFAULT_LAYERS.map(l => ({ ...l })),
+      entrances: [],
+      exits: [],
+      emergencyExits: [],
+      difficultyPhases: [],
+      activeDifficultyPhase: null,
+      cornRowGrid: null,
+      showCornRowGrid: false,
+      aerialUnderlay: null,
       selectedElementIds: new Set(),
       hoveredElementId: null,
       transformState: {
@@ -712,10 +867,12 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       hoveredVertexIndex: null,
       violations: [],
       isCarving: false,
+      operationProgress: { active: false, message: '', percent: 0 },
       undoStack: [],
       redoStack: [],
       isDirty: false,
       projectPath: null,
+      lastAutosave: null,
     });
   },
 

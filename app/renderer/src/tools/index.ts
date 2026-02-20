@@ -17,3 +17,8 @@ export { ArcTool } from './ArcTool';
 export { TextTool } from './TextTool';
 export { ClipArtTool } from './ClipArtTool';
 export { FlipTool } from './FlipTool';
+export { EntranceTool } from './EntranceTool';
+export { ExitTool } from './ExitTool';
+export { EmergencyExitTool } from './EmergencyExitTool';
+export { SolutionPathTool } from './SolutionPathTool';
+export { DeadEndTool } from './DeadEndTool';
