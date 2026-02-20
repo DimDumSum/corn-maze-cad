@@ -401,7 +401,8 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
             title="Import Field"
             aria-label="Import Field"
           >
-            <FolderOpen size={18} />
+            <FolderOpen size={16} />
+            <span>Import</span>
             <span className="dropdown-arrow">&#9662;</span>
           </button>
           {showImportMenu && (
@@ -425,7 +426,8 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
             title="Generate Maze"
             aria-label="Generate Maze"
           >
-            <Grid3x3 size={18} />
+            <Grid3x3 size={16} />
+            <span>Generate</span>
             <span className="dropdown-arrow">&#9662;</span>
           </button>
           {showAlgoMenu && (
@@ -463,7 +465,8 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
             title="Export"
             aria-label="Export"
           >
-            <Download size={18} />
+            <Download size={16} />
+            <span>Export</span>
             <span className="dropdown-arrow">&#9662;</span>
           </button>
           {showExportMenu && (
