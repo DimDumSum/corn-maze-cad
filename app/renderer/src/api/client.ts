@@ -488,6 +488,27 @@ export async function computeCornRowGrid(rowSpacing: number = 0.762, crossPlante
   return response.json();
 }
 
+// === PLANTER-BASED ROW GRID ===
+
+export async function computePlanterGrid(
+  planterRows: number = 16,
+  spacingInches: number = 30,
+  directionDeg: number = 0,
+  headlands: number = 2,
+): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/analysis/planter-grid`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      planter_rows: planterRows,
+      spacing_inches: spacingInches,
+      direction_deg: directionDeg,
+      headlands: headlands,
+    }),
+  });
+  return response.json();
+}
+
 // === GPS GUIDANCE ===
 
 export async function startGuidance(pathWidth: number = 2.4): Promise<any> {

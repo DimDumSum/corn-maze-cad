@@ -22,3 +22,4 @@ export { ExitTool } from './ExitTool';
 export { EmergencyExitTool } from './EmergencyExitTool';
 export { SolutionPathTool } from './SolutionPathTool';
 export { DeadEndTool } from './DeadEndTool';
+export { PlantingDirectionTool } from './PlantingDirectionTool';

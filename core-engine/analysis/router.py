@@ -476,3 +476,126 @@ def compute_corn_row_grid(req: CornRowGridRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+# === PLANTER-BASED ROW GRID ===
+
+class PlanterGridRequest(BaseModel):
+    planter_rows: int = 16          # Number of rows on the planter
+    spacing_inches: float = 30.0    # Row spacing in inches
+    direction_deg: float = 0.0      # Planting direction: 0=North, 90=East
+    headlands: int = 2              # Number of headland passes around perimeter
+
+
+@router.post("/planter-grid")
+def compute_planter_grid(req: PlanterGridRequest):
+    """
+    Compute planted row grid based on real planter specs.
+
+    Generates parallel row lines at the given spacing and direction,
+    with headland passes inset from the field boundary.
+    """
+    from shapely.geometry import LineString, Polygon
+    from shapely import affinity
+    import numpy as np
+    import math
+
+    field = app_state.get_field()
+    if not field:
+        raise HTTPException(status_code=400, detail={"error": "No field boundary"})
+
+    try:
+        row_spacing_m = req.spacing_inches * 0.0254  # inches to meters
+        planter_width = req.planter_rows * row_spacing_m
+        headland_inset = req.headlands * planter_width
+
+        # Inset field boundary for headlands
+        headland_poly = None
+        planting_area = field
+        if headland_inset > 0:
+            inset = field.buffer(-headland_inset)
+            if not inset.is_empty and inset.area > 0:
+                # Handle MultiPolygon from buffer
+                if inset.geom_type == 'MultiPolygon':
+                    planting_area = max(inset.geoms, key=lambda g: g.area)
+                else:
+                    planting_area = inset
+                headland_poly = planting_area
+
+        # Generate parallel lines covering the entire field at the planting direction
+        # Use the full field bounds to ensure complete coverage
+        minx, miny, maxx, maxy = field.bounds
+        cx = (minx + maxx) / 2
+        cy = (miny + maxy) / 2
+
+        # The field diagonal gives the max distance we need to cover
+        diagonal = math.sqrt((maxx - minx) ** 2 + (maxy - miny) ** 2)
+        half_diag = diagonal / 2 + row_spacing_m  # Add buffer
+
+        # Direction angle: 0 = North (vertical rows), 90 = East (horizontal rows)
+        # Convert to math angle: planting direction is the direction rows run,
+        # so rows are parallel to the direction vector
+        angle_rad = math.radians(req.direction_deg)
+
+        # Unit vector perpendicular to planting direction (for stepping across rows)
+        perp_x = math.cos(angle_rad)   # For 0° (North): perp is East (1,0)
+        perp_y = math.sin(angle_rad)
+
+        # Unit vector along planting direction (for the row lines)
+        dir_x = -math.sin(angle_rad)   # For 0° (North): direction is North (0,1) → (-sin0, cos0) = (0,1)
+        dir_y = math.cos(angle_rad)
+
+        # Generate lines perpendicular to the stepping direction
+        num_steps = int(2 * half_diag / row_spacing_m) + 1
+        start_offset = -half_diag
+
+        row_lines = []
+        for i in range(num_steps):
+            offset = start_offset + i * row_spacing_m
+            # Center point of this row
+            px = cx + offset * perp_x
+            py = cy + offset * perp_y
+            # Line endpoints extending in the planting direction
+            x1 = px - half_diag * dir_x
+            y1 = py - half_diag * dir_y
+            x2 = px + half_diag * dir_x
+            y2 = py + half_diag * dir_y
+
+            line = LineString([(x1, y1), (x2, y2)])
+            # Clip to field boundary
+            clipped = line.intersection(field)
+
+            if clipped.is_empty:
+                continue
+
+            # Handle multi-line results from clipping
+            if clipped.geom_type == 'LineString' and len(clipped.coords) >= 2:
+                coords = [[round(c[0], 4), round(c[1], 4)] for c in clipped.coords]
+                row_lines.append(coords)
+            elif clipped.geom_type == 'MultiLineString':
+                for segment in clipped.geoms:
+                    if len(segment.coords) >= 2:
+                        coords = [[round(c[0], 4), round(c[1], 4)] for c in segment.coords]
+                        row_lines.append(coords)
+
+        # Headland boundary polygon coordinates
+        headland_boundary_coords = None
+        if headland_poly is not None:
+            ext = headland_poly.exterior.coords
+            headland_boundary_coords = [[round(c[0], 4), round(c[1], 4)] for c in ext]
+
+        return {
+            "planter_config": {
+                "rows": req.planter_rows,
+                "spacing_inches": req.spacing_inches,
+                "direction_deg": req.direction_deg,
+                "headlands": req.headlands,
+            },
+            "row_lines": row_lines,
+            "headland_boundary": headland_boundary_coords,
+            "planter_width": round(planter_width, 4),
+            "headland_inset": round(headland_inset, 4),
+            "total_rows": len(row_lines),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": str(e)})

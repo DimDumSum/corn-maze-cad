@@ -22,6 +22,7 @@ import { ExitTool } from './ExitTool';
 import { EmergencyExitTool } from './EmergencyExitTool';
 import { SolutionPathTool } from './SolutionPathTool';
 import { DeadEndTool } from './DeadEndTool';
+import { PlantingDirectionTool } from './PlantingDirectionTool';
 
 /**
  * Hook to get the current active tool based on uiStore selection
@@ -67,6 +68,8 @@ export function useTool(): Tool {
       return SolutionPathTool;
     case 'dead_end':
       return DeadEndTool;
+    case 'planting_direction':
+      return PlantingDirectionTool;
     default:
       return SelectTool;
   }

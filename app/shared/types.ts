@@ -155,6 +155,15 @@ export interface DifficultyPhase {
   solvable: boolean;
 }
 
+// === PLANTER CONFIGURATION ===
+
+export interface PlanterConfig {
+  rows: number;                // Number of planter rows (4, 6, 8, 12, 16, 18)
+  spacingInches: number;       // Row spacing in inches (24, 30, 36)
+  directionDeg: number;        // Planting direction in degrees (0 = North, 90 = East)
+  headlands: number;           // Number of headland passes (each = one full planter width)
+}
+
 // === CORN ROW GRID ===
 
 export interface CornRowGrid {
@@ -162,6 +171,17 @@ export interface CornRowGrid {
   crossPlanted: boolean;
   vLines: [number, number][][];
   hLines: [number, number][][];
+}
+
+// === PLANTER ROW GRID ===
+
+export interface PlanterRowGrid {
+  planterConfig: PlanterConfig;
+  rowLines: [number, number][][];           // Planted row lines (clipped to field)
+  headlandBoundary: [number, number][] | null;  // Inset polygon showing headland edge
+  planterWidth: number;                     // Total planter width in meters
+  headlandInset: number;                    // Headland inset distance in meters
+  totalRows: number;
 }
 
 // === AERIAL IMAGE UNDERLAY ===
