@@ -79,10 +79,12 @@ function ActionButton({ Icon, label, onClick, disabled = false }: ActionButtonPr
   );
 }
 
+export type ExportFormat = 'kml' | 'png' | 'shapefile';
+
 interface ToolbarProps {
   onImportField: () => void;
   onGenerateMaze: () => void;
-  onExport: () => void;
+  onExport: (format: ExportFormat) => void;
 }
 
 export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProps) {
@@ -115,6 +117,9 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProp
 
   // Image import dialog state
   const [showImageImportDialog, setShowImageImportDialog] = useState(false);
+
+  // Export dropdown state
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const handleCarve = async () => {
     if (designElements.length === 0) return;
@@ -341,7 +346,22 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProp
             </span>
           )}
         </button>
-        <ActionButton Icon={Download} label="Export" onClick={onExport} />
+        <div style={{ position: 'relative' }}>
+          <ActionButton Icon={Download} label="Export" onClick={() => setShowExportMenu(!showExportMenu)} />
+          {showExportMenu && (
+            <div className="export-dropdown">
+              <button className="export-dropdown-item" onClick={() => { onExport('kml'); setShowExportMenu(false); }}>
+                KML (MazeGPS)
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onExport('png'); setShowExportMenu(false); }}>
+                PNG + GeoJSON
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onExport('shapefile'); setShowExportMenu(false); }}>
+                Shapefile
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="toolbar-separator" />
 

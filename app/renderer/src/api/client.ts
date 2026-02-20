@@ -14,6 +14,23 @@ export type FieldResponse = FieldBoundary & { error?: string };
 export type MazeResponse = MazeWalls & { error?: string };
 export type ExportResponse = { success: boolean; path?: string; error?: string };
 
+export interface KmlExportResponse {
+  success: boolean;
+  boundary_path?: string;
+  walls_path?: string;
+  wall_count?: number;
+  error?: string;
+}
+
+export interface PngExportResponse {
+  success: boolean;
+  png_path?: string;
+  json_path?: string;
+  width_px?: number;
+  height_px?: number;
+  error?: string;
+}
+
 /**
  * Import field boundary from GPS data (demo mode)
  */
@@ -79,6 +96,30 @@ export async function setWalls(maze: MazeWalls | null): Promise<{ success: boole
  */
 export async function exportShapefile(): Promise<ExportResponse> {
   const response = await fetch(`${API_BASE_URL}/export/shapefile`);
+  return response.json();
+}
+
+/**
+ * Export KML files (boundary + walls) for MazeGPS
+ */
+export async function exportKml(
+  name: string = 'maze',
+  wallBuffer: number = 1.0,
+): Promise<KmlExportResponse> {
+  const params = new URLSearchParams({ name, wall_buffer: String(wallBuffer) });
+  const response = await fetch(`${API_BASE_URL}/export/kml?${params}`);
+  return response.json();
+}
+
+/**
+ * Export georeferenced PNG + JSON sidecar
+ */
+export async function exportPng(
+  name: string = 'maze_design',
+  width: number = 800,
+): Promise<PngExportResponse> {
+  const params = new URLSearchParams({ name, width: String(width) });
+  const response = await fetch(`${API_BASE_URL}/export/png?${params}`);
   return response.json();
 }
 

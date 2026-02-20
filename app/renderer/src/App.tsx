@@ -3,7 +3,7 @@
  */
 
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { Toolbar } from './components/Toolbar/Toolbar';
+import { Toolbar, type ExportFormat } from './components/Toolbar/Toolbar';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { KeyboardHelp } from './components/KeyboardHelp/KeyboardHelp';
 import { useUiStore } from './stores/uiStore';
@@ -120,9 +120,9 @@ function App() {
     }
   };
 
-  const handleExport = async () => {
-    if (!maze) {
-      setError('Generate a maze first');
+  const handleExport = async (format: ExportFormat) => {
+    if (!field) {
+      setError('Import a field boundary first');
       return;
     }
 
@@ -130,14 +130,28 @@ function App() {
     setError(null);
 
     try {
-      const result = await api.exportShapefile();
-
-      if (result.error) {
-        setError(result.error);
-        return;
+      switch (format) {
+        case 'kml': {
+          const result = await api.exportKml();
+          if (result.error) { setError(result.error); return; }
+          const paths = [result.boundary_path, result.walls_path].filter(Boolean).join('\n');
+          alert(`KML exported:\n${paths}`);
+          break;
+        }
+        case 'png': {
+          const result = await api.exportPng();
+          if (result.error) { setError(result.error); return; }
+          alert(`PNG exported:\n${result.png_path}\n${result.json_path}`);
+          break;
+        }
+        case 'shapefile': {
+          if (!maze) { setError('Generate a maze first'); return; }
+          const result = await api.exportShapefile();
+          if (result.error) { setError(result.error); return; }
+          alert(`Shapefile exported to:\n${result.path}`);
+          break;
+        }
       }
-
-      alert(`Exported to: ${result.path || 'output.shp'}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to export');
     } finally {
