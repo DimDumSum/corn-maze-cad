@@ -119,7 +119,19 @@ A very large file could exhaust server memory.
 
 **Fix:** Add `max_upload_size` configuration and check `Content-Length` header.
 
-### 3.5 MEDIUM: Unbounded Computation in Pathfinding
+### 3.5 MEDIUM: Uploaded Filename Used Unsanitized for Temp Path
+
+**File:** `core-engine/gis/router.py:111`
+
+```python
+temp_path = os.path.join(temp_dir, filename)
+```
+
+The uploaded file's original `filename` is used directly to build a temp file path. A malicious filename like `../../../etc/passwd` could write outside the temp directory.
+
+**Fix:** Use `os.path.basename(filename)` or generate a random temp name.
+
+### 3.6 MEDIUM: Unbounded Computation in Pathfinding
 
 **File:** `core-engine/analysis/pathfinding.py:16-55`
 
@@ -135,7 +147,44 @@ for r in range(grid_rows):      # Could be very large
 
 **Fix:** Add maximum grid size limit (e.g., 10000 cells) and validate `resolution` parameter.
 
-### 3.6 MEDIUM: Image-to-Path Base64 Memory Bomb
+### 3.7 MEDIUM: Unbounded Computation in Maze Generation
+
+**File:** `core-engine/mazification/generators.py:61-74` (`_build_grid_cells`)
+
+Grid dimensions are `int((maxx - minx) / spacing)` by `int((maxy - miny) / spacing)`. A very small `spacing` (e.g., `0.001`) on a large field creates millions of cells, each requiring a `field_boundary.contains(Point(...))` call. No minimum spacing is enforced.
+
+**File:** `core-engine/analysis/flow_simulation.py:21-173`
+
+`num_visitors` has no upper limit. Setting `num_visitors=1000000` with a fine resolution creates an extremely long computation. `max_steps = rows * cols * 2` can be enormous.
+
+**Fix:** Add `Field(ge=0.5, le=100.0)` to `spacing` and `Field(ge=1, le=10000)` to `num_visitors`.
+
+### 3.8 MEDIUM: No Input Range Validation on Critical Parameters
+
+Multiple Pydantic models lack numeric range constraints, enabling DoS:
+
+| File | Parameter | Default | Issue |
+|------|-----------|---------|-------|
+| `mazification/router.py:15` | `spacing: float` | 10.0 | No minimum (0 → infinite loop) |
+| `analysis/router.py:26` | `resolution: float` | 2.0 | No minimum (near-zero → OOM) |
+| `analysis/router.py:283` | `num_visitors: int` | 100 | No maximum |
+| `analysis/router.py:319` | `num_phases: int` | 3 | No maximum |
+| `analysis/router.py:439` | `spacing_inches: float` | 30.0 | No minimum |
+| `geometry/router.py:18` | `width: float` | 4.0 | No min/max |
+| `geometry/router.py:299` | `threshold: int` | 128 | Should be 0-255 |
+| `export/router.py:116` | `width: int` | 800 | No max (huge image alloc) |
+
+**Fix:** Use Pydantic `Field()` validators on all numeric parameters.
+
+### 3.9 MEDIUM: lxml XXE Risk in KML Parsing
+
+**File:** `core-engine/gis/importers.py:15`
+
+`lxml` is imported for XML parsing (used internally by `fastkml`). Older `lxml` versions are vulnerable to XXE (XML External Entity) attacks via crafted KML files. With unpinned dependencies, the installed version is unknown.
+
+**Fix:** Pin `lxml>=4.9.1` and ensure fastkml disables external entity resolution.
+
+### 3.10 MEDIUM: Image-to-Path Base64 Memory Bomb
 
 **File:** `core-engine/geometry/router.py:304-473`
 
@@ -148,23 +197,24 @@ class ImageToPathsRequest(BaseModel):
 
 A very large base64 string could exhaust memory. Same issue with `ImagePreviewRequest` and `alignDronePhoto`.
 
-### 3.7 LOW: Bare `except:` Clauses Swallowing Errors
+### 3.11 LOW: Bare `except:` Clauses Swallowing Errors (8 instances)
 
-**File:** `core-engine/project/router.py:146, 217`
+Bare `except:` catches all exceptions including `KeyboardInterrupt` and `SystemExit`, hiding actual errors:
 
-```python
-except:                    # line 146 — bare except in list_projects
-    projects.append({...})
-
-except:                    # line 217 — bare except in check_autosave
-    return {"exists": False}
-```
-
-These catch all exceptions including `KeyboardInterrupt` and `SystemExit`, and hide the actual error.
+| File | Line | Context |
+|------|------|---------|
+| `project/router.py` | 146 | `list_projects` — silently ignores corrupt project files |
+| `project/router.py` | 216 | `check_autosave` — silently returns `exists: False` |
+| `geometry/router.py` | 205 | Font fallback — silently ignores font errors |
+| `geometry/router.py` | 822 | SVG polygon creation — silently skips |
+| `geometry/router.py` | 1087 | Validation intersection — silently falls back |
+| `geometry/router.py` | 1141 | Validation nearest points — silently falls back |
+| `export/printable.py` | 100 | Font loading — silently falls back |
+| `export/printable.py` | 166 | Font loading — silently falls back |
 
 **Fix:** Use `except Exception:` at minimum, and log the error.
 
-### 3.8 LOW: Debug Information Leaked in Production
+### 3.12 LOW: Debug Information Leaked in Production
 
 **File:** `core-engine/geometry/router.py:1227-1229`
 
@@ -172,7 +222,13 @@ The `validate_design` endpoint returns `_debug_carved_edges` information in the 
 
 Multiple endpoints also call `print()` and `traceback.print_exc()` which could leak internal paths in production logs.
 
-### 3.9 LOW: Version Mismatch
+### 3.13 LOW: File Paths Exposed in API Responses
+
+**Files:** `project/router.py:86`, `export/shapefile.py:132`
+
+Full filesystem paths (including user's home directory) are returned in API responses like `"path": str(filepath)`. While this is a local app, it leaks directory structure unnecessarily.
+
+### 3.14 LOW: Version Mismatch
 
 **File:** `core-engine/main.py:22-26 vs main.py:42-52`
 
@@ -404,12 +460,15 @@ A new `Image` object is created from base64 data on every render frame. This sho
 ### Python (`requirements.txt`):
 Key dependencies: FastAPI, uvicorn, shapely, numpy, pyproj, Pillow, pyshp, fastkml, lxml, opencv-python, ezdxf, matplotlib
 
-- No pinned versions observed in most entries (should pin for reproducibility)
-- `opencv-python` is a heavy dependency used only for image contour tracing — could potentially use a lighter alternative
+- **All dependencies are unpinned** — no version specifiers. This creates reproducibility risk (builds may break without code changes) and supply chain risk (a compromised package update is automatically installed). Pin all versions and use a lockfile.
+- `lxml` — older versions are vulnerable to XXE attacks; pin `>=4.9.1`
+- `Pillow` — has had historical CVEs for malformed images; pin to a recent version
+- `opencv-python` is a heavy dependency (~100MB) used only for image contour tracing — could potentially use a lighter alternative
 
 ### Node.js:
-- React 18, Zustand, Vite, Electron — all well-maintained mainstream choices
-- TypeScript — good for type safety
+- React 19, Zustand 5, Vite 7, Electron 25 — all well-maintained mainstream choices
+- TypeScript 5.9 — good for type safety
+- Electron 25 is an older version — latest is 33+; consider upgrading for security patches
 
 ---
 
@@ -417,10 +476,10 @@ Key dependencies: FastAPI, uvicorn, shapely, numpy, pyproj, Pillow, pyshp, fastk
 
 | Severity | Count | Key Issues |
 |----------|-------|------------|
-| **CRITICAL** | 1 | Path traversal in project save/load/delete |
+| **CRITICAL** | 1 | Path traversal in project save/load/delete (3 endpoints) |
 | **HIGH** | 1 | CORS `allow_origins=["*"]` with credentials |
-| **MEDIUM** | 5 | `NameError` bug in batch carve, `UnboundLocalError` in image import, zip slip in KMZ, no file size limits, unbounded pathfinding computation |
-| **LOW** | 6 | Bare excepts, debug info leakage, version mismatch, throttle bug, stale closure, seed pollution |
+| **MEDIUM** | 9 | `NameError` in batch carve, `UnboundLocalError` in image import, zip slip in KMZ, no file size limits, unsanitized temp filenames, unbounded computation (pathfinding, maze gen, flow sim), no parameter range validation, lxml XXE risk, base64 memory bomb |
+| **LOW** | 8 | Bare excepts (8 instances), debug info leakage, file paths in responses, version mismatch, throttle bug, stale closure, seed pollution, unpinned deps |
 | **Code Quality** | 5 | Dead stores, duplicated code, oversized router, inconsistent errors, `any` types |
 | **Testing** | 1 | No frontend tests, many untested backend paths |
 | **Performance** | 3 | Continuous rendering, slow rasterization, image recreation per frame |
