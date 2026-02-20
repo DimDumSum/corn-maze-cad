@@ -16,8 +16,8 @@ export function drawGrid(
 ) {
   ctx.save();
 
-  // Grid lines
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+  // Grid lines - light theme (subtle dark lines on light background)
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
   ctx.lineWidth = 1 / camera.scale;
 
   // Calculate visible bounds in world coordinates

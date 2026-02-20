@@ -1,0 +1,186 @@
+/* PanelTray - SketchUp-style right-side collapsible panel tray */
+
+.panel-tray {
+  width: 240px;
+  background: #e8e8e8;
+  border-left: 1px solid #b0b0b0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #333;
+}
+
+.panel-tray::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel-tray::-webkit-scrollbar-track {
+  background: #e0e0e0;
+}
+
+.panel-tray::-webkit-scrollbar-thumb {
+  background: #b0b0b0;
+  border-radius: 3px;
+}
+
+.panel-tray::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* Panel Section */
+.panel-section {
+  border-bottom: 1px solid #c0c0c0;
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #d4d4d4;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 11px;
+  color: #333;
+  border-bottom: 1px solid #c0c0c0;
+  transition: background 0.1s;
+}
+
+.panel-header:hover {
+  background: #ccc;
+}
+
+.panel-header .chevron {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s ease;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.panel-header .chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.panel-header .panel-title {
+  flex: 1;
+}
+
+.panel-body {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-body.collapsed {
+  display: none;
+}
+
+/* Property rows */
+.prop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.prop-label {
+  color: #666;
+  font-size: 11px;
+}
+
+.prop-value {
+  color: #222;
+  font-weight: 500;
+  font-size: 11px;
+  text-align: right;
+}
+
+/* Constraint input rows */
+.constraint-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.constraint-row label {
+  flex: 1;
+  font-size: 11px;
+  color: #555;
+}
+
+.constraint-input {
+  width: 60px;
+  padding: 2px 4px;
+  background: #fff;
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  font-size: 11px;
+  color: #333;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.constraint-input:focus {
+  outline: none;
+  border-color: #4a90d9;
+}
+
+.constraint-unit {
+  font-size: 10px;
+  color: #888;
+  min-width: 14px;
+}
+
+/* Element info section */
+.element-info-empty {
+  color: #999;
+  font-style: italic;
+  font-size: 11px;
+  padding: 4px 0;
+}
+
+.element-type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  background: #d0d8e8;
+  border: 1px solid #a0b0c8;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #3a5070;
+  text-transform: uppercase;
+}
+
+/* Reset button */
+.panel-reset-btn {
+  padding: 3px 8px;
+  background: #ddd;
+  border: 1px solid #b0b0b0;
+  border-radius: 2px;
+  color: #555;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 0.1s;
+  align-self: flex-end;
+}
+
+.panel-reset-btn:hover {
+  background: #ccc;
+  color: #333;
+}
+
+/* Selection count */
+.selection-count {
+  font-weight: 600;
+  color: #4a90d9;
+}

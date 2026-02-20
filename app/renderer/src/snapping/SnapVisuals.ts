@@ -1,24 +1,31 @@
 /**
  * Snap Visuals - Render snap indicators and guide lines on the canvas
  *
- * Color Scheme (SketchUp-style):
- * - Endpoint: Green (#22c55e) - square
- * - Midpoint: Cyan (#06b6d4) - triangle
- * - Center: Magenta (#d946ef) - circle
- * - Grid: Gray (#6b7280) - dot
- * - Intersection: Yellow (#eab308) - X
+ * SketchUp-style inference color scheme:
+ * - Endpoint: Green (#008000) - square
+ * - Midpoint: Cyan (#0099cc) - triangle
+ * - Center: Magenta (#cc00cc) - circle
+ * - Grid: Gray (#888888) - dot
+ * - Intersection: Red (#cc0000) - X
+ *
+ * Guide lines match SketchUp axis colors:
+ * - Horizontal (X-axis): Red (#cc0000)
+ * - Vertical (Y-axis): Green (#008000)
+ * - Perpendicular: Blue (#0000cc)
+ * - Parallel: Magenta (#cc00cc)
+ * - Extension: Black dashed (#444444)
  */
 
 import type { Camera } from '../../../shared/types';
 import type { SnapResult, SnapType } from './SnapEngine';
 
-// Snap indicator colors
+// Snap indicator colors (SketchUp-style, bold and visible on light bg)
 const SNAP_COLORS: Record<SnapType, string> = {
-  endpoint: '#22c55e',     // Green
-  midpoint: '#06b6d4',     // Cyan
-  center: '#d946ef',       // Magenta
-  grid: '#6b7280',         // Gray
-  intersection: '#eab308', // Yellow
+  endpoint: '#008000',     // Green (on-point)
+  midpoint: '#0099cc',     // Cyan (midpoint)
+  center: '#cc00cc',       // Magenta (center)
+  grid: '#888888',         // Gray (grid)
+  intersection: '#cc0000', // Red (intersection)
 };
 
 // Guide line types
@@ -31,13 +38,13 @@ export interface GuideLine {
   referencePoint?: [number, number]; // Point this guide is aligned to
 }
 
-// Guide line colors
+// Guide line colors (SketchUp axis-colored inference system)
 const GUIDE_COLORS: Record<GuideLineType, string> = {
-  horizontal: '#ef4444',   // Red
-  vertical: '#22c55e',     // Green
-  perpendicular: '#3b82f6', // Blue
-  parallel: '#8b5cf6',     // Purple
-  extension: '#f97316',    // Orange
+  horizontal: '#cc0000',   // Red (X-axis aligned)
+  vertical: '#008000',     // Green (Y-axis aligned)
+  perpendicular: '#0000cc', // Blue (perpendicular)
+  parallel: '#cc00cc',     // Magenta (parallel to edge)
+  extension: '#444444',    // Dark gray (line extension)
 };
 
 /**
@@ -91,7 +98,7 @@ function renderEndpointIndicator(
   const size = 5;
 
   ctx.fillStyle = SNAP_COLORS.endpoint;
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#333';
   ctx.lineWidth = 1.5;
 
   ctx.fillRect(x - size, y - size, size * 2, size * 2);
@@ -109,7 +116,7 @@ function renderMidpointIndicator(
   const size = 6;
 
   ctx.fillStyle = SNAP_COLORS.midpoint;
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#333';
   ctx.lineWidth = 1.5;
 
   ctx.beginPath();
@@ -134,7 +141,7 @@ function renderCenterIndicator(
   const crossSize = 4;
 
   ctx.fillStyle = SNAP_COLORS.center;
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#333';
   ctx.lineWidth = 1.5;
 
   // Outer circle
@@ -144,7 +151,7 @@ function renderCenterIndicator(
   ctx.stroke();
 
   // Inner crosshairs
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#fff';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(x - crossSize, y);
@@ -165,7 +172,7 @@ function renderGridIndicator(
   const radius = 3;
 
   ctx.fillStyle = SNAP_COLORS.grid;
-  ctx.strokeStyle = '#ffffff';
+  ctx.strokeStyle = '#444';
   ctx.lineWidth = 1;
 
   ctx.beginPath();
@@ -175,7 +182,7 @@ function renderGridIndicator(
 }
 
 /**
- * Render intersection snap indicator (X mark) - Yellow
+ * Render intersection snap indicator (X mark) - Red
  */
 function renderIntersectionIndicator(
   ctx: CanvasRenderingContext2D,
@@ -184,8 +191,8 @@ function renderIntersectionIndicator(
 ): void {
   const size = 6;
 
-  // Draw yellow X with white outline for visibility
-  ctx.strokeStyle = '#ffffff';
+  // Draw red X with dark outline for visibility on light bg
+  ctx.strokeStyle = '#333';
   ctx.lineWidth = 4;
   ctx.lineCap = 'round';
 
