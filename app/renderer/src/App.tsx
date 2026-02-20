@@ -393,7 +393,7 @@ function App() {
     if (showPlanterRows && planterRowGrid) {
       // Draw headland boundary (dashed orange line showing where headlands end)
       if (planterRowGrid.headlandBoundary && planterRowGrid.headlandBoundary.length > 2) {
-        ctx.strokeStyle = 'rgba(230, 81, 0, 0.4)';
+        ctx.strokeStyle = 'rgba(230, 81, 0, 0.5)';
         ctx.lineWidth = 1.5 / camera.scale;
         ctx.setLineDash([8 / camera.scale, 4 / camera.scale]);
 
@@ -405,31 +405,30 @@ function App() {
         }
         ctx.closePath();
         ctx.stroke();
-
-        // Shade headland area (between field boundary and headland boundary)
-        if (field?.geometry) {
-          ctx.fillStyle = 'rgba(230, 81, 0, 0.06)';
-          // Draw field boundary (outer) then headland boundary (inner, counterclockwise for hole)
-          ctx.beginPath();
-          const ext = field.geometry.exterior;
-          ctx.moveTo(ext[0][0], ext[0][1]);
-          for (let i = 1; i < ext.length; i++) ctx.lineTo(ext[i][0], ext[i][1]);
-          ctx.closePath();
-          // Cut out the headland inner area
-          ctx.moveTo(hb[hb.length - 1][0], hb[hb.length - 1][1]);
-          for (let i = hb.length - 2; i >= 0; i--) ctx.lineTo(hb[i][0], hb[i][1]);
-          ctx.closePath();
-          ctx.fill('evenodd');
-        }
-
         ctx.setLineDash([]);
       }
 
-      // Draw planted row lines
-      ctx.strokeStyle = 'rgba(46, 125, 50, 0.2)';
+      // Draw headland rows (concentric rings following the field boundary)
+      ctx.strokeStyle = 'rgba(180, 120, 40, 0.25)';
       ctx.lineWidth = 0.5 / camera.scale;
 
-      for (const line of planterRowGrid.rowLines) {
+      for (const ring of planterRowGrid.headlandLines) {
+        if (ring.length >= 3) {
+          ctx.beginPath();
+          ctx.moveTo(ring[0][0], ring[0][1]);
+          for (let i = 1; i < ring.length; i++) {
+            ctx.lineTo(ring[i][0], ring[i][1]);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+
+      // Draw interior rows (straight parallel lines at planting direction)
+      ctx.strokeStyle = 'rgba(46, 125, 50, 0.25)';
+      ctx.lineWidth = 0.5 / camera.scale;
+
+      for (const line of planterRowGrid.interiorLines) {
         if (line.length >= 2) {
           ctx.beginPath();
           ctx.moveTo(line[0][0], line[0][1]);
