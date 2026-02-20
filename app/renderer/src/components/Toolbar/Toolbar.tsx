@@ -125,6 +125,8 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
     pushSnapshot,
     showCornRowGrid,
     setShowCornRowGrid,
+    fieldFillMode,
+    setFieldFillMode,
   } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer } = useConstraintStore();
 
@@ -502,9 +504,29 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
           <input type="checkbox" checked={snapToGrid} onChange={toggleSnap} />
           <span>Snap</span>
         </label>
-        <label className="toolbar-checkbox">
-          <input type="checkbox" checked={showCornRowGrid} onChange={() => setShowCornRowGrid(!showCornRowGrid)} />
-          <span>Corn Rows</span>
+        <label className="toolbar-checkbox" style={{ gap: '4px' }}>
+          <span style={{ fontSize: '12px' }}>Fill:</span>
+          <select
+            value={fieldFillMode}
+            onChange={(e) => {
+              const mode = e.target.value as 'none' | 'solid' | 'cornrows';
+              setFieldFillMode(mode);
+              setShowCornRowGrid(mode === 'cornrows');
+            }}
+            style={{
+              background: '#d0d0d0',
+              color: '#333',
+              border: '1px solid #999',
+              borderRadius: '3px',
+              fontSize: '11px',
+              padding: '1px 2px',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="none">None</option>
+            <option value="solid">Solid</option>
+            <option value="cornrows">Corn Rows</option>
+          </select>
         </label>
       </div>
 

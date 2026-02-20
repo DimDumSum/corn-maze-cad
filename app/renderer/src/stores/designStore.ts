@@ -88,6 +88,9 @@ interface DesignState {
   cornRowGrid: CornRowGrid | null;
   showCornRowGrid: boolean;
 
+  // === FIELD FILL MODE ===
+  fieldFillMode: 'none' | 'solid' | 'cornrows';
+
   // === AERIAL UNDERLAY ===
   aerialUnderlay: AerialUnderlay | null;
 
@@ -187,6 +190,9 @@ interface DesignState {
   setCornRowGrid: (grid: CornRowGrid | null) => void;
   setShowCornRowGrid: (show: boolean) => void;
 
+  // === FIELD FILL MODE ACTIONS ===
+  setFieldFillMode: (mode: 'none' | 'solid' | 'cornrows') => void;
+
   // === AERIAL UNDERLAY ACTIONS ===
   setAerialUnderlay: (underlay: AerialUnderlay | null) => void;
 
@@ -213,6 +219,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   activeDifficultyPhase: null,
   cornRowGrid: null,
   showCornRowGrid: false,
+  fieldFillMode: 'none' as const,
   aerialUnderlay: null,
   selectedElementIds: new Set<string>(),
   hoveredElementId: null,
@@ -825,6 +832,9 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   setCornRowGrid: (grid) => set({ cornRowGrid: grid }),
   setShowCornRowGrid: (show) => set({ showCornRowGrid: show }),
 
+  // === FIELD FILL MODE ACTIONS ===
+  setFieldFillMode: (mode) => set({ fieldFillMode: mode }),
+
   // === AERIAL UNDERLAY ACTIONS ===
 
   setAerialUnderlay: (underlay) => set({ aerialUnderlay: underlay, isDirty: true }),
@@ -852,6 +862,7 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       activeDifficultyPhase: null,
       cornRowGrid: null,
       showCornRowGrid: false,
+      fieldFillMode: 'none' as const,
       aerialUnderlay: null,
       selectedElementIds: new Set(),
       hoveredElementId: null,
