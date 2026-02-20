@@ -3,6 +3,7 @@ GIS API Router: File import and format support endpoints.
 """
 
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
+from pydantic import BaseModel
 from typing import Optional, List
 import os
 import tempfile
@@ -282,5 +283,75 @@ def import_gps_data(demo: bool = Query(False, description="Load demo Iowa field"
         "crs": target_crs,
         "area_hectares": area_m2 / 10000.0,
         "bounds": list(centered_field.bounds),
+    }
+
+
+class SatelliteBoundaryRequest(BaseModel):
+    """Boundary coordinates traced on a satellite map."""
+    coordinates: List[List[float]]  # [[lon, lat], [lon, lat], ...]
+
+
+@router.post("/import-satellite-boundary")
+def import_satellite_boundary(req: SatelliteBoundaryRequest):
+    """
+    Import a field boundary from coordinates traced on a satellite image.
+
+    Accepts WGS84 (lon, lat) coordinate pairs forming a polygon boundary.
+    Projects to UTM and centers at origin, same as file-based import.
+
+    Returns the same format as /import-boundary and /import-gps-data.
+    """
+    if len(req.coordinates) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "Need at least 3 points to form a boundary", "error_code": "TOO_FEW_POINTS"}
+        )
+
+    # Ensure polygon is closed
+    coords = [(c[0], c[1]) for c in req.coordinates]
+    if coords[0] != coords[-1]:
+        coords.append(coords[0])
+
+    try:
+        gps_polygon = Polygon(coords)
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": f"Invalid polygon: {str(e)}", "error_code": "INVALID_POLYGON"}
+        )
+
+    if not gps_polygon.is_valid:
+        gps_polygon = gps_polygon.buffer(0)
+        if not gps_polygon.is_valid or gps_polygon.is_empty:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "Polygon is self-intersecting or degenerate", "error_code": "INVALID_POLYGON"}
+            )
+
+    # Project to UTM (auto-detect zone)
+    projected, target_crs = project_to_utm(gps_polygon, "EPSG:4326")
+
+    # Center at origin
+    minx, miny, maxx, maxy = projected.bounds
+    cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
+    centered_field = transform(lambda x, y: (x - cx, y - cy), projected)
+
+    # Store in backend state
+    app_state.set_field(centered_field, target_crs, centroid_offset=(cx, cy))
+
+    area_m2 = centered_field.area
+    area_hectares = area_m2 / 10000.0
+
+    return {
+        "success": True,
+        "geometry": {
+            "exterior": list(centered_field.exterior.coords),
+            "interiors": [list(interior.coords) for interior in centered_field.interiors]
+        },
+        "crs": target_crs,
+        "source_crs": "EPSG:4326",
+        "source_format": "Satellite Trace",
+        "bounds": list(centered_field.bounds),
+        "area_hectares": area_hectares,
     }
 

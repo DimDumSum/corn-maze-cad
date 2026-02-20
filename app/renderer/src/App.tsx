@@ -7,6 +7,7 @@ import { Toolbar, type ExportFormat } from './components/Toolbar/Toolbar';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { KeyboardHelp } from './components/KeyboardHelp/KeyboardHelp';
 import { PanelTray } from './components/PanelTray/PanelTray';
+import { SatelliteBoundaryPicker } from './components/SatelliteBoundaryPicker';
 import { useUiStore } from './stores/uiStore';
 import { useConstraintStore } from './stores/constraintStore';
 import { useDesignStore } from './stores/designStore';
@@ -22,6 +23,7 @@ function App() {
   const [showHelp, setShowHelp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSatellitePicker, setShowSatellitePicker] = useState(false);
 
   // Zustand stores - Use selectors to avoid unnecessary re-renders
   const camera = useUiStore((state) => state.camera);
@@ -88,6 +90,37 @@ function App() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import field');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSatelliteBoundaryConfirm = async (coordinates: [number, number][]) => {
+    setShowSatellitePicker(false);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await api.importSatelliteBoundary(coordinates);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+
+      setField(result);
+
+      // Zoom to fit the field
+      if (result.geometry) {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const bounds = calculateBounds(result.geometry);
+          const newCamera = zoomToFit(bounds, canvas.width, canvas.height);
+          setCamera(newCamera);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import boundary');
     } finally {
       setLoading(false);
     }
@@ -746,6 +779,7 @@ function App() {
     <div className="app">
       <Toolbar
         onImportField={handleImportField}
+        onImportFromSatellite={() => setShowSatellitePicker(true)}
         onGenerateMaze={handleGenerateMaze}
         onExport={handleExport}
         onSave={handleSave}
@@ -770,6 +804,14 @@ function App() {
 
       {/* Keyboard Help Modal */}
       <KeyboardHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+      {/* Satellite Boundary Picker */}
+      {showSatellitePicker && (
+        <SatelliteBoundaryPicker
+          onConfirm={handleSatelliteBoundaryConfirm}
+          onCancel={() => setShowSatellitePicker(false)}
+        />
+      )}
     </div>
   );
 }

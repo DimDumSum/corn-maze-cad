@@ -40,6 +40,19 @@ export async function importFieldDemo(): Promise<FieldResponse> {
 }
 
 /**
+ * Import field boundary from coordinates traced on satellite imagery.
+ * @param coordinates Array of [lon, lat] pairs in WGS84
+ */
+export async function importSatelliteBoundary(coordinates: [number, number][]): Promise<FieldResponse> {
+  const response = await fetch(`${API_BASE_URL}/gis/import-satellite-boundary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ coordinates }),
+  });
+  return response.json();
+}
+
+/**
  * Import field boundary from file
  */
 export async function importFieldFromFile(file: File): Promise<FieldResponse> {

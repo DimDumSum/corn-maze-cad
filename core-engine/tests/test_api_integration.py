@@ -148,6 +148,30 @@ def test_corn_row_grid(loaded_client):
     assert data["total_rows"] > 0
 
 
+def test_import_satellite_boundary(client):
+    """Import a field boundary from satellite-traced coordinates."""
+    coords = [
+        [-93.645, 42.025],
+        [-93.640, 42.025],
+        [-93.640, 42.028],
+        [-93.645, 42.028],
+    ]
+    resp = client.post("/gis/import-satellite-boundary", json={"coordinates": coords})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["success"] is True
+    assert "geometry" in data
+    assert "exterior" in data["geometry"]
+    assert data["area_hectares"] > 0
+    assert data["source_format"] == "Satellite Trace"
+
+
+def test_import_satellite_boundary_too_few_points(client):
+    """Should reject with fewer than 3 points."""
+    resp = client.post("/gis/import-satellite-boundary", json={"coordinates": [[-93.645, 42.025], [-93.640, 42.025]]})
+    assert resp.status_code == 400
+
+
 def test_project_save_and_list(client):
     """Save a project and verify it appears in the list."""
     save_resp = client.post("/project/save", json={
