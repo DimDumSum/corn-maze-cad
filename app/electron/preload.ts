@@ -24,4 +24,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu:zoom-out', () => callback()),
   onZoomReset: (callback: () => void) =>
     ipcRenderer.on('menu:zoom-reset', () => callback()),
+
+  // Menu events for save/load/undo/redo
+  onMenuSave: (callback: () => void) =>
+    ipcRenderer.on('menu:save', () => callback()),
+  onMenuSaveAs: (callback: (path: string) => void) =>
+    ipcRenderer.on('menu:save-as', (_event: any, path: string) => callback(path)),
+  onMenuOpen: (callback: (path: string) => void) =>
+    ipcRenderer.on('menu:open', (_event: any, path: string) => callback(path)),
+  onMenuNew: (callback: () => void) =>
+    ipcRenderer.on('menu:new', () => callback()),
+  onMenuUndo: (callback: () => void) =>
+    ipcRenderer.on('menu:undo', () => callback()),
+  onMenuRedo: (callback: () => void) =>
+    ipcRenderer.on('menu:redo', () => callback()),
 });

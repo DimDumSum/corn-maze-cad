@@ -55,11 +55,75 @@ export async function importFieldFromFile(file: File): Promise<FieldResponse> {
 }
 
 /**
- * Generate maze
+ * Generate maze with algorithm selection
  */
-export async function generateMaze(spacing: number = 10.0): Promise<MazeResponse> {
-  const response = await fetch(`${API_BASE_URL}/maze/generate?spacing=${spacing}`);
+export type MazeAlgorithm = 'grid' | 'backtracker' | 'prims';
+
+export async function generateMaze(
+  spacing: number = 10.0,
+  algorithm: MazeAlgorithm = 'backtracker',
+  seed?: number,
+): Promise<MazeResponse & { algorithm?: string }> {
+  const params = new URLSearchParams({ spacing: String(spacing), algorithm });
+  if (seed !== undefined) params.set('seed', String(seed));
+  const response = await fetch(`${API_BASE_URL}/maze/generate?${params}`);
   return response.json();
+}
+
+/**
+ * Get maze analysis metrics
+ */
+export interface MazeMetrics {
+  total_wall_length: number;
+  dead_end_count: number;
+  junction_count: number;
+  difficulty_score: number;
+  path_count: number;
+  field_area_m2: number;
+  wall_density: number;
+}
+
+export async function getMazeMetrics(): Promise<MazeMetrics> {
+  const response = await fetch(`${API_BASE_URL}/analysis/metrics`);
+  return response.json();
+}
+
+/**
+ * Find path through maze (A* pathfinding)
+ */
+export interface PathfindResult {
+  solvable: boolean;
+  path: [number, number][] | null;
+  length: number;
+}
+
+export async function findPath(
+  start: [number, number],
+  goal: [number, number],
+  resolution: number = 2.0,
+): Promise<PathfindResult> {
+  const response = await fetch(`${API_BASE_URL}/analysis/find-path`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ start, goal, resolution }),
+  });
+  return response.json();
+}
+
+/**
+ * Save project to file
+ */
+export async function saveProject(data: object): Promise<{ success: boolean; error?: string }> {
+  // This is handled via Electron IPC - just a type helper
+  return { success: true };
+}
+
+/**
+ * Load project from file
+ */
+export async function loadProject(): Promise<{ success: boolean; data?: object; error?: string }> {
+  // This is handled via Electron IPC - just a type helper
+  return { success: true };
 }
 
 /**

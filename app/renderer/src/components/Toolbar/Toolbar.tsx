@@ -2,7 +2,7 @@
  * Toolbar Component - Main toolbar with tool selection, actions, and view toggles
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   MousePointer,
   Hand,
@@ -25,8 +25,13 @@ import {
   Redo2,
   Scissors,
   AlertTriangle,
+  BarChart3,
+  Save,
+  FolderOpen as FolderOpenIcon,
   type LucideIcon,
 } from 'lucide-react';
+import type { MazeAlgorithm, MazeMetrics } from '../../api/client';
+import * as api from '../../api/client';
 import { useUiStore } from '../../stores/uiStore';
 import { useDesignStore } from '../../stores/designStore';
 import { useConstraintStore } from '../../stores/constraintStore';
@@ -83,11 +88,13 @@ export type ExportFormat = 'kml' | 'png' | 'shapefile';
 
 interface ToolbarProps {
   onImportField: () => void;
-  onGenerateMaze: () => void;
+  onGenerateMaze: (algorithm?: MazeAlgorithm) => void;
   onExport: (format: ExportFormat) => void;
+  onSave?: () => void;
+  onLoad?: () => void;
 }
 
-export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProps) {
+export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool, showGrid, snapToGrid, toggleGrid, toggleSnap } = useUiStore();
   const {
     designElements,
@@ -120,6 +127,32 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProp
 
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Maze algorithm dropdown state
+  const [showAlgoMenu, setShowAlgoMenu] = useState(false);
+
+  // Maze stats panel state
+  const [showStats, setShowStats] = useState(false);
+  const [mazeMetrics, setMazeMetrics] = useState<MazeMetrics | null>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  const fetchMetrics = async () => {
+    setLoadingMetrics(true);
+    try {
+      const metrics = await api.getMazeMetrics();
+      setMazeMetrics(metrics);
+    } catch {
+      setMazeMetrics(null);
+    }
+    setLoadingMetrics(false);
+  };
+
+  const handleShowStats = () => {
+    setShowStats(!showStats);
+    if (!showStats) {
+      fetchMetrics();
+    }
+  };
 
   const handleCarve = async () => {
     if (designElements.length === 0) return;
@@ -331,7 +364,22 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProp
       <div className="toolbar-section actions">
         <ActionButton Icon={FolderOpen} label="Import Field" onClick={onImportField} />
         <ActionButton Icon={ImagePlus} label="Import Image" onClick={() => setShowImageImportDialog(true)} />
-        <ActionButton Icon={Grid3x3} label="Generate Maze" onClick={onGenerateMaze} />
+        <div style={{ position: 'relative' }}>
+          <ActionButton Icon={Grid3x3} label="Generate Maze (click for options)" onClick={() => setShowAlgoMenu(!showAlgoMenu)} />
+          {showAlgoMenu && (
+            <div className="export-dropdown">
+              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('backtracker'); setShowAlgoMenu(false); }}>
+                Recursive Backtracker (Hard)
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('prims'); setShowAlgoMenu(false); }}>
+                Prim's Algorithm (Easy)
+              </button>
+              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('grid'); setShowAlgoMenu(false); }}>
+                Simple Grid
+              </button>
+            </div>
+          )}
+        </div>
         <button
           className={`carve-button ${designElements.length > 0 ? 'has-elements' : ''} ${violations.length > 0 ? 'has-violations' : ''}`}
           onClick={handleCarve}
@@ -362,6 +410,11 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProp
             </div>
           )}
         </div>
+
+        <div className="toolbar-separator" />
+
+        <ActionButton Icon={BarChart3} label="Maze Stats" onClick={handleShowStats} disabled={!maze} />
+        {onSave && <ActionButton Icon={Save} label="Save Project (Ctrl+S)" onClick={onSave} />}
 
         <div className="toolbar-separator" />
 
@@ -399,6 +452,69 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport }: ToolbarProp
       {/* Image Import Dialog */}
       {showImageImportDialog && (
         <ImageImportDialog onClose={() => setShowImageImportDialog(false)} />
+      )}
+
+      {/* Maze Stats Panel */}
+      {showStats && (
+        <div className="maze-stats-panel" style={{
+          position: 'fixed', top: '60px', right: '16px', zIndex: 1000,
+          background: '#2a2a2a', border: '1px solid #444', borderRadius: '8px',
+          padding: '16px', minWidth: '240px', color: '#eee', fontSize: '13px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <strong style={{ fontSize: '14px' }}>Maze Analysis</strong>
+            <button onClick={() => setShowStats(false)} style={{
+              background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '16px'
+            }}>x</button>
+          </div>
+          {loadingMetrics ? (
+            <div style={{ color: '#888' }}>Analyzing...</div>
+          ) : mazeMetrics ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#aaa' }}>Difficulty</span>
+                <span style={{
+                  color: mazeMetrics.difficulty_score < 0.3 ? '#4CAF50'
+                    : mazeMetrics.difficulty_score < 0.7 ? '#FFC107' : '#ef4444',
+                  fontWeight: 'bold',
+                }}>
+                  {(mazeMetrics.difficulty_score * 100).toFixed(0)}%
+                  {mazeMetrics.difficulty_score < 0.3 ? ' Easy' : mazeMetrics.difficulty_score < 0.7 ? ' Medium' : ' Hard'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#aaa' }}>Dead Ends</span>
+                <span>{mazeMetrics.dead_end_count}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#aaa' }}>Junctions</span>
+                <span>{mazeMetrics.junction_count}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#aaa' }}>Wall Length</span>
+                <span>{mazeMetrics.total_wall_length.toFixed(0)}m</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#aaa' }}>Wall Segments</span>
+                <span>{mazeMetrics.path_count}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#aaa' }}>Field Area</span>
+                <span>{(mazeMetrics.field_area_m2 / 10000).toFixed(2)} ha</span>
+              </div>
+              <button onClick={fetchMetrics} style={{
+                marginTop: '8px', padding: '6px 12px', background: '#3b82f6',
+                color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer',
+                fontSize: '12px',
+              }}>
+                Refresh
+              </button>
+            </div>
+          ) : (
+            <div style={{ color: '#888' }}>No data. Generate a maze first.</div>
+          )}
+        </div>
       )}
     </div>
   );
