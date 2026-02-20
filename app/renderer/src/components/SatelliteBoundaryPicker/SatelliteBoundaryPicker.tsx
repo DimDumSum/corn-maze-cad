@@ -78,6 +78,13 @@ export function SatelliteBoundaryPicker({ onConfirm, onCancel }: SatelliteBounda
     const map = mapRef.current;
     if (!map) return;
 
+    const container = map.getContainer();
+    if (isClosed) {
+      container.style.cursor = '';
+    } else {
+      container.style.cursor = 'crosshair';
+    }
+
     const onClick = (e: L.LeafletMouseEvent) => {
       if (isClosed) return;
 
@@ -86,7 +93,10 @@ export function SatelliteBoundaryPicker({ onConfirm, onCancel }: SatelliteBounda
     };
 
     map.on('click', onClick);
-    return () => { map.off('click', onClick); };
+    return () => {
+      map.off('click', onClick);
+      container.style.cursor = '';
+    };
   }, [isClosed]);
 
   // Update polygon visualization when points change

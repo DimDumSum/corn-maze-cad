@@ -374,6 +374,7 @@ function App() {
     ctx.fill();
 
     // Layer 1: Field Boundary (Green - darker for light bg)
+    const { cornRowGrid, showCornRowGrid, fieldFillMode, aerialUnderlay } = useDesignStore.getState();
     if (field?.geometry) {
       ctx.beginPath();
       ctx.strokeStyle = '#2e7d32';
@@ -384,11 +385,16 @@ function App() {
         i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1])
       );
       ctx.closePath();
+
+      // Solid fill mode: fill the field with green to represent standing corn
+      if (fieldFillMode === 'solid') {
+        ctx.fillStyle = 'rgba(46, 125, 50, 0.25)';
+        ctx.fill();
+      }
       ctx.stroke();
     }
 
     // Layer 1.5: Corn Row Grid (light gray lines showing planting rows)
-    const { cornRowGrid, showCornRowGrid, aerialUnderlay } = useDesignStore.getState();
     if (showCornRowGrid && cornRowGrid) {
       ctx.strokeStyle = 'rgba(150, 130, 80, 0.15)';
       ctx.lineWidth = 0.5 / camera.scale;
