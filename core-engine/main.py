@@ -14,6 +14,7 @@ from gis.router import router as gis_router
 from geometry.router import router as geometry_router
 from mazification.router import router as mazification_router
 from export.router import router as export_router
+from analysis.router import router as analysis_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -85,6 +86,13 @@ app.include_router(
     tags=["Export"]
 )
 
+# Analysis module: Maze metrics and pathfinding
+app.include_router(
+    analysis_router,
+    prefix="/analysis",
+    tags=["Analysis"]
+)
+
 
 # Backwards compatibility endpoints (redirect to new paths)
 # TODO: Remove these after frontend is updated to use new paths
@@ -114,9 +122,9 @@ def carve_path_compat(req: PathRequest):
 
 # Old: /generate-maze -> New: /maze/generate
 @app.get("/generate-maze")
-def generate_maze_compat(spacing: float = 10.0):
+def generate_maze_compat(spacing: float = 10.0, algorithm: str = "backtracker", seed: int = None):
     """Backwards compatibility: Use /maze/generate instead."""
-    return generate_maze(spacing=spacing)
+    return generate_maze(spacing=spacing, algorithm=algorithm, seed=seed)
 
 # Old: /export-shapefile -> New: /export/shapefile
 @app.get("/export-shapefile")

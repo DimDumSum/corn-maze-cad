@@ -92,7 +92,7 @@ function App() {
     }
   };
 
-  const handleGenerateMaze = async () => {
+  const handleGenerateMaze = async (algorithm?: api.MazeAlgorithm) => {
     if (!field) {
       setError('Import a field boundary first');
       return;
@@ -104,7 +104,8 @@ function App() {
     try {
       // Use pathWidthMin as the maze spacing (grid line distance)
       const spacing = constraints.pathWidthMin || 10.0;
-      const result = await api.generateMaze(spacing);
+      const algo = algorithm || 'backtracker';
+      const result = await api.generateMaze(spacing, algo);
 
       if (result.error) {
         setError(result.error);
@@ -158,6 +159,50 @@ function App() {
       setLoading(false);
     }
   };
+
+  // === SAVE / LOAD PROJECT ===
+  const handleSave = async () => {
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI) return;
+
+    const state = useDesignStore.getState();
+    const projectData = {
+      version: 1,
+      field: state.field,
+      maze: state.maze,
+      designElements: state.designElements,
+      constraintZones: state.constraintZones,
+      camera,
+      gridSize,
+      showGrid,
+    };
+
+    try {
+      const path = await electronAPI.saveFile(JSON.stringify(projectData, null, 2));
+      if (path) {
+        state.markSaved();
+      }
+    } catch {
+      setError('Failed to save project');
+    }
+  };
+
+  // Listen for Electron menu events
+  useEffect(() => {
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI) return;
+
+    electronAPI.onMenuSave?.(() => handleSave());
+    electronAPI.onMenuNew?.(() => {
+      useDesignStore.getState().resetProject();
+    });
+    electronAPI.onMenuUndo?.(() => {
+      useDesignStore.getState().undo();
+    });
+    electronAPI.onMenuRedo?.(() => {
+      useDesignStore.getState().redo();
+    });
+  }, []);
 
   // === COORDINATE TRANSFORMATION ===
   const screenToWorld = (screenX: number, screenY: number): [number, number] => {
@@ -523,6 +568,7 @@ function App() {
         onImportField={handleImportField}
         onGenerateMaze={handleGenerateMaze}
         onExport={handleExport}
+        onSave={handleSave}
       />
 
       <div className="app-canvas-container">
