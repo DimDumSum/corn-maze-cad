@@ -374,7 +374,7 @@ function App() {
     ctx.fill();
 
     // Layer 1: Field Boundary (Green - darker for light bg)
-    const { cornRowGrid, showCornRowGrid, fieldFillMode, aerialUnderlay } = useDesignStore.getState();
+    const { cornRowGrid, showCornRowGrid, fieldFillMode, aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
     if (field?.geometry) {
       ctx.beginPath();
       ctx.strokeStyle = '#2e7d32';
@@ -394,8 +394,60 @@ function App() {
       ctx.stroke();
     }
 
-    // Layer 1.5: Corn Row Grid (light gray lines showing planting rows)
-    if (showCornRowGrid && cornRowGrid) {
+    // Layer 1.5a: Planter Row Grid (planted rows based on real planter specs)
+    if (showPlanterRows && planterRowGrid) {
+      // Draw headland boundary (dashed orange line showing where headlands end)
+      if (planterRowGrid.headlandBoundary && planterRowGrid.headlandBoundary.length > 2) {
+        ctx.strokeStyle = 'rgba(230, 81, 0, 0.4)';
+        ctx.lineWidth = 1.5 / camera.scale;
+        ctx.setLineDash([8 / camera.scale, 4 / camera.scale]);
+
+        ctx.beginPath();
+        const hb = planterRowGrid.headlandBoundary;
+        ctx.moveTo(hb[0][0], hb[0][1]);
+        for (let i = 1; i < hb.length; i++) {
+          ctx.lineTo(hb[i][0], hb[i][1]);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // Shade headland area (between field boundary and headland boundary)
+        if (field?.geometry) {
+          ctx.fillStyle = 'rgba(230, 81, 0, 0.06)';
+          // Draw field boundary (outer) then headland boundary (inner, counterclockwise for hole)
+          ctx.beginPath();
+          const ext = field.geometry.exterior;
+          ctx.moveTo(ext[0][0], ext[0][1]);
+          for (let i = 1; i < ext.length; i++) ctx.lineTo(ext[i][0], ext[i][1]);
+          ctx.closePath();
+          // Cut out the headland inner area
+          ctx.moveTo(hb[hb.length - 1][0], hb[hb.length - 1][1]);
+          for (let i = hb.length - 2; i >= 0; i--) ctx.lineTo(hb[i][0], hb[i][1]);
+          ctx.closePath();
+          ctx.fill('evenodd');
+        }
+
+        ctx.setLineDash([]);
+      }
+
+      // Draw planted row lines
+      ctx.strokeStyle = 'rgba(46, 125, 50, 0.2)';
+      ctx.lineWidth = 0.5 / camera.scale;
+
+      for (const line of planterRowGrid.rowLines) {
+        if (line.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(line[0][0], line[0][1]);
+          for (let i = 1; i < line.length; i++) {
+            ctx.lineTo(line[i][0], line[i][1]);
+          }
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Layer 1.5b: Corn Row Grid (legacy - light lines showing planting rows)
+    if (showCornRowGrid && cornRowGrid && !showPlanterRows) {
       ctx.strokeStyle = 'rgba(150, 130, 80, 0.15)';
       ctx.lineWidth = 0.5 / camera.scale;
 

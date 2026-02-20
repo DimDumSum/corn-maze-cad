@@ -21,7 +21,7 @@ export const DEFAULT_CONSTRAINTS = {
 /**
  * Tool names for the canvas
  */
-export type ToolName = 'select' | 'pan' | 'draw' | 'line' | 'rectangle' | 'eraser' | 'measure' | 'move' | 'circle' | 'arc' | 'text' | 'clipart' | 'flip' | 'entrance' | 'exit' | 'emergency_exit' | 'solution_path' | 'dead_end';
+export type ToolName = 'select' | 'pan' | 'draw' | 'line' | 'rectangle' | 'eraser' | 'measure' | 'move' | 'circle' | 'arc' | 'text' | 'clipart' | 'flip' | 'entrance' | 'exit' | 'emergency_exit' | 'solution_path' | 'dead_end' | 'planting_direction';
 
 /**
  * Supported GIS file formats

@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import type { FieldBoundary, MazeWalls, Layer, EntranceExit, DifficultyPhase, CornRowGrid, AerialUnderlay } from '../../../shared/types';
+import type { FieldBoundary, MazeWalls, Layer, EntranceExit, DifficultyPhase, CornRowGrid, AerialUnderlay, PlanterConfig, PlanterRowGrid } from '../../../shared/types';
 import { DEFAULT_LAYERS, AUTOSAVE_INTERVAL_MS } from '../../../shared/constants';
 
 const MAX_HISTORY_SIZE = 50;
@@ -89,7 +89,12 @@ interface DesignState {
   showCornRowGrid: boolean;
 
   // === FIELD FILL MODE ===
-  fieldFillMode: 'none' | 'solid' | 'cornrows';
+  fieldFillMode: 'none' | 'solid' | 'cornrows' | 'planter';
+
+  // === PLANTER CONFIG ===
+  planterConfig: PlanterConfig;
+  planterRowGrid: PlanterRowGrid | null;
+  showPlanterRows: boolean;
 
   // === AERIAL UNDERLAY ===
   aerialUnderlay: AerialUnderlay | null;
@@ -191,7 +196,12 @@ interface DesignState {
   setShowCornRowGrid: (show: boolean) => void;
 
   // === FIELD FILL MODE ACTIONS ===
-  setFieldFillMode: (mode: 'none' | 'solid' | 'cornrows') => void;
+  setFieldFillMode: (mode: 'none' | 'solid' | 'cornrows' | 'planter') => void;
+
+  // === PLANTER CONFIG ACTIONS ===
+  setPlanterConfig: (config: Partial<PlanterConfig>) => void;
+  setPlanterRowGrid: (grid: PlanterRowGrid | null) => void;
+  setShowPlanterRows: (show: boolean) => void;
 
   // === AERIAL UNDERLAY ACTIONS ===
   setAerialUnderlay: (underlay: AerialUnderlay | null) => void;
@@ -220,6 +230,9 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   cornRowGrid: null,
   showCornRowGrid: false,
   fieldFillMode: 'none' as const,
+  planterConfig: { rows: 16, spacingInches: 30, directionDeg: 0, headlands: 2 },
+  planterRowGrid: null,
+  showPlanterRows: false,
   aerialUnderlay: null,
   selectedElementIds: new Set<string>(),
   hoveredElementId: null,
@@ -835,6 +848,13 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   // === FIELD FILL MODE ACTIONS ===
   setFieldFillMode: (mode) => set({ fieldFillMode: mode }),
 
+  // === PLANTER CONFIG ACTIONS ===
+  setPlanterConfig: (config) => set((state) => ({
+    planterConfig: { ...state.planterConfig, ...config },
+  })),
+  setPlanterRowGrid: (grid) => set({ planterRowGrid: grid }),
+  setShowPlanterRows: (show) => set({ showPlanterRows: show }),
+
   // === AERIAL UNDERLAY ACTIONS ===
 
   setAerialUnderlay: (underlay) => set({ aerialUnderlay: underlay, isDirty: true }),
@@ -863,6 +883,9 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       cornRowGrid: null,
       showCornRowGrid: false,
       fieldFillMode: 'none' as const,
+      planterConfig: { rows: 16, spacingInches: 30, directionDeg: 0, headlands: 2 },
+      planterRowGrid: null,
+      showPlanterRows: false,
       aerialUnderlay: null,
       selectedElementIds: new Set(),
       hoveredElementId: null,
