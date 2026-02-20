@@ -8,7 +8,7 @@
  */
 
 import { create } from 'zustand';
-import type { FieldBoundary, MazeWalls, Layer, EntranceExit, DifficultyPhase, CornRowGrid, AerialUnderlay, PlanterConfig, PlanterRowGrid } from '../../../shared/types';
+import type { FieldBoundary, MazeWalls, Layer, EntranceExit, DifficultyPhase, AerialUnderlay, PlanterConfig, PlanterRowGrid } from '../../../shared/types';
 import { DEFAULT_LAYERS, AUTOSAVE_INTERVAL_MS } from '../../../shared/constants';
 
 const MAX_HISTORY_SIZE = 50;
@@ -83,13 +83,6 @@ interface DesignState {
   // === DIFFICULTY PHASES ===
   difficultyPhases: DifficultyPhase[];
   activeDifficultyPhase: string | null;
-
-  // === CORN ROW GRID ===
-  cornRowGrid: CornRowGrid | null;
-  showCornRowGrid: boolean;
-
-  // === FIELD FILL MODE ===
-  fieldFillMode: 'none' | 'solid' | 'cornrows' | 'planter';
 
   // === PLANTER CONFIG ===
   planterConfig: PlanterConfig;
@@ -191,13 +184,6 @@ interface DesignState {
   setDifficultyPhases: (phases: DifficultyPhase[]) => void;
   setActiveDifficultyPhase: (phase: string | null) => void;
 
-  // === CORN ROW GRID ACTIONS ===
-  setCornRowGrid: (grid: CornRowGrid | null) => void;
-  setShowCornRowGrid: (show: boolean) => void;
-
-  // === FIELD FILL MODE ACTIONS ===
-  setFieldFillMode: (mode: 'none' | 'solid' | 'cornrows' | 'planter') => void;
-
   // === PLANTER CONFIG ACTIONS ===
   setPlanterConfig: (config: Partial<PlanterConfig>) => void;
   setPlanterRowGrid: (grid: PlanterRowGrid | null) => void;
@@ -227,9 +213,6 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   emergencyExits: [],
   difficultyPhases: [],
   activeDifficultyPhase: null,
-  cornRowGrid: null,
-  showCornRowGrid: false,
-  fieldFillMode: 'none' as const,
   planterConfig: { rows: 16, spacingInches: 30, directionDeg: 0, headlands: 2 },
   planterRowGrid: null,
   showPlanterRows: false,
@@ -840,14 +823,6 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   setDifficultyPhases: (phases) => set({ difficultyPhases: phases }),
   setActiveDifficultyPhase: (phase) => set({ activeDifficultyPhase: phase }),
 
-  // === CORN ROW GRID ACTIONS ===
-
-  setCornRowGrid: (grid) => set({ cornRowGrid: grid }),
-  setShowCornRowGrid: (show) => set({ showCornRowGrid: show }),
-
-  // === FIELD FILL MODE ACTIONS ===
-  setFieldFillMode: (mode) => set({ fieldFillMode: mode }),
-
   // === PLANTER CONFIG ACTIONS ===
   setPlanterConfig: (config) => set((state) => ({
     planterConfig: { ...state.planterConfig, ...config },
@@ -880,9 +855,6 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       emergencyExits: [],
       difficultyPhases: [],
       activeDifficultyPhase: null,
-      cornRowGrid: null,
-      showCornRowGrid: false,
-      fieldFillMode: 'none' as const,
       planterConfig: { rows: 16, spacingInches: 30, directionDeg: 0, headlands: 2 },
       planterRowGrid: null,
       showPlanterRows: false,

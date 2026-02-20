@@ -374,7 +374,7 @@ function App() {
     ctx.fill();
 
     // Layer 1: Field Boundary (Green - darker for light bg)
-    const { cornRowGrid, showCornRowGrid, fieldFillMode, aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
+    const { aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
     if (field?.geometry) {
       ctx.beginPath();
       ctx.strokeStyle = '#2e7d32';
@@ -386,11 +386,6 @@ function App() {
       );
       ctx.closePath();
 
-      // Solid fill mode: fill the field with green to represent standing corn
-      if (fieldFillMode === 'solid') {
-        ctx.fillStyle = 'rgba(46, 125, 50, 0.25)';
-        ctx.fill();
-      }
       ctx.stroke();
     }
 
@@ -441,31 +436,6 @@ function App() {
           for (let i = 1; i < line.length; i++) {
             ctx.lineTo(line[i][0], line[i][1]);
           }
-          ctx.stroke();
-        }
-      }
-    }
-
-    // Layer 1.5b: Corn Row Grid (legacy - light lines showing planting rows)
-    if (showCornRowGrid && cornRowGrid && !showPlanterRows) {
-      ctx.strokeStyle = 'rgba(150, 130, 80, 0.15)';
-      ctx.lineWidth = 0.5 / camera.scale;
-
-      // Vertical rows
-      for (const line of cornRowGrid.vLines) {
-        if (line.length >= 2) {
-          ctx.beginPath();
-          ctx.moveTo(line[0][0], line[0][1]);
-          ctx.lineTo(line[1][0], line[1][1]);
-          ctx.stroke();
-        }
-      }
-      // Horizontal rows (cross-planted)
-      for (const line of cornRowGrid.hLines) {
-        if (line.length >= 2) {
-          ctx.beginPath();
-          ctx.moveTo(line[0][0], line[0][1]);
-          ctx.lineTo(line[1][0], line[1][1]);
           ctx.stroke();
         }
       }

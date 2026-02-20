@@ -42,7 +42,6 @@ import type { MazeAlgorithm, MazeMetrics } from '../../api/client';
 import * as api from '../../api/client';
 import { useUiStore } from '../../stores/uiStore';
 import { useDesignStore } from '../../stores/designStore';
-import type { PlanterConfig } from '../../../../shared/types';
 import { useConstraintStore } from '../../stores/constraintStore';
 import { ValidationDialog } from '../ValidationDialog/ValidationDialog';
 import { ImageImportDialog } from '../ImageImportDialog';
@@ -124,10 +123,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
     setMaze,
     field,
     pushSnapshot,
-    showCornRowGrid,
-    setShowCornRowGrid,
-    fieldFillMode,
-    setFieldFillMode,
     planterConfig,
     setPlanterConfig,
     setPlanterRowGrid,
@@ -611,7 +606,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
                   totalRows: result.total_rows,
                 });
                 setShowPlanterRows(true);
-                setFieldFillMode('planter');
               } catch (err) {
                 console.error('[Toolbar] Planter grid failed:', err);
               }
@@ -630,7 +624,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
               onClick={() => {
                 setShowPlanterRows(false);
                 setPlanterRowGrid(null);
-                setFieldFillMode('none');
               }}
               title="Hide planter rows"
               aria-label="Hide Planter Rows"

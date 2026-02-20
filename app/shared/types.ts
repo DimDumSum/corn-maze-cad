@@ -164,15 +164,6 @@ export interface PlanterConfig {
   headlands: number;           // Number of headland passes (each = one full planter width)
 }
 
-// === CORN ROW GRID ===
-
-export interface CornRowGrid {
-  rowSpacing: number;
-  crossPlanted: boolean;
-  vLines: [number, number][][];
-  hLines: [number, number][][];
-}
-
 // === PLANTER ROW GRID ===
 
 export interface PlanterRowGrid {

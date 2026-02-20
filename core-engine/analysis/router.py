@@ -431,53 +431,6 @@ def import_mazegps_data(req: MazeGPSImportRequest):
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 
-# === CORN ROW GRID COMPUTATION ===
-
-class CornRowGridRequest(BaseModel):
-    row_spacing: float = 0.762  # 30 inches in meters (default)
-    cross_planted: bool = True
-
-
-@router.post("/corn-row-grid")
-def compute_corn_row_grid(req: CornRowGridRequest):
-    """
-    Compute corn row grid lines for the current field.
-
-    Returns grid lines snapped to corn row spacing for overlay display.
-    """
-    field = app_state.get_field()
-
-    if not field:
-        raise HTTPException(status_code=400, detail={"error": "No field boundary"})
-
-    try:
-        minx, miny, maxx, maxy = field.bounds
-        import numpy as np
-
-        h_lines = []
-        v_lines = []
-
-        # Vertical lines (N-S planting rows)
-        for x in np.arange(minx, maxx, req.row_spacing):
-            v_lines.append([[round(x, 4), round(miny, 4)], [round(x, 4), round(maxy, 4)]])
-
-        if req.cross_planted:
-            # Horizontal lines (E-W cross-planting rows)
-            for y in np.arange(miny, maxy, req.row_spacing):
-                h_lines.append([[round(minx, 4), round(y, 4)], [round(maxx, 4), round(y, 4)]])
-
-        return {
-            "row_spacing": req.row_spacing,
-            "cross_planted": req.cross_planted,
-            "v_lines": v_lines,
-            "h_lines": h_lines,
-            "total_rows": len(v_lines) + len(h_lines),
-            "bounds": {"minx": minx, "miny": miny, "maxx": maxx, "maxy": maxy},
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail={"error": str(e)})
-
-
 # === PLANTER-BASED ROW GRID ===
 
 class PlanterGridRequest(BaseModel):
