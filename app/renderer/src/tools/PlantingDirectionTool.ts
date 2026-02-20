@@ -73,6 +73,11 @@ export const PlantingDirectionTool: Tool = {
 
     // Draw direction line
     ctx.save();
+
+    // Transform to world coordinates
+    ctx.translate(camera.x, camera.y);
+    ctx.scale(camera.scale, camera.scale);
+
     ctx.strokeStyle = '#e65100';
     ctx.lineWidth = 2 / camera.scale;
     ctx.setLineDash([6 / camera.scale, 4 / camera.scale]);

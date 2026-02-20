@@ -134,18 +134,19 @@ def test_guidance_status(client):
     assert data["is_active"] is False
 
 
-def test_corn_row_grid(loaded_client):
-    """Corn row grid computation should work with loaded field."""
-    resp = loaded_client.post("/analysis/corn-row-grid", json={
-        "row_spacing": 0.762,
-        "cross_planted": True,
+def test_planter_grid(loaded_client):
+    """Planter-based row grid computation should work with loaded field."""
+    resp = loaded_client.post("/analysis/planter-grid", json={
+        "planter_rows": 16,
+        "spacing_inches": 30,
+        "direction_deg": 0,
+        "headlands": 2,
     })
     assert resp.status_code == 200
     data = resp.json()
-    # Response uses "v_lines" and "h_lines" keys
-    assert "v_lines" in data or "h_lines" in data
-    assert data["row_spacing"] == 0.762
+    assert "row_lines" in data
     assert data["total_rows"] > 0
+    assert data["planter_width"] > 0
 
 
 def test_import_satellite_boundary(client):

@@ -477,17 +477,6 @@ export async function importMazeGPSData(trackingData: any[]): Promise<any> {
   return response.json();
 }
 
-// === CORN ROW GRID ===
-
-export async function computeCornRowGrid(rowSpacing: number = 0.762, crossPlanted: boolean = true): Promise<any> {
-  const response = await fetch(`${API_BASE_URL}/analysis/corn-row-grid`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ row_spacing: rowSpacing, cross_planted: crossPlanted }),
-  });
-  return response.json();
-}
-
 // === PLANTER-BASED ROW GRID ===
 
 export async function computePlanterGrid(
