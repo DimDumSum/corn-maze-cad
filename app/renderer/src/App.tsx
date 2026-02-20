@@ -6,6 +6,7 @@ import { useRef, useEffect, useState, useMemo } from 'react';
 import { Toolbar, type ExportFormat } from './components/Toolbar/Toolbar';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { KeyboardHelp } from './components/KeyboardHelp/KeyboardHelp';
+import { PanelTray } from './components/PanelTray/PanelTray';
 import { useUiStore } from './stores/uiStore';
 import { useConstraintStore } from './stores/constraintStore';
 import { useDesignStore } from './stores/designStore';
@@ -219,8 +220,8 @@ function App() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear canvas with dark background
-    ctx.fillStyle = '#1a1a1a';
+    // Clear canvas with light SketchUp-style background
+    ctx.fillStyle = '#e8e8e8';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Apply camera transform
@@ -233,10 +234,36 @@ function App() {
       drawGrid(ctx, camera, gridSize, canvas.width, canvas.height);
     }
 
-    // Layer 1: Field Boundary (Green)
+    // Draw colored origin axes (SketchUp-style: Red=X, Green=Y)
+    const axisLength = 10000;
+    const axisWidth = 1.5 / camera.scale;
+
+    // X-axis (Red)
+    ctx.strokeStyle = '#cc0000';
+    ctx.lineWidth = axisWidth;
+    ctx.beginPath();
+    ctx.moveTo(-axisLength, 0);
+    ctx.lineTo(axisLength, 0);
+    ctx.stroke();
+
+    // Y-axis (Green)
+    ctx.strokeStyle = '#008000';
+    ctx.lineWidth = axisWidth;
+    ctx.beginPath();
+    ctx.moveTo(0, -axisLength);
+    ctx.lineTo(0, axisLength);
+    ctx.stroke();
+
+    // Origin point
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    ctx.arc(0, 0, 3 / camera.scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Layer 1: Field Boundary (Green - darker for light bg)
     if (field?.geometry) {
       ctx.beginPath();
-      ctx.strokeStyle = '#4CAF50';
+      ctx.strokeStyle = '#2e7d32';
       ctx.lineWidth = 3 / camera.scale;
 
       const coords = field.geometry.exterior;
@@ -247,11 +274,11 @@ function App() {
       ctx.stroke();
     }
 
-    // Layer 2: Maze Walls (Yellow)
-    // Carved paths appear as dark gaps (absence of walls)
+    // Layer 2: Maze Walls (dark brown/amber for light bg)
+    // Carved paths appear as light gaps (absence of walls)
     if (maze?.walls) {
       ctx.beginPath();
-      ctx.strokeStyle = '#FFC107';
+      ctx.strokeStyle = '#8B6914';
       ctx.lineWidth = 2 / camera.scale;
 
       maze.walls.forEach((line: [number, number][]) => {
@@ -275,7 +302,7 @@ function App() {
     ctx.scale(camera.scale, camera.scale);
 
     for (const el of designElements) {
-      ctx.strokeStyle = '#3b82f6'; // Blue
+      ctx.strokeStyle = '#2563eb'; // Blue (darker for light bg)
       ctx.lineWidth = el.width;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -323,8 +350,8 @@ function App() {
       for (const v of violations) {
         // Draw highlight area if available
         if (v.highlightArea && v.highlightArea.length > 0) {
-          ctx.fillStyle = 'rgba(239, 68, 68, 0.25)'; // Semi-transparent red
-          ctx.strokeStyle = '#ef4444'; // Solid red
+          ctx.fillStyle = 'rgba(204, 51, 51, 0.2)';
+          ctx.strokeStyle = '#cc3333';
           ctx.lineWidth = 2 / camera.scale;
           ctx.setLineDash([6 / camera.scale, 3 / camera.scale]);
 
@@ -340,8 +367,8 @@ function App() {
         }
 
         // Draw violation marker (red circle)
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.6)';
-        ctx.strokeStyle = '#ef4444';
+        ctx.fillStyle = 'rgba(204, 51, 51, 0.5)';
+        ctx.strokeStyle = '#cc3333';
         ctx.lineWidth = 2 / camera.scale;
         ctx.beginPath();
         ctx.arc(v.location[0], v.location[1], 10 / camera.scale, 0, Math.PI * 2);
@@ -361,7 +388,7 @@ function App() {
         const labelX = v.location[0];
         const labelY = v.location[1] - 14 / camera.scale;
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.fillRect(
           labelX - textMetrics.width / 2 - padding,
           labelY - fontSize - padding,
@@ -370,7 +397,7 @@ function App() {
         );
 
         // Label text
-        ctx.fillStyle = '#ef4444';
+        ctx.fillStyle = '#cc3333';
         ctx.fillText(labelText, labelX, labelY);
       }
     }
@@ -396,8 +423,8 @@ function App() {
 
     // Empty state message
     if (!field) {
-      ctx.fillStyle = '#666';
-      ctx.font = '16px sans-serif';
+      ctx.fillStyle = '#999';
+      ctx.font = '15px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(
@@ -409,24 +436,24 @@ function App() {
 
     // Loading overlay
     if (loading) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = '#fff';
-      ctx.font = '20px sans-serif';
+      ctx.fillStyle = '#333';
+      ctx.font = '18px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
     }
 
     // Error message
     if (error) {
-      ctx.fillStyle = 'rgba(220, 38, 38, 0.9)';
-      ctx.fillRect(20, 20, canvas.width - 40, 60);
+      ctx.fillStyle = 'rgba(204, 51, 51, 0.9)';
+      ctx.fillRect(20, 20, canvas.width - 40, 50);
       ctx.fillStyle = '#fff';
-      ctx.font = '14px sans-serif';
+      ctx.font = '13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(error, canvas.width / 2, 40);
-      ctx.font = '12px sans-serif';
-      ctx.fillText('Press Esc to dismiss', canvas.width / 2, 60);
+      ctx.fillText(error, canvas.width / 2, 38);
+      ctx.font = '11px sans-serif';
+      ctx.fillText('Press Esc to dismiss', canvas.width / 2, 56);
     }
   };
 
@@ -571,16 +598,19 @@ function App() {
         onSave={handleSave}
       />
 
-      <div className="app-canvas-container">
-        <canvas
-          ref={canvasRef}
-          className="app-canvas"
-          onMouseDown={handleMouseDown}
-          onMouseMove={throttledMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-          style={{ cursor: tool.cursor }}
-        />
+      <div className="app-main">
+        <div className="app-canvas-container">
+          <canvas
+            ref={canvasRef}
+            className="app-canvas"
+            onMouseDown={handleMouseDown}
+            onMouseMove={throttledMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            style={{ cursor: tool.cursor }}
+          />
+        </div>
+        <PanelTray />
       </div>
 
       <StatusBar />

@@ -457,26 +457,26 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoa
       {/* Maze Stats Panel */}
       {showStats && (
         <div className="maze-stats-panel" style={{
-          position: 'fixed', top: '60px', right: '16px', zIndex: 1000,
-          background: '#2a2a2a', border: '1px solid #444', borderRadius: '8px',
-          padding: '16px', minWidth: '240px', color: '#eee', fontSize: '13px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          position: 'fixed', top: '52px', right: '12px', zIndex: 1000,
+          background: '#f0f0f0', border: '1px solid #b0b0b0', borderRadius: '4px',
+          padding: '12px', minWidth: '220px', color: '#333', fontSize: '12px',
+          boxShadow: '0 3px 8px rgba(0,0,0,0.15)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <strong style={{ fontSize: '14px' }}>Maze Analysis</strong>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <strong style={{ fontSize: '13px', color: '#222' }}>Maze Analysis</strong>
             <button onClick={() => setShowStats(false)} style={{
-              background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '16px'
+              background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '14px'
             }}>x</button>
           </div>
           {loadingMetrics ? (
             <div style={{ color: '#888' }}>Analyzing...</div>
           ) : mazeMetrics ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#aaa' }}>Difficulty</span>
+                <span style={{ color: '#666' }}>Difficulty</span>
                 <span style={{
-                  color: mazeMetrics.difficulty_score < 0.3 ? '#4CAF50'
-                    : mazeMetrics.difficulty_score < 0.7 ? '#FFC107' : '#ef4444',
+                  color: mazeMetrics.difficulty_score < 0.3 ? '#2e7d32'
+                    : mazeMetrics.difficulty_score < 0.7 ? '#cc8800' : '#cc3333',
                   fontWeight: 'bold',
                 }}>
                   {(mazeMetrics.difficulty_score * 100).toFixed(0)}%
@@ -484,29 +484,29 @@ export function Toolbar({ onImportField, onGenerateMaze, onExport, onSave, onLoa
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#aaa' }}>Dead Ends</span>
+                <span style={{ color: '#666' }}>Dead Ends</span>
                 <span>{mazeMetrics.dead_end_count}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#aaa' }}>Junctions</span>
+                <span style={{ color: '#666' }}>Junctions</span>
                 <span>{mazeMetrics.junction_count}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#aaa' }}>Wall Length</span>
+                <span style={{ color: '#666' }}>Wall Length</span>
                 <span>{mazeMetrics.total_wall_length.toFixed(0)}m</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#aaa' }}>Wall Segments</span>
+                <span style={{ color: '#666' }}>Wall Segments</span>
                 <span>{mazeMetrics.path_count}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#aaa' }}>Field Area</span>
+                <span style={{ color: '#666' }}>Field Area</span>
                 <span>{(mazeMetrics.field_area_m2 / 10000).toFixed(2)} ha</span>
               </div>
               <button onClick={fetchMetrics} style={{
-                marginTop: '8px', padding: '6px 12px', background: '#3b82f6',
-                color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer',
-                fontSize: '12px',
+                marginTop: '6px', padding: '4px 10px', background: '#4a90d9',
+                color: '#fff', border: '1px solid #3a7bc8', borderRadius: '3px', cursor: 'pointer',
+                fontSize: '11px',
               }}>
                 Refresh
               </button>

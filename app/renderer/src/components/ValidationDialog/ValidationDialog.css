@@ -1,4 +1,4 @@
-/* ValidationDialog Styles */
+/* ValidationDialog Styles - SketchUp Light Theme */
 
 .validation-dialog-overlay {
   position: fixed;
@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -20,12 +20,13 @@
 }
 
 .validation-dialog {
-  background: #1f2937;
-  border-radius: 12px;
+  background: #f0f0f0;
+  border-radius: 8px;
   width: 480px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+  border: 1px solid #b0b0b0;
   animation: slideUp 0.2s ease-out;
 }
 
@@ -45,20 +46,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 20px;
+  background: #cc3333;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .validation-header .warning-icon {
-  color: #fbbf24;
+  color: #ffd700;
   flex-shrink: 0;
 }
 
 .validation-header h2 {
   flex: 1;
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: white;
 }
@@ -75,84 +76,87 @@
 
 .validation-header .close-btn:hover {
   color: white;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Summary */
 .validation-summary {
   display: flex;
-  gap: 16px;
-  padding: 16px 24px;
-  background: #374151;
+  gap: 12px;
+  padding: 14px 20px;
+  background: #e8e8e8;
+  border-bottom: 1px solid #ccc;
 }
 
 .summary-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border-radius: 6px;
   flex: 1;
 }
 
 .summary-item.wall-width {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(204, 51, 51, 0.1);
+  border: 1px solid rgba(204, 51, 51, 0.3);
 }
 
 .summary-item.edge-buffer {
-  background: rgba(249, 115, 22, 0.2);
-  border: 1px solid rgba(249, 115, 22, 0.3);
+  background: rgba(204, 102, 0, 0.1);
+  border: 1px solid rgba(204, 102, 0, 0.3);
 }
 
 .summary-item .count {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: white;
+  color: #333;
 }
 
 .summary-item .label {
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 12px;
+  color: #666;
 }
 
 /* Violation List */
 .violation-list {
-  padding: 16px 24px;
+  padding: 14px 20px;
   max-height: 200px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .violation-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  background: #374151;
-  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 6px;
+  border-left: 3px solid;
+  border: 1px solid #ddd;
   border-left: 3px solid;
 }
 
 .violation-item.wall_width {
-  border-left-color: #ef4444;
+  border-left-color: #cc3333;
 }
 
 .violation-item.edge_buffer {
-  border-left-color: #f97316;
+  border-left-color: #cc6600;
 }
 
 .violation-icon {
-  font-size: 18px;
-  width: 28px;
-  height: 28px;
+  font-size: 16px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  background: #f0f0f0;
+  border-radius: 4px;
 }
 
 .violation-details {
@@ -160,35 +164,35 @@
 }
 
 .violation-message {
-  font-size: 13px;
-  color: #e5e7eb;
+  font-size: 12px;
+  color: #333;
   margin-bottom: 2px;
 }
 
 .violation-values {
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
 .violation-values .actual {
-  color: #ef4444;
+  color: #cc3333;
   font-weight: 600;
 }
 
 .violation-values .separator {
-  color: #6b7280;
+  color: #999;
 }
 
 .violation-values .required {
-  color: #10b981;
+  color: #2e8b2e;
 }
 
 .more-violations {
   text-align: center;
-  color: #9ca3af;
-  font-size: 13px;
+  color: #888;
+  font-size: 12px;
   padding: 8px;
 }
 
@@ -196,33 +200,34 @@
 .validation-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 20px 24px;
-  background: #111827;
+  gap: 10px;
+  padding: 16px 20px;
+  background: #e0e0e0;
+  border-top: 1px solid #ccc;
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 14px;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
-  border: none;
+  transition: all 0.1s;
+  border: 1px solid;
 }
 
 .action-btn.auto-fix {
-  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  background: #2e8b2e;
+  border-color: #267326;
   color: white;
 }
 
 .action-btn.auto-fix:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  background: #267326;
 }
 
 .action-btn.auto-fix:disabled {
@@ -231,47 +236,47 @@
 }
 
 .action-btn.manual-edit {
-  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+  background: #4a90d9;
+  border-color: #3a7bc8;
   color: white;
 }
 
 .action-btn.manual-edit:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  background: #3a7bc8;
 }
 
 .action-btn.carve-anyway {
-  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  background: #cc8800;
+  border-color: #b07700;
   color: white;
 }
 
 .action-btn.carve-anyway:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  background: #b07700;
 }
 
 .action-btn.cancel {
-  background: #374151;
-  color: #9ca3af;
-  border: 1px solid #4b5563;
+  background: #e0e0e0;
+  color: #555;
+  border-color: #b0b0b0;
 }
 
 .action-btn.cancel:hover {
-  background: #4b5563;
-  color: white;
+  background: #d0d0d0;
+  color: #333;
 }
 
 /* Help text */
 .validation-help {
-  padding: 12px 24px 20px;
-  background: #111827;
-  border-top: 1px solid #374151;
+  padding: 10px 20px 16px;
+  background: #e0e0e0;
+  border-top: 1px solid #ccc;
 }
 
 .validation-help p {
   margin: 0 0 4px 0;
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 11px;
+  color: #777;
 }
 
 .validation-help p:last-child {
@@ -279,5 +284,5 @@
 }
 
 .validation-help strong {
-  color: #9ca3af;
+  color: #555;
 }
