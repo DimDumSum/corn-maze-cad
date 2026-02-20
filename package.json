@@ -1,0 +1,35 @@
+{
+  "name": "corn-maze-cad",
+  "version": "1.0.0",
+  "description": "Desktop CAD application for corn maze design",
+  "main": "app/electron/dist/main.js",
+  "private": true,
+  "workspaces": [
+    "app/electron",
+    "app/renderer"
+  ],
+  "scripts": {
+    "install:python": "pip install -r core-engine/requirements.txt",
+    "install:all": "npm install && cd app/electron && npm install && cd ../renderer && npm install && cd ../.. && npm run install:python",
+    "dev:python": "cd core-engine && python -m uvicorn main:app --reload --port 8000",
+    "dev:renderer": "cd app/renderer && npm run dev",
+    "dev:electron": "wait-on http://localhost:5173 && npm run electron:build && cross-env NODE_ENV=development electron app/electron/dist/main.js",
+    "dev": "concurrently -n \"Python,React,Electron\" -c \"green,blue,yellow\" \"npm run dev:python\" \"npm run dev:renderer\" \"npm run dev:electron\"",
+    "electron:build": "cd app/electron && npm run build",
+    "electron:watch": "cd app/electron && npm run watch",
+    "build:renderer": "cd app/renderer && npm run build",
+    "build:electron": "cd app/electron && npm run build",
+    "build": "npm run build:renderer && npm run build:electron",
+    "start": "npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^25.0.0",
+    "wait-on": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

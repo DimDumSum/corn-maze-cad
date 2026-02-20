@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart  # Required for file upload handling
+shapely
+numpy
+pyproj
+pyshp
+fastkml  # KML parsing (GDAL-free alternative to fiona)
+lxml  # Required by fastkml
+svgpathtools  # SVG path parsing for clipart tool
+pillow  # Image processing for image import
+opencv-python  # Contour detection for image vectorization
+matplotlib  # Text path rendering

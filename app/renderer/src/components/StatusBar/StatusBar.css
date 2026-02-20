@@ -1,0 +1,74 @@
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
+  background: #2a2a2a;
+  border-top: 1px solid #3a3a3a;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-tool-name {
+  font-weight: 600;
+  color: #fff;
+}
+
+.status-hint {
+  color: #777;
+}
+
+.status-separator {
+  color: #555;
+  margin: 0 4px;
+}
+
+.unsaved-indicator {
+  color: #ff9800;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.input-buffer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  background: #3b82f6;
+  color: #fff;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.input-buffer-label {
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.input-buffer-value {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+}
