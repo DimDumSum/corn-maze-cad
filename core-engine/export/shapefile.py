@@ -35,34 +35,29 @@ def get_downloads_folder() -> Path:
     return home
 
 
-def create_wkt_prj_file(filepath: str, crs: str = "EPSG:3857"):
+def create_wkt_prj_file(filepath: str, crs: str = "EPSG:4326"):
     """
     Create .prj file with WKT coordinate system definition.
 
+    Uses pyproj to generate the correct WKT for any EPSG code.
+
     Args:
         filepath: Path where .prj file should be created
-        crs: Coordinate reference system (default: EPSG:3857 Web Mercator)
-
-    Note:
-        Currently only supports EPSG:3857. Will be extended to support
-        UTM zones in future updates.
+        crs: Coordinate reference system (e.g., "EPSG:32615")
     """
-    # TODO: Support dynamic CRS based on UTM zone detection
-    # For now, hardcoded to Web Mercator
-    prj_content = (
-        'PROJCS["WGS 84 / Pseudo-Mercator",'
-        'GEOGCS["WGS 84",'
-        'DATUM["WGS_1984",'
-        'SPHEROID["WGS 84",6378137,298.257223563]],'
-        'PRIMEM["Greenwich",0],'
-        'UNIT["degree",0.0174532925199433]],'
-        'PROJECTION["Mercator_1SP"],'
-        'PARAMETER["central_meridian",0],'
-        'PARAMETER["scale_factor",1],'
-        'PARAMETER["false_easting",0],'
-        'PARAMETER["false_northing",0],'
-        'UNIT["metre",1]]'
-    )
+    try:
+        import pyproj
+        crs_obj = pyproj.CRS(crs)
+        prj_content = crs_obj.to_wkt()
+    except Exception:
+        # Fallback to WGS84 if pyproj fails
+        prj_content = (
+            'GEOGCS["GCS_WGS_1984",'
+            'DATUM["D_WGS_1984",'
+            'SPHEROID["WGS_1984",6378137,298.257223563]],'
+            'PRIMEM["Greenwich",0],'
+            'UNIT["Degree",0.017453292519943295]]'
+        )
 
     with open(filepath, 'w') as f:
         f.write(prj_content)
@@ -71,7 +66,8 @@ def create_wkt_prj_file(filepath: str, crs: str = "EPSG:3857"):
 def export_walls_to_shapefile(
     walls: BaseGeometry,
     base_name: str = "maze_walls",
-    output_dir: Path = None
+    output_dir: Path = None,
+    crs: str = "EPSG:4326",
 ) -> Dict[str, any]:
     """
     Export maze walls to ESRI Shapefile format.
@@ -129,9 +125,9 @@ def export_walls_to_shapefile(
             writer.line([line_coords])
             writer.record(i)
 
-    # Create .prj file with coordinate system definition
+    # Create .prj file with actual coordinate system from import
     prj_path = output_path.with_suffix('.prj')
-    create_wkt_prj_file(str(prj_path))
+    create_wkt_prj_file(str(prj_path), crs=crs)
 
     return {
         "success": True,

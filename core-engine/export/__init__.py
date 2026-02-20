@@ -1,8 +1,8 @@
 """
-Export module: Shapefile and report generation.
+Export module: Shapefile, KML, and georeferenced PNG export.
 
-Handles exporting maze designs to various GIS formats
-and generating analysis reports.
+Handles exporting maze designs to formats compatible with MazeGPS
+and other GIS tools.
 """
 
 from .shapefile import (
@@ -10,9 +10,19 @@ from .shapefile import (
     get_downloads_folder,
     create_wkt_prj_file,
 )
+from .kml import (
+    export_boundary_kml,
+    export_walls_kml,
+)
+from .png import (
+    export_georeferenced_png,
+)
 
 __all__ = [
     "export_walls_to_shapefile",
     "get_downloads_folder",
     "create_wkt_prj_file",
+    "export_boundary_kml",
+    "export_walls_kml",
+    "export_georeferenced_png",
 ]

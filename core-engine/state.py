@@ -17,6 +17,7 @@ class AppState:
     - current_field: Field boundary geometry (centered at origin)
     - current_walls: Maze walls geometry
     - current_crs: Coordinate reference system (e.g., "EPSG:32615")
+    - centroid_offset: (cx, cy) offset subtracted during centering, needed for geo export
     - carved_edges: Accumulated boundaries of all carved paths (for validation)
     """
 
@@ -28,13 +29,15 @@ class AppState:
             cls._instance.current_field: Optional[BaseGeometry] = None
             cls._instance.current_walls: Optional[BaseGeometry] = None
             cls._instance.current_crs: Optional[str] = None
+            cls._instance.centroid_offset: Optional[tuple] = None
             cls._instance.carved_edges: Optional[BaseGeometry] = None
         return cls._instance
 
-    def set_field(self, field: BaseGeometry, crs: str):
-        """Set the current field boundary and CRS."""
+    def set_field(self, field: BaseGeometry, crs: str, centroid_offset: tuple = None):
+        """Set the current field boundary, CRS, and centroid offset."""
         self.current_field = field
         self.current_crs = crs
+        self.centroid_offset = centroid_offset or (0.0, 0.0)
         # Reset walls and carved edges when field changes
         self.current_walls = None
         self.carved_edges = None
@@ -55,6 +58,10 @@ class AppState:
         """Get the current coordinate reference system."""
         return self.current_crs
 
+    def get_centroid_offset(self) -> tuple:
+        """Get the centroid offset used for centering."""
+        return self.centroid_offset or (0.0, 0.0)
+
     def get_carved_edges(self) -> Optional[BaseGeometry]:
         """Get the accumulated carved path boundaries."""
         return self.carved_edges
@@ -72,6 +79,7 @@ class AppState:
         self.current_field = None
         self.current_walls = None
         self.current_crs = None
+        self.centroid_offset = None
         self.carved_edges = None
 
 

@@ -206,6 +206,9 @@ async def import_boundary_file(
         cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
         centered_geom = transform(lambda x, y: (x - cx, y - cy), projected_geom)
 
+        # Store in backend state for maze generation and export
+        app_state.set_field(centered_geom, target_crs, centroid_offset=(cx, cy))
+
         # Calculate area in hectares
         area_m2 = centered_geom.area
         area_hectares = area_m2 / 10000.0
@@ -266,11 +269,18 @@ def import_gps_data(demo: bool = Query(False, description="Load demo Iowa field"
     cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
     centered_field = transform(lambda x, y: (x - cx, y - cy), projected)
 
-    # Update global state
-    app_state.set_field(centered_field, target_crs)
+    # Update global state with centroid offset for geo export
+    app_state.set_field(centered_field, target_crs, centroid_offset=(cx, cy))
 
+    # Return in standard FieldBoundary format (matching import-boundary response)
+    area_m2 = centered_field.area
     return {
-        "exterior": list(centered_field.exterior.coords),
-        "interiors": []  # No holes for now
+        "geometry": {
+            "exterior": list(centered_field.exterior.coords),
+            "interiors": []
+        },
+        "crs": target_crs,
+        "area_hectares": area_m2 / 10000.0,
+        "bounds": list(centered_field.bounds),
     }
 
