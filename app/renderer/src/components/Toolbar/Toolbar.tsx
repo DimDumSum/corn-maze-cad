@@ -95,7 +95,7 @@ function ActionButton({ Icon, label, onClick, disabled = false }: ActionButtonPr
 export type ExportFormat = 'kml' | 'png' | 'shapefile' | 'gpx' | 'dxf' | 'printable' | 'prescription';
 
 interface ToolbarProps {
-  onImportField: () => void;
+  onImportField?: () => void;
   onImportFromSatellite?: () => void;
   onGenerateMaze: (algorithm?: MazeAlgorithm) => void;
   onExport: (format: ExportFormat) => void;
@@ -103,7 +103,7 @@ interface ToolbarProps {
   onLoad?: () => void;
 }
 
-export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, onExport, onSave, onLoad }: ToolbarProps) {
+export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool, showGrid, snapToGrid, toggleGrid, toggleSnap } = useUiStore();
   const {
     designElements,
@@ -139,16 +139,12 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // Import dropdown state
-  const [showImportMenu, setShowImportMenu] = useState(false);
-
   // Maze algorithm dropdown state
   const [showAlgoMenu, setShowAlgoMenu] = useState(false);
 
-  const anyMenuOpen = showImportMenu || showAlgoMenu || showExportMenu;
+  const anyMenuOpen = showAlgoMenu || showExportMenu;
 
   const closeAllMenus = () => {
-    setShowImportMenu(false);
     setShowAlgoMenu(false);
     setShowExportMenu(false);
   };
@@ -394,35 +390,22 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
 
       {/* Action Section */}
       <div className="toolbar-section actions">
-        <div style={{ position: 'relative' }}>
+        {onImportFromSatellite && (
           <button
             className="toolbar-dropdown-button"
-            onClick={() => { setShowImportMenu(!showImportMenu); setShowAlgoMenu(false); setShowExportMenu(false); }}
-            title="Import Field"
-            aria-label="Import Field"
+            onClick={onImportFromSatellite}
+            title="Draw field boundary on satellite image"
+            aria-label="Import Field from Satellite"
           >
-            <FolderOpen size={16} />
-            <span>Import</span>
-            <span className="dropdown-arrow">&#9662;</span>
+            <Map size={16} />
+            <span>Draw Boundary</span>
           </button>
-          {showImportMenu && (
-            <div className="export-dropdown">
-              {onImportFromSatellite && (
-                <button className="export-dropdown-item" onClick={() => { onImportFromSatellite(); setShowImportMenu(false); }}>
-                  From Satellite Image
-                </button>
-              )}
-              <button className="export-dropdown-item" onClick={() => { onImportField(); setShowImportMenu(false); }}>
-                Demo Field (Iowa)
-              </button>
-            </div>
-          )}
-        </div>
+        )}
         <ActionButton Icon={ImagePlus} label="Import Image" onClick={() => setShowImageImportDialog(true)} />
         <div style={{ position: 'relative' }}>
           <button
             className="toolbar-dropdown-button"
-            onClick={() => { setShowAlgoMenu(!showAlgoMenu); setShowImportMenu(false); setShowExportMenu(false); }}
+            onClick={() => { setShowAlgoMenu(!showAlgoMenu); setShowExportMenu(false); }}
             title="Generate Maze"
             aria-label="Generate Maze"
           >
@@ -461,7 +444,7 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
         <div style={{ position: 'relative' }}>
           <button
             className="toolbar-dropdown-button"
-            onClick={() => { setShowExportMenu(!showExportMenu); setShowImportMenu(false); setShowAlgoMenu(false); }}
+            onClick={() => { setShowExportMenu(!showExportMenu); setShowAlgoMenu(false); }}
             title="Export"
             aria-label="Export"
           >
