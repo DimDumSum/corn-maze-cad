@@ -30,6 +30,8 @@ interface ClipArtToolState {
   selectedClipArt: ClipArtItem | null;
   scale: number; // Size in meters
   rotation: number; // Rotation in degrees (0-360)
+  carveMode: 'filled' | 'outline'; // Filled removes entire interior, outline carves along the edge
+  outlineWidth: number; // Path width in meters when carving as outline
   previewPaths: GeoJSONPolygon[] | null;
   // For drag-to-reposition
   isDragging: boolean;
@@ -50,6 +52,8 @@ const DEFAULT_CLIPART_STATE: ClipArtToolState = {
   selectedClipArt: null,
   scale: 20, // 20 meters default
   rotation: 0,
+  carveMode: 'filled',
+  outlineWidth: 4.0, // Default path width in meters
   previewPaths: null,
   isDragging: false,
   originalPosition: null,
@@ -232,8 +236,8 @@ export const ClipArtTool: Tool = {
 
     // ClipArt preview paths
     if (previewPaths && previewPaths.length > 0 && stage === 'placingClipArt') {
+      const { carveMode, outlineWidth } = clipArtState;
       ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = lineWidth;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -260,7 +264,23 @@ export const ClipArtTool: Tool = {
           ctx.lineTo(path[i][0] + offsetX, yFlipBase - path[i][1] + offsetY);
         }
         ctx.closePath();
-        ctx.stroke();
+
+        if (carveMode === 'filled') {
+          // Filled mode: show semi-transparent fill to indicate the whole interior will be carved
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+          ctx.fill();
+          ctx.lineWidth = lineWidth;
+          ctx.stroke();
+        } else {
+          // Outline mode: show thick stroke at the outline width to indicate carve path
+          ctx.lineWidth = outlineWidth;
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+          ctx.stroke();
+          // Draw a thin center line for clarity
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = '#10b981';
+          ctx.stroke();
+        }
       }
     }
 
@@ -363,6 +383,32 @@ function showClipArtDialog(): void {
       </div>
     </div>
 
+    <!-- Carve Mode -->
+    <div style="margin-bottom: 16px; padding: 12px; background: #374151; border-radius: 4px;">
+      <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500;">Carve Mode:</label>
+      <div style="display: flex; gap: 16px; margin-bottom: 8px;">
+        <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
+          <input type="radio" name="carve-mode" value="filled" ${clipArtState.carveMode === 'filled' ? 'checked' : ''} style="margin-right: 6px;">
+          <span>Filled</span>
+          <span style="color: #9ca3af; font-size: 11px; margin-left: 4px;">(remove entire shape)</span>
+        </label>
+        <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
+          <input type="radio" name="carve-mode" value="outline" ${clipArtState.carveMode === 'outline' ? 'checked' : ''} style="margin-right: 6px;">
+          <span>Outline</span>
+          <span style="color: #9ca3af; font-size: 11px; margin-left: 4px;">(carve path along edge)</span>
+        </label>
+      </div>
+      <div id="outline-width-container" style="${clipArtState.carveMode === 'filled' ? 'display: none;' : ''}">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <label style="font-size: 13px; color: #9ca3af;">Path width:</label>
+          <input type="number" id="outline-width-input" value="${clipArtState.outlineWidth}" min="0.5" max="20" step="0.5"
+            style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #4b5563;
+            background: #1f2937; color: white; font-size: 13px;">
+          <span style="color: #9ca3af; font-size: 12px;">m</span>
+        </div>
+      </div>
+    </div>
+
     <div style="display: flex; gap: 12px; justify-content: flex-end;">
       <button id="cancel-btn" style="padding: 8px 16px; border-radius: 4px; border: 1px solid #4b5563;
         background: #374151; color: white; cursor: pointer; font-size: 14px;">
@@ -388,14 +434,29 @@ function showClipArtDialog(): void {
   const cancelBtn = document.getElementById('cancel-btn') as HTMLButtonElement;
   const okBtn = document.getElementById('ok-btn') as HTMLButtonElement;
 
+  const outlineWidthInput = document.getElementById('outline-width-input') as HTMLInputElement;
+  const outlineWidthContainer = document.getElementById('outline-width-container') as HTMLDivElement;
+  const carveModeRadios = document.querySelectorAll<HTMLInputElement>('input[name="carve-mode"]');
+
   let selectedClipArt: ClipArtItem | null = clipArtState.selectedClipArt;
 
   // Prevent keyboard shortcuts
   const stopPropagation = (e: Event) => e.stopPropagation();
-  [scaleInput].forEach(input => {
-    input.addEventListener('keydown', stopPropagation);
-    input.addEventListener('keyup', stopPropagation);
-    input.addEventListener('keypress', stopPropagation);
+  [scaleInput, outlineWidthInput].forEach(input => {
+    if (input) {
+      input.addEventListener('keydown', stopPropagation);
+      input.addEventListener('keyup', stopPropagation);
+      input.addEventListener('keypress', stopPropagation);
+    }
+  });
+
+  // Carve mode toggle
+  carveModeRadios.forEach((radio) => {
+    radio.addEventListener('change', () => {
+      if (outlineWidthContainer) {
+        outlineWidthContainer.style.display = radio.value === 'filled' ? 'none' : '';
+      }
+    });
   });
 
   // Render clipart grid for a category
@@ -508,10 +569,15 @@ function showClipArtDialog(): void {
     }
 
     const scale = parseFloat(scaleInput.value);
+    const carveModeEl = document.querySelector<HTMLInputElement>('input[name="carve-mode"]:checked');
+    const carveMode = (carveModeEl?.value as 'filled' | 'outline') || 'filled';
+    const outlineWidth = outlineWidthInput ? parseFloat(outlineWidthInput.value) || 4.0 : 4.0;
 
     updateClipArtState({
       selectedClipArt,
       scale,
+      carveMode,
+      outlineWidth,
       rotation: 0, // Rotation is now set via transform handles after placement
       stage: 'placingClipArt',
     });
@@ -583,7 +649,7 @@ async function generateClipArtPreview(): Promise<void> {
  */
 export async function clipArtToolFinish(): Promise<void> {
   const clipArtState = getClipArtState();
-  const { previewPaths, position, originalPosition } = clipArtState;
+  const { previewPaths, position, originalPosition, carveMode, outlineWidth } = clipArtState;
 
   if (!previewPaths || previewPaths.length === 0 || !position) {
     updateClipArtState({
@@ -606,6 +672,10 @@ export async function clipArtToolFinish(): Promise<void> {
   const yFlipBase = origPosY * 2;
 
   const addedIds: string[] = [];
+
+  // In outline mode: closed=false so carve-batch buffers the line at outlineWidth
+  // In filled mode: closed=true so carve-batch uses the polygon directly
+  const isFilled = carveMode === 'filled';
 
   try {
     for (let p = 0; p < previewPaths.length; p++) {
@@ -633,15 +703,15 @@ export async function clipArtToolFinish(): Promise<void> {
       const id = addDesignElement({
         type: 'clipart',
         points: finalCoords,
-        width: 0,
-        closed: true,
+        width: isFilled ? 0 : outlineWidth,
+        closed: isFilled,
         rotation: 0, // Always 0, user can rotate with transform handles
       });
       addedIds.push(id);
     }
 
     if (import.meta.env.DEV) {
-      console.log(`[ClipArtTool] Added ${previewPaths.length} clipart elements`);
+      console.log(`[ClipArtTool] Added ${previewPaths.length} clipart elements (mode: ${carveMode}${!isFilled ? `, width: ${outlineWidth}m` : ''})`);
     }
 
     // Auto-select newly added elements and switch to Select tool

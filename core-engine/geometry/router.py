@@ -1621,15 +1621,19 @@ def carve_batch(req: CarveBatchRequest):
             try:
                 # Determine if this should be treated as a filled polygon
                 el_type_lower = el.type.lower()
-                is_text_or_clipart = el_type_lower == 'text' or el_type_lower == 'clipart'
+                # Text is always driven by its own fillMode (geometry already reflects it)
+                is_text = el_type_lower == 'text'
+                # Clipart respects the closed flag: closed=true → filled, closed=false → outline
                 is_closed_flag = el.closed and len(points) >= 3
-                # Check if points form a closed loop (first point ≈ last point)
-                points_close_loop = (len(points) >= 4 and
+                # Check if points form a closed loop (first ≈ last point) as a fallback,
+                # but NOT if the element explicitly has closed=false with a width (outline mode)
+                explicitly_outline = (not el.closed and el.width > 0)
+                points_close_loop = (not explicitly_outline and len(points) >= 4 and
                                      abs(points[0][0] - points[-1][0]) < 0.01 and
                                      abs(points[0][1] - points[-1][1]) < 0.01)
 
-                # TEXT, CLIPART, and CLOSED SHAPES: Use polygon directly (filled area)
-                if is_text_or_clipart or is_closed_flag or points_close_loop:
+                # TEXT (always polygon), CLOSED SHAPES: Use polygon directly (filled area)
+                if is_text or is_closed_flag or points_close_loop:
                     print(f"[Batch Carve] Processing as POLYGON: {el.id[:8]} (type={el.type}, closed={el.closed}, is_text_or_clipart={is_text_or_clipart}, points_close_loop={points_close_loop})")
                     poly = Polygon(points)
                     print(f"[Batch Carve]   -> Polygon valid: {poly.is_valid}, area: {poly.area:.2f}m²")
