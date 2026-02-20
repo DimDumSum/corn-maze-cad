@@ -2,7 +2,7 @@
  * Toolbar Component - Main toolbar with tool selection, actions, and view toggles
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   MousePointer,
   Hand,
@@ -144,6 +144,35 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
 
   // Maze algorithm dropdown state
   const [showAlgoMenu, setShowAlgoMenu] = useState(false);
+
+  // Refs for dropdown click-outside detection
+  const importMenuRef = useRef<HTMLDivElement>(null);
+  const algoMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        showImportMenu && importMenuRef.current && !importMenuRef.current.contains(target)
+      ) {
+        setShowImportMenu(false);
+      }
+      if (
+        showAlgoMenu && algoMenuRef.current && !algoMenuRef.current.contains(target)
+      ) {
+        setShowAlgoMenu(false);
+      }
+      if (
+        showExportMenu && exportMenuRef.current && !exportMenuRef.current.contains(target)
+      ) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showImportMenu, showAlgoMenu, showExportMenu]);
 
   // Maze stats panel state
   const [showStats, setShowStats] = useState(false);
@@ -381,8 +410,16 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
 
       {/* Action Section */}
       <div className="toolbar-section actions">
-        <div style={{ position: 'relative' }}>
-          <ActionButton Icon={FolderOpen} label="Import Field (click for options)" onClick={() => setShowImportMenu(!showImportMenu)} />
+        <div ref={importMenuRef} style={{ position: 'relative' }}>
+          <button
+            className="toolbar-dropdown-button"
+            onClick={() => { setShowImportMenu(!showImportMenu); setShowAlgoMenu(false); setShowExportMenu(false); }}
+            title="Import Field"
+            aria-label="Import Field"
+          >
+            <FolderOpen size={18} />
+            <span className="dropdown-arrow">&#9662;</span>
+          </button>
           {showImportMenu && (
             <div className="export-dropdown">
               {onImportFromSatellite && (
@@ -397,8 +434,16 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
           )}
         </div>
         <ActionButton Icon={ImagePlus} label="Import Image" onClick={() => setShowImageImportDialog(true)} />
-        <div style={{ position: 'relative' }}>
-          <ActionButton Icon={Grid3x3} label="Generate Maze (click for options)" onClick={() => setShowAlgoMenu(!showAlgoMenu)} />
+        <div ref={algoMenuRef} style={{ position: 'relative' }}>
+          <button
+            className="toolbar-dropdown-button"
+            onClick={() => { setShowAlgoMenu(!showAlgoMenu); setShowImportMenu(false); setShowExportMenu(false); }}
+            title="Generate Maze"
+            aria-label="Generate Maze"
+          >
+            <Grid3x3 size={18} />
+            <span className="dropdown-arrow">&#9662;</span>
+          </button>
           {showAlgoMenu && (
             <div className="export-dropdown">
               <button className="export-dropdown-item" onClick={() => { onGenerateMaze('backtracker'); setShowAlgoMenu(false); }}>
@@ -427,8 +472,16 @@ export function Toolbar({ onImportField, onImportFromSatellite, onGenerateMaze, 
             </span>
           )}
         </button>
-        <div style={{ position: 'relative' }}>
-          <ActionButton Icon={Download} label="Export" onClick={() => setShowExportMenu(!showExportMenu)} />
+        <div ref={exportMenuRef} style={{ position: 'relative' }}>
+          <button
+            className="toolbar-dropdown-button"
+            onClick={() => { setShowExportMenu(!showExportMenu); setShowImportMenu(false); setShowAlgoMenu(false); }}
+            title="Export"
+            aria-label="Export"
+          >
+            <Download size={18} />
+            <span className="dropdown-arrow">&#9662;</span>
+          </button>
           {showExportMenu && (
             <div className="export-dropdown">
               <button className="export-dropdown-item" onClick={() => { onExport('kml'); setShowExportMenu(false); }}>
