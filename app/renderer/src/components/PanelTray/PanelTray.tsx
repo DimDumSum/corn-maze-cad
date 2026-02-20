@@ -8,11 +8,12 @@
  */
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Navigation } from 'lucide-react';
 import { useDesignStore } from '../../stores/designStore';
 import { useConstraintStore } from '../../stores/constraintStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
+import * as api from '../../api/client';
 import './PanelTray.css';
 
 interface PanelSectionProps {
@@ -38,10 +39,12 @@ function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps
 }
 
 export function PanelTray() {
-  const { designElements, selectedElementIds, maze, field } = useDesignStore();
+  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, setPlanterRowGrid, showPlanterRows, setShowPlanterRows } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
+  const { setTool } = useUiStore();
   const camera = useUiStore((s) => s.camera);
+  const [applyingGrid, setApplyingGrid] = useState(false);
 
   // Get selected elements
   const selectedElements = designElements.filter(el => selectedElementIds.has(el.id));
@@ -148,6 +151,120 @@ export function PanelTray() {
         <button className="panel-reset-btn" onClick={resetToDefaults}>
           Reset Defaults
         </button>
+      </PanelSection>
+
+      {/* Planter Specs */}
+      <PanelSection title="Planter Specs" defaultOpen={true}>
+        <div className="constraint-row">
+          <label>Rows</label>
+          <select
+            className="constraint-input"
+            value={planterConfig.rows}
+            onChange={(e) => setPlanterConfig({ rows: Number(e.target.value) })}
+            style={{ width: '60px' }}
+          >
+            {[4, 6, 8, 12, 16, 18].map(n => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+        <div className="constraint-row">
+          <label>Spacing</label>
+          <select
+            className="constraint-input"
+            value={planterConfig.spacingInches}
+            onChange={(e) => setPlanterConfig({ spacingInches: Number(e.target.value) })}
+            style={{ width: '60px' }}
+          >
+            {[24, 30, 36].map(n => (
+              <option key={n} value={n}>{n}"</option>
+            ))}
+          </select>
+        </div>
+        <div className="constraint-row">
+          <label>Direction</label>
+          <input
+            type="number"
+            className="constraint-input"
+            value={planterConfig.directionDeg}
+            onChange={(e) => setPlanterConfig({ directionDeg: ((Number(e.target.value) % 360) + 360) % 360 })}
+            min={0} max={359} step={1}
+            style={{ width: '48px' }}
+          />
+          <span className="constraint-unit">&deg;</span>
+          <button
+            className="panel-reset-btn"
+            onClick={() => setTool('planting_direction')}
+            title="Click & drag on field to set direction"
+            style={{ padding: '2px 4px', display: 'flex', alignItems: 'center' }}
+          >
+            <Navigation size={12} />
+          </button>
+        </div>
+        <div className="constraint-row">
+          <label>Headlands</label>
+          <input
+            type="number"
+            className="constraint-input"
+            value={planterConfig.headlands}
+            onChange={(e) => setPlanterConfig({ headlands: Math.max(0, Number(e.target.value)) })}
+            min={0} max={10} step={1}
+            style={{ width: '48px' }}
+          />
+          <span className="constraint-unit">passes</span>
+        </div>
+
+        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+          <button
+            className="panel-apply-btn"
+            disabled={!field || applyingGrid}
+            onClick={async () => {
+              if (!field) return;
+              setApplyingGrid(true);
+              try {
+                const result = await api.computePlanterGrid(
+                  planterConfig.rows,
+                  planterConfig.spacingInches,
+                  planterConfig.directionDeg,
+                  planterConfig.headlands,
+                );
+                if (!result.error) {
+                  setPlanterRowGrid({
+                    planterConfig: result.planter_config,
+                    rowLines: result.row_lines,
+                    headlandBoundary: result.headland_boundary,
+                    planterWidth: result.planter_width,
+                    headlandInset: result.headland_inset,
+                    totalRows: result.total_rows,
+                  });
+                  setShowPlanterRows(true);
+                }
+              } catch (err) {
+                console.error('[PanelTray] Planter grid failed:', err);
+              }
+              setApplyingGrid(false);
+            }}
+          >
+            {applyingGrid ? 'Computing...' : 'Apply'}
+          </button>
+          {showPlanterRows && (
+            <button
+              className="panel-reset-btn"
+              onClick={() => {
+                setShowPlanterRows(false);
+                setPlanterRowGrid(null);
+              }}
+            >
+              Hide
+            </button>
+          )}
+        </div>
+
+        {showPlanterRows && (
+          <div className="prop-row" style={{ marginTop: '4px', fontSize: '10px', color: '#888' }}>
+            <span>{planterConfig.rows}R &times; {planterConfig.spacingInches}" = {((planterConfig.rows * planterConfig.spacingInches * 0.0254) * 3.28084).toFixed(1)}ft planter</span>
+          </div>
+        )}
       </PanelSection>
 
       {/* Project Info */}

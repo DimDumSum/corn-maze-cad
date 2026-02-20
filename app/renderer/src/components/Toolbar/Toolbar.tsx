@@ -18,7 +18,6 @@ import {
   ImagePlus,
   Move,
   FlipHorizontal,
-  FolderOpen,
   Grid3x3,
   Download,
   Undo2,
@@ -33,9 +32,6 @@ import {
   Route,
   GitBranch,
   Map,
-  Navigation,
-  FileText,
-  Tractor,
   type LucideIcon,
 } from 'lucide-react';
 import type { MazeAlgorithm, MazeMetrics } from '../../api/client';
@@ -123,11 +119,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
     setMaze,
     field,
     pushSnapshot,
-    planterConfig,
-    setPlanterConfig,
-    setPlanterRowGrid,
-    showPlanterRows,
-    setShowPlanterRows,
   } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer } = useConstraintStore();
 
@@ -505,134 +496,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
           <input type="checkbox" checked={snapToGrid} onChange={toggleSnap} />
           <span>Snap</span>
         </label>
-
-        <div className="toolbar-separator" />
-
-        {/* Planter Setup */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <Tractor size={14} style={{ color: '#555', flexShrink: 0 }} />
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#555' }}>
-            Rows
-            <select
-              value={planterConfig.rows}
-              onChange={(e) => setPlanterConfig({ rows: Number(e.target.value) })}
-              style={{
-                background: '#d0d0d0', color: '#333', border: '1px solid #999',
-                borderRadius: '3px', fontSize: '11px', padding: '1px 2px', cursor: 'pointer',
-              }}
-            >
-              {[4, 6, 8, 12, 16, 18].map(n => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#555' }}>
-            Spacing
-            <select
-              value={planterConfig.spacingInches}
-              onChange={(e) => setPlanterConfig({ spacingInches: Number(e.target.value) })}
-              style={{
-                background: '#d0d0d0', color: '#333', border: '1px solid #999',
-                borderRadius: '3px', fontSize: '11px', padding: '1px 2px', cursor: 'pointer',
-              }}
-            >
-              {[24, 30, 36].map(n => (
-                <option key={n} value={n}>{n}"</option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#555' }}>
-            Dir
-            <input
-              type="number"
-              value={planterConfig.directionDeg}
-              onChange={(e) => setPlanterConfig({ directionDeg: Number(e.target.value) % 360 })}
-              min={0} max={359} step={1}
-              style={{
-                background: '#d0d0d0', color: '#333', border: '1px solid #999',
-                borderRadius: '3px', fontSize: '11px', padding: '1px 2px', width: '40px',
-              }}
-            />&deg;
-          </label>
-
-          <button
-            className="toolbar-button"
-            onClick={() => setTool('planting_direction')}
-            title="Click &amp; drag on field to set planting direction"
-            aria-label="Set Direction on Map"
-            style={{ padding: '2px 4px', fontSize: '10px' }}
-          >
-            <Navigation size={14} />
-          </button>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '11px', color: '#555' }}>
-            Headlands
-            <input
-              type="number"
-              value={planterConfig.headlands}
-              onChange={(e) => setPlanterConfig({ headlands: Math.max(0, Number(e.target.value)) })}
-              min={0} max={10} step={1}
-              style={{
-                background: '#d0d0d0', color: '#333', border: '1px solid #999',
-                borderRadius: '3px', fontSize: '11px', padding: '1px 2px', width: '32px',
-              }}
-            />
-          </label>
-
-          <button
-            className="toolbar-button"
-            onClick={async () => {
-              if (!field) return;
-              try {
-                const result = await api.computePlanterGrid(
-                  planterConfig.rows,
-                  planterConfig.spacingInches,
-                  planterConfig.directionDeg,
-                  planterConfig.headlands,
-                );
-                if (result.error) {
-                  console.error('[Toolbar] Planter grid error:', result.error);
-                  return;
-                }
-                setPlanterRowGrid({
-                  planterConfig: result.planter_config,
-                  rowLines: result.row_lines,
-                  headlandBoundary: result.headland_boundary,
-                  planterWidth: result.planter_width,
-                  headlandInset: result.headland_inset,
-                  totalRows: result.total_rows,
-                });
-                setShowPlanterRows(true);
-              } catch (err) {
-                console.error('[Toolbar] Planter grid failed:', err);
-              }
-            }}
-            disabled={!field}
-            title={!field ? 'Import a field first' : `Apply planter grid (${planterConfig.rows}R x ${planterConfig.spacingInches}")`}
-            aria-label="Apply Planter Grid"
-            style={{ padding: '2px 6px', fontSize: '11px', fontWeight: 'bold' }}
-          >
-            Apply
-          </button>
-
-          {showPlanterRows && (
-            <button
-              className="toolbar-button"
-              onClick={() => {
-                setShowPlanterRows(false);
-                setPlanterRowGrid(null);
-              }}
-              title="Hide planter rows"
-              aria-label="Hide Planter Rows"
-              style={{ padding: '2px 4px', fontSize: '10px', color: '#999' }}
-            >
-              Hide
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Validation Dialog */}
