@@ -39,7 +39,7 @@ function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps
 }
 
 export function PanelTray() {
-  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, setPlanterRowGrid, showPlanterRows, setShowPlanterRows } = useDesignStore();
+  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
   const { setTool } = useUiStore();
@@ -260,9 +260,24 @@ export function PanelTray() {
           )}
         </div>
 
-        {showPlanterRows && (
-          <div className="prop-row" style={{ marginTop: '4px', fontSize: '10px', color: '#888' }}>
-            <span>{planterConfig.rows}R &times; {planterConfig.spacingInches}" = {((planterConfig.rows * planterConfig.spacingInches * 0.0254) * 3.28084).toFixed(1)}ft planter</span>
+        {showPlanterRows && planterRowGrid && (
+          <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px', borderTop: '1px solid #c0c0c0', paddingTop: '6px' }}>
+            <div className="prop-row">
+              <span className="prop-label">Total rows</span>
+              <span className="prop-value">{planterRowGrid.totalRows.toLocaleString()}</span>
+            </div>
+            <div className="prop-row">
+              <span className="prop-label">Row spacing</span>
+              <span className="prop-value">{(planterRowGrid.planterConfig.spacing_inches * 0.0254).toFixed(3)}m ({planterRowGrid.planterConfig.spacing_inches}")</span>
+            </div>
+            <div className="prop-row">
+              <span className="prop-label">Planter width</span>
+              <span className="prop-value">{(planterRowGrid.planterWidth * 3.28084).toFixed(1)}ft ({planterRowGrid.planterWidth.toFixed(2)}m)</span>
+            </div>
+            <div className="prop-row">
+              <span className="prop-label">Headland inset</span>
+              <span className="prop-value">{(planterRowGrid.headlandInset * 3.28084).toFixed(1)}ft</span>
+            </div>
           </div>
         )}
       </PanelSection>
