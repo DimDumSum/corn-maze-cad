@@ -17,6 +17,11 @@ import { ArcTool } from './ArcTool';
 import { TextTool } from './TextTool';
 import { ClipArtTool } from './ClipArtTool';
 import { FlipTool } from './FlipTool';
+import { EntranceTool } from './EntranceTool';
+import { ExitTool } from './ExitTool';
+import { EmergencyExitTool } from './EmergencyExitTool';
+import { SolutionPathTool } from './SolutionPathTool';
+import { DeadEndTool } from './DeadEndTool';
 
 /**
  * Hook to get the current active tool based on uiStore selection
@@ -52,6 +57,16 @@ export function useTool(): Tool {
       return ClipArtTool;
     case 'flip':
       return FlipTool;
+    case 'entrance':
+      return EntranceTool;
+    case 'exit':
+      return ExitTool;
+    case 'emergency_exit':
+      return EmergencyExitTool;
+    case 'solution_path':
+      return SolutionPathTool;
+    case 'dead_end':
+      return DeadEndTool;
     default:
       return SelectTool;
   }

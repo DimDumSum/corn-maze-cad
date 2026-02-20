@@ -1,12 +1,12 @@
 """
 Application state management.
 
-Maintains the current field boundary, maze walls, and coordinate system.
-In the future, this will be replaced with a proper database or session storage.
+Maintains the current field boundary, maze walls, coordinate system,
+layers, entrances/exits, and emergency exits.
 """
 
 from shapely.geometry.base import BaseGeometry
-from typing import Optional
+from typing import Optional, List, Tuple, Dict
 
 
 class AppState:
@@ -19,6 +19,8 @@ class AppState:
     - current_crs: Coordinate reference system (e.g., "EPSG:32615")
     - centroid_offset: (cx, cy) offset subtracted during centering, needed for geo export
     - carved_edges: Accumulated boundaries of all carved paths (for validation)
+    - layers: Design layer definitions
+    - entrances/exits/emergency_exits: Maze entrance, exit, and emergency exit positions
     """
 
     _instance = None
@@ -31,6 +33,10 @@ class AppState:
             cls._instance.current_crs: Optional[str] = None
             cls._instance.centroid_offset: Optional[tuple] = None
             cls._instance.carved_edges: Optional[BaseGeometry] = None
+            cls._instance.layers: List[Dict] = []
+            cls._instance.entrances: List[Tuple[float, float]] = []
+            cls._instance.exits: List[Tuple[float, float]] = []
+            cls._instance.emergency_exits: List[Tuple[float, float]] = []
         return cls._instance
 
     def set_field(self, field: BaseGeometry, crs: str, centroid_offset: tuple = None):
@@ -74,6 +80,34 @@ class AppState:
         else:
             self.carved_edges = unary_union([self.carved_edges, new_edges])
 
+    # --- Layer management ---
+
+    def set_layers(self, layers: List[Dict]):
+        self.layers = layers
+
+    def get_layers(self) -> List[Dict]:
+        return self.layers
+
+    # --- Entrance / Exit management ---
+
+    def set_entrances(self, entrances: List[Tuple[float, float]]):
+        self.entrances = [tuple(e) for e in entrances]
+
+    def get_entrances(self) -> List[Tuple[float, float]]:
+        return self.entrances
+
+    def set_exits(self, exits: List[Tuple[float, float]]):
+        self.exits = [tuple(e) for e in exits]
+
+    def get_exits(self) -> List[Tuple[float, float]]:
+        return self.exits
+
+    def set_emergency_exits(self, emergency_exits: List[Tuple[float, float]]):
+        self.emergency_exits = [tuple(e) for e in emergency_exits]
+
+    def get_emergency_exits(self) -> List[Tuple[float, float]]:
+        return self.emergency_exits
+
     def clear(self):
         """Clear all state."""
         self.current_field = None
@@ -81,6 +115,10 @@ class AppState:
         self.current_crs = None
         self.centroid_offset = None
         self.carved_edges = None
+        self.layers = []
+        self.entrances = []
+        self.exits = []
+        self.emergency_exits = []
 
 
 # Global singleton instance

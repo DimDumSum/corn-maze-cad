@@ -122,3 +122,79 @@ export interface Command {
   undo: () => void;
   redo: () => void;
 }
+
+// === LAYER SYSTEM ===
+
+export interface Layer {
+  id: string;
+  name: string;
+  type: 'boundary' | 'artwork' | 'maze' | 'solution' | 'dead_ends' | 'annotations' | 'signage' | 'aerial';
+  visible: boolean;
+  locked: boolean;
+  opacity: number;
+  color?: string;
+  order: number;
+}
+
+// === ENTRANCE / EXIT ===
+
+export interface EntranceExit {
+  id: string;
+  type: 'entrance' | 'exit' | 'emergency_exit';
+  position: [number, number];
+  label?: string;
+}
+
+// === DIFFICULTY PHASE ===
+
+export interface DifficultyPhase {
+  name: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  path: [number, number][];
+  length: number;
+  solvable: boolean;
+}
+
+// === CORN ROW GRID ===
+
+export interface CornRowGrid {
+  rowSpacing: number;
+  crossPlanted: boolean;
+  vLines: [number, number][][];
+  hLines: [number, number][][];
+}
+
+// === AERIAL IMAGE UNDERLAY ===
+
+export interface AerialUnderlay {
+  imageData: string;
+  bounds: { minx: number; miny: number; maxx: number; maxy: number };
+  opacity: number;
+  transform?: {
+    scale_x: number;
+    scale_y: number;
+    offset_x: number;
+    offset_y: number;
+  };
+}
+
+// === FLOW SIMULATION ===
+
+export interface FlowSimulationResult {
+  bottlenecks: Array<{ x: number; y: number; visits: number }>;
+  avg_solve_steps: number;
+  completion_rate: number;
+  total_visitors: number;
+  completed: number;
+}
+
+// === GPS GUIDANCE ===
+
+export interface GuidanceStatus {
+  is_active: boolean;
+  current_position: [number, number] | null;
+  cut_path_length: number;
+  total_path_length: number;
+  completion_pct: number;
+  segments_cut: number;
+}

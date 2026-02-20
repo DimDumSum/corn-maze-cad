@@ -15,12 +15,14 @@ from geometry.router import router as geometry_router
 from mazification.router import router as mazification_router
 from export.router import router as export_router
 from analysis.router import router as analysis_router
+from project.router import router as project_router
+from gps_guidance.router import router as gps_guidance_router
 
 # Create FastAPI app
 app = FastAPI(
     title="Corn Maze CAD API",
     description="Backend API for designing corn mazes with GIS integration",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # CORS middleware
@@ -91,6 +93,20 @@ app.include_router(
     analysis_router,
     prefix="/analysis",
     tags=["Analysis"]
+)
+
+# Project module: Save/load/autosave
+app.include_router(
+    project_router,
+    prefix="/project",
+    tags=["Project"]
+)
+
+# GPS Guidance module: Real-time cutting guidance
+app.include_router(
+    gps_guidance_router,
+    prefix="/guidance",
+    tags=["GPS Guidance"]
 )
 
 

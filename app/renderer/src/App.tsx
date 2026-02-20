@@ -153,6 +153,30 @@ function App() {
           alert(`Shapefile exported to:\n${result.path}`);
           break;
         }
+        case 'gpx': {
+          const result = await api.exportGpx();
+          if (result.error) { setError(result.error); return; }
+          alert(`GPX exported to:\n${result.path}`);
+          break;
+        }
+        case 'dxf': {
+          const result = await api.exportDxf();
+          if (result.error) { setError(result.error); return; }
+          alert(`DXF exported to:\n${result.path}`);
+          break;
+        }
+        case 'printable': {
+          const result = await api.exportPrintableMap();
+          if (result.error) { setError(result.error); return; }
+          alert(`Printable map exported to:\n${result.path}`);
+          break;
+        }
+        case 'prescription': {
+          const result = await api.exportPrescriptionMap();
+          if (result.error) { setError(result.error); return; }
+          alert(`Prescription map exported:\n${result.geojson_path}\n${result.png_path}`);
+          break;
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to export');
@@ -163,30 +187,86 @@ function App() {
 
   // === SAVE / LOAD PROJECT ===
   const handleSave = async () => {
-    const electronAPI = (window as any).electronAPI;
-    if (!electronAPI) return;
-
     const state = useDesignStore.getState();
     const projectData = {
-      version: 1,
+      version: 2,
       field: state.field,
       maze: state.maze,
       designElements: state.designElements,
       constraintZones: state.constraintZones,
+      layers: state.layers,
+      entrances: state.entrances,
+      exits: state.exits,
+      emergencyExits: state.emergencyExits,
+      difficultyPhases: state.difficultyPhases,
       camera,
       gridSize,
       showGrid,
     };
 
     try {
-      const path = await electronAPI.saveFile(JSON.stringify(projectData, null, 2));
-      if (path) {
+      const result = await api.saveProject(projectData);
+      if (result.success) {
         state.markSaved();
+      } else {
+        setError(result.error || 'Failed to save project');
       }
     } catch {
-      setError('Failed to save project');
+      // Fallback to Electron IPC if backend unavailable
+      const electronAPI = (window as any).electronAPI;
+      if (electronAPI) {
+        try {
+          const path = await electronAPI.saveFile(JSON.stringify(projectData, null, 2));
+          if (path) state.markSaved();
+        } catch {
+          setError('Failed to save project');
+        }
+      } else {
+        setError('Failed to save project');
+      }
     }
   };
+
+  // === AUTO-SAVE ===
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const state = useDesignStore.getState();
+      if (!state.isDirty) return;
+
+      try {
+        const projectData = {
+          version: 2,
+          name: 'Autosave',
+          field: state.field,
+          maze: state.maze,
+          designElements: state.designElements,
+          layers: state.layers,
+          entrances: state.entrances,
+          exits: state.exits,
+          emergencyExits: state.emergencyExits,
+        };
+        await api.autosave(projectData);
+      } catch {
+        // Silently fail autosave
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // === CHECK FOR CRASH RECOVERY ===
+  useEffect(() => {
+    (async () => {
+      try {
+        const check = await api.checkAutosave();
+        if (check.exists) {
+          console.log('[App] Autosave found from', check.savedAt);
+        }
+      } catch {
+        // Backend not ready yet
+      }
+    })();
+  }, []);
 
   // Listen for Electron menu events
   useEffect(() => {
@@ -272,6 +352,44 @@ function App() {
       );
       ctx.closePath();
       ctx.stroke();
+    }
+
+    // Layer 1.5: Corn Row Grid (light gray lines showing planting rows)
+    const { cornRowGrid, showCornRowGrid, aerialUnderlay } = useDesignStore.getState();
+    if (showCornRowGrid && cornRowGrid) {
+      ctx.strokeStyle = 'rgba(150, 130, 80, 0.15)';
+      ctx.lineWidth = 0.5 / camera.scale;
+
+      // Vertical rows
+      for (const line of cornRowGrid.vLines) {
+        if (line.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(line[0][0], line[0][1]);
+          ctx.lineTo(line[1][0], line[1][1]);
+          ctx.stroke();
+        }
+      }
+      // Horizontal rows (cross-planted)
+      for (const line of cornRowGrid.hLines) {
+        if (line.length >= 2) {
+          ctx.beginPath();
+          ctx.moveTo(line[0][0], line[0][1]);
+          ctx.lineTo(line[1][0], line[1][1]);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Layer 1.6: Aerial Image Underlay
+    if (aerialUnderlay && aerialUnderlay.imageData) {
+      const img = new Image();
+      img.src = aerialUnderlay.imageData;
+      if (img.complete && img.naturalWidth > 0) {
+        const { minx, miny, maxx, maxy } = aerialUnderlay.bounds;
+        ctx.globalAlpha = aerialUnderlay.opacity;
+        ctx.drawImage(img, minx, miny, maxx - minx, maxy - miny);
+        ctx.globalAlpha = 1;
+      }
     }
 
     // Layer 2: Maze Walls (dark brown/amber for light bg)
@@ -419,6 +537,41 @@ function App() {
     // Layer 6: Snap Indicator (rendered in screen space, on top of guide lines)
     if (currentSnap && showSnapIndicators) {
       renderSnapIndicator(ctx, currentSnap, camera);
+    }
+
+    // Layer 7: Progress Indicator
+    const { operationProgress } = useDesignStore.getState();
+    if (operationProgress.active) {
+      const canvas = canvasRef.current!;
+      const barWidth = 300;
+      const barHeight = 24;
+      const barX = (canvas.width - barWidth) / 2;
+      const barY = canvas.height - 60;
+
+      // Background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+      ctx.beginPath();
+      ctx.roundRect(barX - 10, barY - 8, barWidth + 20, barHeight + 30, 8);
+      ctx.fill();
+
+      // Progress bar background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+      ctx.fillRect(barX, barY, barWidth, barHeight);
+
+      // Progress bar fill
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(barX, barY, barWidth * (operationProgress.percent / 100), barHeight);
+
+      // Text
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(
+        `${operationProgress.message} (${Math.round(operationProgress.percent)}%)`,
+        canvas.width / 2,
+        barY + barHeight + 4,
+      );
     }
 
     // Empty state message

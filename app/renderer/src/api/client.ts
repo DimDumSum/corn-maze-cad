@@ -110,20 +110,49 @@ export async function findPath(
   return response.json();
 }
 
-/**
- * Save project to file
- */
-export async function saveProject(data: object): Promise<{ success: boolean; error?: string }> {
-  // This is handled via Electron IPC - just a type helper
-  return { success: true };
+// === PROJECT SAVE/LOAD ===
+
+export async function saveProject(projectData: object, filename?: string): Promise<{ success: boolean; path?: string; error?: string }> {
+  const response = await fetch(`${API_BASE_URL}/project/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectData, filename }),
+  });
+  return response.json();
 }
 
-/**
- * Load project from file
- */
-export async function loadProject(): Promise<{ success: boolean; data?: object; error?: string }> {
-  // This is handled via Electron IPC - just a type helper
-  return { success: true };
+export async function loadProject(filename: string): Promise<{ success: boolean; project?: any; error?: string }> {
+  const response = await fetch(`${API_BASE_URL}/project/load?filename=${encodeURIComponent(filename)}`, { method: 'POST' });
+  return response.json();
+}
+
+export async function listProjects(): Promise<{ projects: Array<{ filename: string; name: string; savedAt: string }> }> {
+  const response = await fetch(`${API_BASE_URL}/project/list`);
+  return response.json();
+}
+
+export async function deleteProject(filename: string): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/project/delete?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' });
+  return response.json();
+}
+
+export async function autosave(projectData: object): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/project/autosave`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectData }),
+  });
+  return response.json();
+}
+
+export async function checkAutosave(): Promise<{ exists: boolean; savedAt?: string }> {
+  const response = await fetch(`${API_BASE_URL}/project/autosave/check`);
+  return response.json();
+}
+
+export async function recoverAutosave(): Promise<{ success: boolean; project?: any }> {
+  const response = await fetch(`${API_BASE_URL}/project/autosave/recover`, { method: 'POST' });
+  return response.json();
 }
 
 /**
@@ -288,5 +317,204 @@ export async function carveBatch(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ elements, maze }),
   });
+  return response.json();
+}
+
+// === NEW EXPORT FORMATS ===
+
+export async function exportGpx(name: string = 'maze', includeWalls: boolean = true): Promise<{ success: boolean; path?: string; error?: string }> {
+  const params = new URLSearchParams({ name, include_walls: String(includeWalls) });
+  const response = await fetch(`${API_BASE_URL}/export/gpx?${params}`);
+  return response.json();
+}
+
+export async function exportDxf(name: string = 'maze_design'): Promise<{ success: boolean; path?: string; error?: string }> {
+  const params = new URLSearchParams({ name });
+  const response = await fetch(`${API_BASE_URL}/export/dxf?${params}`);
+  return response.json();
+}
+
+export async function exportPrintableMap(title: string = 'Corn Maze', showSolution: boolean = false, widthPx: number = 2400): Promise<{ success: boolean; path?: string; error?: string }> {
+  const response = await fetch(`${API_BASE_URL}/export/printable`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, show_solution: showSolution, width_px: widthPx }),
+  });
+  return response.json();
+}
+
+export async function exportPrescriptionMap(seedRateCorn: number = 38000, seedRatePath: number = 0, pathWidth: number = 2.5): Promise<{ success: boolean; geojson_path?: string; png_path?: string; error?: string }> {
+  const response = await fetch(`${API_BASE_URL}/export/prescription`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seed_rate_corn: seedRateCorn, seed_rate_path: seedRatePath, path_width: pathWidth }),
+  });
+  return response.json();
+}
+
+// === ENTRANCE / EXIT MANAGEMENT ===
+
+export async function setEntrancesExits(entrances: [number, number][], exits: [number, number][]): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/set-entrances-exits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entrances, exits }),
+  });
+  return response.json();
+}
+
+export async function getEntrancesExits(): Promise<{ entrances: [number, number][]; exits: [number, number][] }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/entrances-exits`);
+  return response.json();
+}
+
+export async function verifySolvable(resolution: number = 2.0): Promise<{ all_solvable: boolean; results: any[] }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/verify-solvable?resolution=${resolution}`, { method: 'POST' });
+  return response.json();
+}
+
+// === EMERGENCY EXITS ===
+
+export async function setEmergencyExits(positions: [number, number][]): Promise<{ success: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/set-emergency-exits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ positions }),
+  });
+  return response.json();
+}
+
+export async function analyzeEmergencyCoverage(maxDistance: number = 50): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/analysis/analyze-emergency-coverage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ max_distance: maxDistance }),
+  });
+  return response.json();
+}
+
+export async function suggestEmergencyExits(maxDistance: number = 50): Promise<{ suggestions: [number, number][] }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/suggest-emergency-exits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ max_distance: maxDistance }),
+  });
+  return response.json();
+}
+
+// === CONSTRAINT VALIDATION ===
+
+export async function validateConstraints(params: {
+  min_path_width?: number;
+  min_wall_width?: number;
+  inter_path_buffer?: number;
+  edge_buffer?: number;
+  max_dead_end_length?: number;
+  corn_row_spacing?: number;
+} = {}): Promise<{ valid: boolean; violation_count: number; violations: any[]; summary: any }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/validate-constraints`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  return response.json();
+}
+
+// === FLOW SIMULATION ===
+
+export async function simulateFlow(numVisitors: number = 100, resolution: number = 2.0, seed?: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/analysis/simulate-flow`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ num_visitors: numVisitors, resolution, seed }),
+  });
+  return response.json();
+}
+
+// === DIFFICULTY PHASES ===
+
+export async function getDifficultyPhases(numPhases: number = 3, resolution: number = 2.0): Promise<{ phases: any[]; all_solvable: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/analysis/difficulty-phases`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ num_phases: numPhases, resolution }),
+  });
+  return response.json();
+}
+
+// === DRONE PHOTO ALIGNMENT ===
+
+export async function alignDronePhoto(imageData: string, controlPoints?: any[]): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/analysis/align-drone-photo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_data: imageData, control_points: controlPoints }),
+  });
+  return response.json();
+}
+
+// === MAZEGPS IMPORT ===
+
+export async function importMazeGPSData(trackingData: any[]): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/analysis/import-mazegps`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tracking_data: trackingData }),
+  });
+  return response.json();
+}
+
+// === CORN ROW GRID ===
+
+export async function computeCornRowGrid(rowSpacing: number = 0.762, crossPlanted: boolean = true): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/analysis/corn-row-grid`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ row_spacing: rowSpacing, cross_planted: crossPlanted }),
+  });
+  return response.json();
+}
+
+// === GPS GUIDANCE ===
+
+export async function startGuidance(pathWidth: number = 2.4): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/guidance/start`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pathWidth }),
+  });
+  return response.json();
+}
+
+export async function stopGuidance(): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/guidance/stop`, { method: 'POST' });
+  return response.json();
+}
+
+export async function getGuidanceStatus(): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/guidance/status`);
+  return response.json();
+}
+
+export async function updateGuidancePosition(lat: number, lon: number, accuracy: number = 5, heading: number = 0): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/guidance/update-position`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ latitude: lat, longitude: lon, accuracy, heading }),
+  });
+  return response.json();
+}
+
+export async function markCut(startX: number, startY: number, endX: number, endY: number): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/guidance/mark-cut`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ startX, startY, endX, endY }),
+  });
+  return response.json();
+}
+
+export async function suggestNextPath(): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/guidance/next-path`);
   return response.json();
 }
