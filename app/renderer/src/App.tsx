@@ -445,7 +445,7 @@ function App() {
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     for (const el of designElements) {
       ctx.strokeStyle = '#2563eb'; // Blue (darker for light bg)

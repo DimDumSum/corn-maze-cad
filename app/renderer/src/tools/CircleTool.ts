@@ -276,7 +276,7 @@ export const CircleTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     const { center, previewRadius, segments, stage } = circleState;
 
@@ -351,7 +351,7 @@ export const CircleTool: Tool = {
         const midY = center[1] + Math.sin(angleToMouse) * (previewRadius / 2);
 
         ctx.save();
-        ctx.scale(1 / camera.scale, 1 / camera.scale);
+        ctx.scale(1 / camera.scale, -1 / camera.scale);
         ctx.fillStyle = '#fff';
         ctx.strokeStyle = '#000';
         ctx.font = 'bold 14px Arial';
@@ -364,7 +364,7 @@ export const CircleTool: Tool = {
           ? `r = ${inputBuffer} m`
           : `r = ${previewRadius.toFixed(2)} m`;
         const labelX = midX * camera.scale;
-        const labelY = midY * camera.scale - 8;
+        const labelY = -(midY * camera.scale) - 8;
 
         ctx.strokeText(label, labelX, labelY);
         ctx.fillText(label, labelX, labelY);

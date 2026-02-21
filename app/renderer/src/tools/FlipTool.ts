@@ -171,7 +171,7 @@ export const FlipTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     const angle = flipState.mode === 'horizontal' ? 0 : flipState.mode === 'vertical' ? 90 : flipState.customAngle;
 
@@ -221,7 +221,7 @@ export const FlipTool: Tool = {
 
     // === LAYER 4: Labels ===
     ctx.save();
-    ctx.scale(1 / camera.scale, 1 / camera.scale);
+    ctx.scale(1 / camera.scale, -1 / camera.scale);
 
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 12px Arial';
@@ -230,7 +230,7 @@ export const FlipTool: Tool = {
     ctx.lineWidth = 3;
 
     const labelX = center[0] * camera.scale;
-    const labelY = center[1] * camera.scale - 25;
+    const labelY = -(center[1] * camera.scale) - 25;
 
     const modeLabel = flipState.mode === 'horizontal' ? 'Horizontal' : flipState.mode === 'vertical' ? 'Vertical' : `${angle.toFixed(0)}°`;
     const actionLabel = flipState.copyMode ? ' (Copy)' : ' (Move)';

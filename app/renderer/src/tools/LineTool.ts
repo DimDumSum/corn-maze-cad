@@ -196,7 +196,7 @@ export const LineTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     // === LAYER 1: Path width preview (semi-transparent) ===
     ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)'; // Light blue
@@ -255,7 +255,7 @@ export const LineTool: Tool = {
 
     // === LAYER 5: Dimension labels ===
     ctx.save();
-    ctx.scale(1 / camera.scale, 1 / camera.scale);
+    ctx.scale(1 / camera.scale, -1 / camera.scale);
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = '#000';
     ctx.font = 'bold 12px Arial';
@@ -275,7 +275,7 @@ export const LineTool: Tool = {
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
       const labelX = midX * camera.scale;
-      const labelY = midY * camera.scale - 8;
+      const labelY = -(midY * camera.scale) - 8;
       const label = `${segmentLength.toFixed(2)} m`;
 
       ctx.strokeText(label, labelX, labelY);
@@ -293,7 +293,7 @@ export const LineTool: Tool = {
       const midX = (lastPoint[0] + previewPoint[0]) / 2;
       const midY = (lastPoint[1] + previewPoint[1]) / 2;
       const labelX = midX * camera.scale;
-      const labelY = midY * camera.scale - 8;
+      const labelY = -(midY * camera.scale) - 8;
       const label = `${previewLength.toFixed(2)} m`;
 
       ctx.strokeText(label, labelX, labelY);
@@ -307,7 +307,7 @@ export const LineTool: Tool = {
     if (currentPath.length > 1 || previewPoint) {
       const endPoint = previewPoint || currentPath[currentPath.length - 1];
       const totalLabelX = endPoint[0] * camera.scale;
-      const totalLabelY = endPoint[1] * camera.scale - 28;
+      const totalLabelY = -(endPoint[1] * camera.scale) - 28;
       const totalLabel = `Total: ${totalLength.toFixed(2)} m`;
 
       ctx.font = 'bold 14px Arial';
