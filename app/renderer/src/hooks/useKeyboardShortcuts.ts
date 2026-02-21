@@ -50,6 +50,7 @@ import {
   flipToolActivate,
   flipToolCancel,
 } from '../tools/FlipTool';
+import { adjustRestoreBrushWidth } from '../tools/RestoreTool';
 
 interface KeyboardShortcutsOptions {
   onShowHelp?: () => void;
@@ -276,6 +277,17 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
           } else {
             flipToolSetMode('horizontal');
           }
+          return;
+        }
+      }
+
+      // Bracket keys - adjust restore brush width
+      if (e.key === '[' || e.key === ']') {
+        const { selectedTool } = useUiStore.getState();
+        if (selectedTool === 'restore') {
+          e.preventDefault();
+          const delta = e.key === ']' ? (e.shiftKey ? 2.0 : 0.5) : (e.shiftKey ? -2.0 : -0.5);
+          adjustRestoreBrushWidth(delta);
           return;
         }
       }

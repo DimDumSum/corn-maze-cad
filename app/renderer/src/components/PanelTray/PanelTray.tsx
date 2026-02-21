@@ -13,6 +13,7 @@ import { useDesignStore } from '../../stores/designStore';
 import { useConstraintStore } from '../../stores/constraintStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
+import { getRestoreBrushWidth, setRestoreBrushWidth } from '../../tools/RestoreTool';
 import * as api from '../../api/client';
 import './PanelTray.css';
 
@@ -42,7 +43,7 @@ export function PanelTray() {
   const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, setMaze } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
-  const { setTool } = useUiStore();
+  const { setTool, selectedTool } = useUiStore();
   const camera = useUiStore((s) => s.camera);
   const [applyingGrid, setApplyingGrid] = useState(false);
 
@@ -93,6 +94,30 @@ export function PanelTray() {
           </>
         )}
       </PanelSection>
+
+      {/* Restore Brush (shown when restore tool is active) */}
+      {selectedTool === 'restore' && (
+        <PanelSection title="Restore Brush">
+          <div className="constraint-row">
+            <label>Brush Width</label>
+            <input
+              type="number"
+              className="constraint-input"
+              value={getRestoreBrushWidth()}
+              min={1}
+              max={20}
+              step={0.5}
+              onChange={(e) => {
+                setRestoreBrushWidth(parseFloat(e.target.value) || 1);
+              }}
+            />
+            <span className="constraint-unit">m</span>
+          </div>
+          <div className="prop-row" style={{ opacity: 0.6, fontSize: '11px' }}>
+            <span>[ / ] keys to adjust</span>
+          </div>
+        </PanelSection>
+      )}
 
       {/* Constraints */}
       <PanelSection title="Constraints">
