@@ -449,6 +449,7 @@ def compute_planter_grid(req: PlanterGridRequest):
     Interior rows are straight parallel lines at the planting direction.
     """
     from shapely.geometry import LineString, Polygon
+    from shapely.ops import unary_union
     import math
 
     field = app_state.get_field()
@@ -464,6 +465,7 @@ def compute_planter_grid(req: PlanterGridRequest):
         # Each individual corn row in the headland follows the field boundary contour.
         # Total headland corn rows = headlands * planter_rows
         headland_lines = []
+        headland_geom_lines = []  # Shapely LineStrings for carving
         total_headland_rows = req.headlands * req.planter_rows
 
         for i in range(total_headland_rows):
@@ -486,6 +488,13 @@ def compute_planter_grid(req: PlanterGridRequest):
                 coords = [[round(c[0], 4), round(c[1], 4)] for c in poly.exterior.coords]
                 if len(coords) >= 3:
                     headland_lines.append(coords)
+                    headland_geom_lines.append(LineString(poly.exterior.coords))
+
+        # Store headland rows as geometry so carving can operate on them
+        if headland_geom_lines:
+            app_state.set_headland_walls(unary_union(headland_geom_lines))
+        else:
+            app_state.set_headland_walls(None)
 
         # === HEADLAND BOUNDARY (innermost edge of headland area) ===
         headland_poly = None

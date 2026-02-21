@@ -200,7 +200,10 @@ export async function setWalls(maze: MazeWalls | null): Promise<{ success: boole
   const response = await fetch(`${API_BASE_URL}/geometry/set-walls`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ walls: maze?.walls || [] }),
+    body: JSON.stringify({
+      walls: maze?.walls || [],
+      headlandWalls: maze?.headlandWalls || [],
+    }),
   });
 
   return response.json();

@@ -87,11 +87,20 @@ def carve_path_endpoint(req: PathRequest):
         # Update state
         app_state.set_walls(updated_walls)
 
+        # Carve headland walls with the same eraser
+        headland_walls = app_state.get_headland_walls()
+        if headland_walls:
+            updated_headland = headland_walls.difference(carve_polygon)
+            app_state.set_headland_walls(updated_headland)
+
         # Track carved edges for validation
         app_state.add_carved_edges(carve_polygon.boundary)
 
-        # Return updated walls
-        result = {"walls": flatten_geometry(updated_walls)}
+        # Return updated walls (including headland walls)
+        result = {
+            "walls": flatten_geometry(updated_walls),
+            "headlandWalls": flatten_geometry(app_state.get_headland_walls()) if app_state.get_headland_walls() else [],
+        }
 
         if warning:
             result["warning"] = warning
@@ -108,6 +117,7 @@ def carve_path_endpoint(req: PathRequest):
 class SetWallsRequest(BaseModel):
     """Request model for setting maze walls state."""
     walls: List[List[List[float]]]  # [[[x, y], ...], ...]
+    headlandWalls: Optional[List[List[List[float]]]] = None  # [[[x, y], ...], ...]
     clearCarvedEdges: bool = True  # Clear carved edges tracking when setting walls
 
 
@@ -147,6 +157,21 @@ def set_walls_endpoint(req: SetWallsRequest):
             app_state.set_walls(walls_geom)
         else:
             app_state.set_walls(None)
+
+        # Restore headland walls if provided
+        if req.headlandWalls is not None:
+            if not req.headlandWalls:
+                app_state.set_headland_walls(None)
+            else:
+                h_lines = []
+                for segment in req.headlandWalls:
+                    if len(segment) >= 2:
+                        h_lines.append(LineString([(p[0], p[1]) for p in segment]))
+                if h_lines:
+                    from shapely.geometry import MultiLineString as MLS
+                    app_state.set_headland_walls(MLS(h_lines))
+                else:
+                    app_state.set_headland_walls(None)
 
         # Clear carved edges tracking since we're resetting to a different state
         if req.clearCarvedEdges:
@@ -1684,6 +1709,13 @@ def carve_batch(req: CarveBatchRequest):
                 updated_walls = current_walls.difference(all_carves)
                 print(f"[Batch Carve] SUCCESS - Carved {len(carve_geoms)} elements from maze")
 
+                # Carve headland walls with the same eraser
+                headland_walls = app_state.get_headland_walls()
+                if headland_walls:
+                    updated_headland = headland_walls.difference(all_carves)
+                    app_state.set_headland_walls(updated_headland)
+                    print(f"[Batch Carve] Also carved headland walls")
+
                 # Track carved edges for validation
                 boundary = all_carves.boundary
                 print(f"[Batch Carve] all_carves type: {type(all_carves).__name__}, boundary type: {type(boundary).__name__}")
@@ -1708,14 +1740,16 @@ def carve_batch(req: CarveBatchRequest):
         # Update state
         app_state.set_walls(updated_walls)
 
-        # Return flattened walls
+        # Return flattened walls (including headland walls)
         flattened = flatten_geometry(updated_walls)
-        print(f"[Carve-batch] Returning {len(flattened)} wall segments")
+        headland_walls_flat = flatten_geometry(app_state.get_headland_walls()) if app_state.get_headland_walls() else []
+        print(f"[Carve-batch] Returning {len(flattened)} wall segments, {len(headland_walls_flat)} headland segments")
         print("[Carve-batch] ========== END ==========")
 
         return {
             "maze": {
                 "walls": flattened,
+                "headlandWalls": headland_walls_flat,
                 "geometry": None  # Frontend doesn't use this
             },
             "error": None
