@@ -7,6 +7,7 @@ import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useDesignStore } from '../stores/designStore';
+import { fmtLen } from '../utils/fmt';
 
 // Move tool state
 interface MoveToolState {
@@ -398,7 +399,7 @@ export const MoveTool: Tool = {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
-      const label = copyMode ? `Copy: ${distance.toFixed(2)} m` : `${distance.toFixed(2)} m`;
+      const label = copyMode ? `Copy: ${fmtLen(distance)}` : fmtLen(distance);
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 3;
       ctx.strokeText(label, midX * camera.scale, -(midY * camera.scale) - 10);

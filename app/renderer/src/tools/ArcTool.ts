@@ -8,6 +8,7 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useConstraintStore } from '../stores/constraintStore';
 import { useDesignStore } from '../stores/designStore';
+import { fmtLen } from '../utils/fmt';
 import { SnapEngine } from '../snapping/SnapEngine';
 
 type ArcMode = '2point' | '3point' | 'center';
@@ -381,7 +382,7 @@ export const ArcTool: Tool = {
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 2;
 
-        const label = `${angle.toFixed(1)}° | ${arcLen.toFixed(2)} m`;
+        const label = `${angle.toFixed(1)}° | ${fmtLen(arcLen)}`;
         ctx.strokeText(label, midX, midY);
         ctx.fillText(label, midX, midY);
         ctx.restore();

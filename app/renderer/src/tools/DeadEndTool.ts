@@ -10,6 +10,7 @@ import type { Tool } from './types';
 import type { Camera } from '../../../../shared/types';
 import { useDesignStore } from '../stores/designStore';
 import { useUiStore } from '../stores/uiStore';
+import { fmtLen } from '../utils/fmt';
 
 let startPoint: [number, number] | null = null;
 let deadEndPoints: [number, number][] = [];
@@ -87,7 +88,7 @@ export const DeadEndTool: Tool = {
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`${totalLength.toFixed(1)}m`, sx + 12, sy);
+      ctx.fillText(fmtLen(totalLength, 1), sx + 12, sy);
     }
 
     // Dead end symbol at start

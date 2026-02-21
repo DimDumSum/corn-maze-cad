@@ -8,6 +8,7 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useConstraintStore } from '../stores/constraintStore';
 import { useDesignStore } from '../stores/designStore';
+import { fmtLen } from '../utils/fmt';
 import { SnapEngine } from '../snapping/SnapEngine';
 import {
   findAlignmentGuides,
@@ -313,7 +314,7 @@ export const RectangleTool: Tool = {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
 
-      const dimensionLabel = `${absWidth.toFixed(2)} m × ${absHeight.toFixed(2)} m`;
+      const dimensionLabel = `${fmtLen(absWidth)} × ${fmtLen(absHeight)}`;
       const centerX = (x1 + x2) / 2;
       const centerY = (y1 + y2) / 2;
       const labelX = centerX * camera.scale;

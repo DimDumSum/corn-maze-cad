@@ -15,6 +15,7 @@ import { useTool } from './tools';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { renderSnapIndicator, renderGuideLines } from './snapping/SnapVisuals';
 import { parseWKTPolygons } from './utils/wkt';
+import { fmtShort } from './utils/fmt';
 import * as api from './api/client';
 import { calculateBounds, zoomToFit } from './utils/canvas';
 import './App.css';
@@ -533,7 +534,7 @@ function App() {
         ctx.stroke();
 
         // Draw label with actual/required values (un-flip Y for text)
-        const labelText = `${v.actualValue.toFixed(1)}m / ${v.requiredValue.toFixed(1)}m min`;
+        const labelText = `${fmtShort(v.actualValue)} / ${fmtShort(v.requiredValue)} min`;
         const fontSize = Math.max(12, 14 / camera.scale);
 
         ctx.save();

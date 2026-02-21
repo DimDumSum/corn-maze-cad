@@ -7,6 +7,7 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useProjectStore } from '../stores/projectStore';
 import { SnapEngine } from '../snapping/SnapEngine';
+import { fmtLen } from '../utils/fmt';
 
 // Helper to apply snapping to a world position
 function applySnap(worldPos: [number, number]): [number, number] {
@@ -142,7 +143,7 @@ export const MeasureTool: Tool = {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const text = `${distance.toFixed(2)} m`;
+      const text = fmtLen(distance);
       const metrics = ctx.measureText(text);
       const padding = 8 / camera.scale;
 
@@ -170,7 +171,7 @@ export const MeasureTool: Tool = {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.fillText(
-          `\u0394x: ${Math.abs(dx).toFixed(2)}m`,
+          `\u0394x: ${fmtLen(Math.abs(dx))}`,
           (startPoint[0] + endPoint[0]) / 2,
           Math.max(startPoint[1], endPoint[1]) + 10 / camera.scale
         );
@@ -179,7 +180,7 @@ export const MeasureTool: Tool = {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.fillText(
-          `\u0394y: ${Math.abs(dy).toFixed(2)}m`,
+          `\u0394y: ${fmtLen(Math.abs(dy))}`,
           Math.max(startPoint[0], endPoint[0]) + 10 / camera.scale,
           (startPoint[1] + endPoint[1]) / 2
         );

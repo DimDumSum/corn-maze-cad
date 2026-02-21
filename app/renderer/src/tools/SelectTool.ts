@@ -22,6 +22,7 @@ import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useDesignStore, type DesignElement, type TransformHandle } from '../stores/designStore';
+import { fmtLen, fmtShort } from '../utils/fmt';
 
 // Track if we've pushed a snapshot for the current transform
 let transformSnapshotPushed = false;
@@ -1067,13 +1068,13 @@ export const SelectTool: Tool = {
           ctx.font = `${12 / camera.scale}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
-          ctx.fillText(`${width.toFixed(1)}m × ${height.toFixed(1)}m`, 0, 0);
+          ctx.fillText(`${fmtShort(width)} × ${fmtShort(height)}`, 0, 0);
           ctx.restore();
         }
 
         // Show distance while moving
         if (transformState.activeHandle === 'move' && currentMoveDistance > 0.01) {
-          const label = copyMode ? `Copy: ${currentMoveDistance.toFixed(2)}m` : `${currentMoveDistance.toFixed(2)}m`;
+          const label = copyMode ? `Copy: ${fmtLen(currentMoveDistance)}` : fmtLen(currentMoveDistance);
           const labelColor = copyMode ? '#22c55e' : '#3b82f6';
           ctx.save();
           ctx.translate(centerX, bounds.maxY + handleSize * 2);

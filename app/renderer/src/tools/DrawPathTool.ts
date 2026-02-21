@@ -8,6 +8,7 @@ import { useUiStore } from '../stores/uiStore';
 import { useConstraintStore } from '../stores/constraintStore';
 import { useDesignStore } from '../stores/designStore';
 import { SnapEngine } from '../snapping/SnapEngine';
+import { fmtLen } from '../utils/fmt';
 
 // Minimum distance in screen pixels between points (prevents too many points)
 const MIN_POINT_DISTANCE_PX = 5;
@@ -259,7 +260,7 @@ export const DrawPathTool: Tool = {
 
       const labelX = lastPoint[0] * camera.scale;
       const labelY = -(lastPoint[1] * camera.scale) + 15;
-      const label = `Length: ${totalLength.toFixed(2)} m`;
+      const label = `Length: ${fmtLen(totalLength)}`;
 
       ctx.strokeText(label, labelX, labelY);
       ctx.fillText(label, labelX, labelY);

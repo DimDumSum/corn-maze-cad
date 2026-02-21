@@ -5,6 +5,7 @@
 import { useUiStore } from '../../stores/uiStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useTool } from '../../tools';
+import { fmtCoord, fmtUnit, fmtArea } from '../../utils/fmt';
 import './StatusBar.css';
 
 export function StatusBar() {
@@ -12,8 +13,8 @@ export function StatusBar() {
   const { isDirty, field } = useProjectStore();
   const tool = useTool();
 
-  // Calculate field area in hectares (1 hectare = 10,000 m²)
-  const fieldAreaHectares = field ? calculateFieldArea(field.geometry) / 10000 : null;
+  // Calculate field area in m²
+  const fieldAreaM2 = field ? calculateFieldArea(field.geometry) : null;
 
   return (
     <div className="status-bar">
@@ -33,9 +34,9 @@ export function StatusBar() {
           </span>
         ) : mouseWorldPos ? (
           <>
-            <span>X: {mouseWorldPos[0].toFixed(2)} m</span>
+            <span>X: {fmtCoord(mouseWorldPos[0])} {fmtUnit()}</span>
             <span className="status-separator">|</span>
-            <span>Y: {mouseWorldPos[1].toFixed(2)} m</span>
+            <span>Y: {fmtCoord(mouseWorldPos[1])} {fmtUnit()}</span>
           </>
         ) : (
           <span>—</span>
@@ -49,7 +50,7 @@ export function StatusBar() {
             ●
           </span>
         )}
-        {fieldAreaHectares !== null && <span>{fieldAreaHectares.toFixed(1)} ha</span>}
+        {fieldAreaM2 !== null && <span>{fmtArea(fieldAreaM2)}</span>}
         <span className="status-separator">|</span>
         <span>{(camera.scale * 100).toFixed(0)}%</span>
       </div>
