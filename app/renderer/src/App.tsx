@@ -313,7 +313,7 @@ function App() {
     ctx.scale(camera.scale, -camera.scale);
 
     // Layer 1: Field Boundary (Green - darker for light bg)
-    const { aerialUnderlay, planterRowGrid, showPlanterRows, mazeDisplayMode } = useDesignStore.getState();
+    const { aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
     if (field?.geometry) {
       ctx.beginPath();
       ctx.strokeStyle = '#2e7d32';
@@ -376,45 +376,16 @@ function App() {
       }
     }
 
-    // Layer 2: Maze Walls
+    // Layer 2: Maze Walls (standing corn rows)
     if (maze?.walls) {
-      if (mazeDisplayMode === 'grid') {
-        // Solid overlay — thick opaque lines that look like filled cells
+      {
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(139, 105, 20, 0.6)';
-        ctx.lineWidth = 4 / camera.scale;
-        ctx.lineCap = 'square';
-
-        maze.walls.forEach((line: [number, number][]) => {
-          if (line.length >= 2) {
-            ctx.moveTo(line[0][0], line[0][1]);
-            for (let i = 1; i < line.length; i++) {
-              ctx.lineTo(line[i][0], line[i][1]);
-            }
-          }
-        });
-        ctx.stroke();
-        ctx.lineCap = 'butt';
-      } else if (showPlanterRows && planterRowGrid) {
-        // Corn-row style — walls = standing corn (thin green lines)
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(30, 90, 30, 0.85)';
-        ctx.lineWidth = 0.5 / camera.scale;
-
-        maze.walls.forEach((line: [number, number][]) => {
-          if (line.length >= 2) {
-            ctx.moveTo(line[0][0], line[0][1]);
-            for (let i = 1; i < line.length; i++) {
-              ctx.lineTo(line[i][0], line[i][1]);
-            }
-          }
-        });
-        ctx.stroke();
-      } else {
-        // Fallback thick brown lines
-        ctx.beginPath();
-        ctx.strokeStyle = '#8B6914';
-        ctx.lineWidth = 2 / camera.scale;
+        ctx.strokeStyle = (showPlanterRows && planterRowGrid)
+          ? 'rgba(30, 90, 30, 0.85)'   // Corn-row style — thin green lines
+          : '#8B6914';                   // Fallback — thick brown lines
+        ctx.lineWidth = (showPlanterRows && planterRowGrid)
+          ? 0.5 / camera.scale
+          : 2 / camera.scale;
 
         maze.walls.forEach((line: [number, number][]) => {
           if (line.length >= 2) {
