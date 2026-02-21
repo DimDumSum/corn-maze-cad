@@ -97,10 +97,15 @@ def carve_path_endpoint(req: PathRequest):
         app_state.add_carved_edges(carve_polygon.boundary)
         app_state.add_carved_area(carve_polygon)
 
+        # Serialize carved areas as WKT for frontend snapshot
+        carved_areas = app_state.get_carved_areas()
+        carved_areas_wkt = carved_areas.wkt if carved_areas and not carved_areas.is_empty else ""
+
         # Return updated walls (including headland walls)
         result = {
             "walls": flatten_geometry(updated_walls),
             "headlandWalls": flatten_geometry(app_state.get_headland_walls()) if app_state.get_headland_walls() else [],
+            "carvedAreas": carved_areas_wkt,
         }
 
         if warning:
@@ -119,6 +124,7 @@ class SetWallsRequest(BaseModel):
     """Request model for setting maze walls state."""
     walls: List[List[List[float]]]  # [[[x, y], ...], ...]
     headlandWalls: Optional[List[List[List[float]]]] = None  # [[[x, y], ...], ...]
+    carvedAreas: Optional[str] = None  # WKT string of carved area polygons (for undo/redo sync)
     clearCarvedEdges: bool = True  # Clear carved edges tracking when setting walls
 
 
@@ -177,6 +183,14 @@ def set_walls_endpoint(req: SetWallsRequest):
         # Clear carved edges tracking since we're resetting to a different state
         if req.clearCarvedEdges:
             app_state.carved_edges = None
+
+        # Restore carved areas from WKT (syncs undo/redo state)
+        if req.carvedAreas is not None:
+            if req.carvedAreas:
+                from shapely import wkt
+                app_state.set_carved_areas(wkt.loads(req.carvedAreas))
+            else:
+                app_state.set_carved_areas(None)
 
         return {"success": True}
 
@@ -1747,10 +1761,15 @@ def carve_batch(req: CarveBatchRequest):
         print(f"[Carve-batch] Returning {len(flattened)} wall segments, {len(headland_walls_flat)} headland segments")
         print("[Carve-batch] ========== END ==========")
 
+        # Serialize carved areas as WKT for frontend snapshot
+        carved_areas = app_state.get_carved_areas()
+        carved_areas_wkt = carved_areas.wkt if carved_areas and not carved_areas.is_empty else ""
+
         return {
             "maze": {
                 "walls": flattened,
                 "headlandWalls": headland_walls_flat,
+                "carvedAreas": carved_areas_wkt,
                 "geometry": None  # Frontend doesn't use this
             },
             "error": None

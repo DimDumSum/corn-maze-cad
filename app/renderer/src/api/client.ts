@@ -203,6 +203,7 @@ export async function setWalls(maze: MazeWalls | null): Promise<{ success: boole
     body: JSON.stringify({
       walls: maze?.walls || [],
       headlandWalls: maze?.headlandWalls || [],
+      carvedAreas: maze?.carvedAreas || '',
     }),
   });
 

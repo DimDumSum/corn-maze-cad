@@ -28,6 +28,7 @@ export interface FieldBoundary {
 export interface MazeWalls {
   walls: [number, number][][];  // Array of line segments
   headlandWalls?: [number, number][][];  // Carved headland rows (concentric rings)
+  carvedAreas?: string;  // WKT string of carved area polygons (for undo/redo sync)
 }
 
 /**

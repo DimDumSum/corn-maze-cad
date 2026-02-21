@@ -100,6 +100,10 @@ class AppState:
         else:
             self.carved_areas = unary_union([self.carved_areas, eraser])
 
+    def set_carved_areas(self, areas: Optional[BaseGeometry]):
+        """Set the carved areas directly (used for undo/redo restore)."""
+        self.carved_areas = areas
+
     def get_carved_areas(self) -> Optional[BaseGeometry]:
         """Get the accumulated carve eraser polygons."""
         return self.carved_areas
