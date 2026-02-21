@@ -1,14 +1,16 @@
 """
 Mazification module: Maze generation algorithms.
 
-Contains various maze generation strategies including
-grid-based, recursive backtracker, and corner filleting.
+Contains maze generation strategies aligned to corn planter rows,
+including recursive backtracker and Prim's algorithm.
 """
 
 from .generators import (
-    generate_grid_maze,
+    generate_recursive_backtracker,
+    generate_prims,
 )
 
 __all__ = [
-    "generate_grid_maze",
+    "generate_recursive_backtracker",
+    "generate_prims",
 ]

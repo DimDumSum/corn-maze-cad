@@ -137,7 +137,16 @@ function App() {
       // Use pathWidthMin as the maze spacing (grid line distance)
       const spacing = constraints.pathWidthMin || 10.0;
       const algo = algorithm || 'backtracker';
-      const result = await api.generateMaze(spacing, algo);
+
+      // Use planter config for direction and headland inset
+      const { planterConfig } = useDesignStore.getState();
+      const rowSpacingM = planterConfig.spacingInches * 0.0254;
+      const headlandInset = planterConfig.headlands * planterConfig.rows * rowSpacingM;
+
+      const result = await api.generateMaze(
+        spacing, algo, undefined,
+        planterConfig.directionDeg, headlandInset,
+      );
 
       if (result.error) {
         setError(result.error);

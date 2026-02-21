@@ -138,9 +138,9 @@ def carve_path_compat(req: PathRequest):
 
 # Old: /generate-maze -> New: /maze/generate
 @app.get("/generate-maze")
-def generate_maze_compat(spacing: float = 10.0, algorithm: str = "backtracker", seed: int = None):
+def generate_maze_compat(spacing: float = 10.0, algorithm: str = "backtracker", seed: int = None, direction_deg: float = 0.0, headland_inset: float = 0.0):
     """Backwards compatibility: Use /maze/generate instead."""
-    return generate_maze(spacing=spacing, algorithm=algorithm, seed=seed)
+    return generate_maze(spacing=spacing, algorithm=algorithm, seed=seed, direction_deg=direction_deg, headland_inset=headland_inset)
 
 # Old: /export-shapefile -> New: /export/shapefile
 @app.get("/export-shapefile")

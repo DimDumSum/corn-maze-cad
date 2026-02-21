@@ -415,9 +415,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
               <button className="export-dropdown-item" onClick={() => { onGenerateMaze('prims'); setShowAlgoMenu(false); }}>
                 Prim's Algorithm (Easy)
               </button>
-              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('grid'); setShowAlgoMenu(false); }}>
-                Simple Grid
-              </button>
             </div>
           )}
         </div>
