@@ -521,6 +521,98 @@ function App() {
       tool.renderOverlay(ctx, camera);
     }
 
+    // Layer 4.5: Persistent Entrance / Exit / Emergency Exit markers
+    {
+      const { entrances, exits, emergencyExits } = useDesignStore.getState();
+
+      // Entrances (green circles with "IN")
+      for (const entrance of entrances) {
+        const [wx, wy] = entrance.position;
+        const sx = wx * camera.scale + camera.x;
+        const sy = -wy * camera.scale + camera.y;
+        const r = 10;
+
+        ctx.fillStyle = 'rgba(50, 180, 50, 0.8)';
+        ctx.strokeStyle = '#1a7a1a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('IN', sx, sy);
+
+        if (entrance.label) {
+          ctx.fillStyle = '#1a7a1a';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(entrance.label, sx, sy + r + 12);
+        }
+      }
+
+      // Exits (red circles with "OUT")
+      for (const exit of exits) {
+        const [wx, wy] = exit.position;
+        const sx = wx * camera.scale + camera.x;
+        const sy = -wy * camera.scale + camera.y;
+        const r = 10;
+
+        ctx.fillStyle = 'rgba(220, 50, 50, 0.8)';
+        ctx.strokeStyle = '#a01010';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('OUT', sx, sy);
+
+        if (exit.label) {
+          ctx.fillStyle = '#a01010';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(exit.label, sx, sy + r + 12);
+        }
+      }
+
+      // Emergency exits (orange triangles with "!")
+      for (const exit of emergencyExits) {
+        const [wx, wy] = exit.position;
+        const sx = wx * camera.scale + camera.x;
+        const sy = -wy * camera.scale + camera.y;
+        const r = 10;
+
+        ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+        ctx.strokeStyle = '#c87000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy - r);
+        ctx.lineTo(sx - r, sy + r);
+        ctx.lineTo(sx + r, sy + r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('!', sx, sy + 2);
+
+        if (exit.label) {
+          ctx.fillStyle = '#c87000';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(exit.label, sx, sy + r + 14);
+        }
+      }
+    }
+
     // Layer 5: Snap Guide Lines (rendered in screen space)
     // Read from store directly to avoid triggering re-renders
     const { currentSnap, currentGuides, showSnapIndicators } = useUiStore.getState();

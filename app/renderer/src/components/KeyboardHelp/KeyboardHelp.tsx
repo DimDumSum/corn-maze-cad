@@ -29,6 +29,7 @@ const shortcutGroups: ShortcutGroup[] = [
       { keys: ['L'], description: 'Line Tool' },
       { keys: ['R'], description: 'Rectangle Tool' },
       { keys: ['E'], description: 'Eraser Tool' },
+      { keys: ['U'], description: 'Restore Rows Tool' },
       { keys: ['M'], description: 'Measure Tool' },
     ],
   },
