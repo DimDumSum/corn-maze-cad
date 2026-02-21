@@ -23,6 +23,7 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useDesignStore, type DesignElement, type TransformHandle } from '../stores/designStore';
 import { fmtLen, fmtShort } from '../utils/fmt';
+import { API_BASE_URL } from '../api/client';
 
 // Track if we've pushed a snapshot for the current transform
 let transformSnapshotPushed = false;
@@ -61,12 +62,11 @@ async function triggerRevalidation() {
 
     try {
       // Get constraint values (use defaults if not available)
-      const res = await fetch('http://localhost:8000/geometry/validate', {
+      const res = await fetch(`${API_BASE_URL}/geometry/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           elements: designElements,
-          maze: maze?.geometry,
           field: field?.geometry,
           constraints: {
             wallWidthMin: 2,
@@ -366,7 +366,7 @@ export const SelectTool: Tool = {
           pushSnapshot(); // Save state before moving vertices
           transformSnapshotPushed = true;
           // Set startPos for vertex drag delta calculation
-          startTransform('move', worldPos, null, 0, null);
+          startTransform('move', worldPos, null, 0, undefined);
           if (import.meta.env.DEV) {
             console.log('[SelectTool] Started vertex drag at', worldPos);
           }
@@ -423,7 +423,7 @@ export const SelectTool: Tool = {
 
         const width = selectionBounds.maxX - selectionBounds.minX;
         const height = selectionBounds.maxY - selectionBounds.minY;
-        const aspectRatio = e.shiftKey && height > 0 ? width / height : null;
+        const aspectRatio = e.shiftKey && height > 0 ? width / height : undefined;
 
         // Get current rotation (use first selected element's rotation)
         const currentRotation = selectedElements[0]?.rotation || 0;

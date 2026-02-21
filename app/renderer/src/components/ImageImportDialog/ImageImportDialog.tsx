@@ -14,7 +14,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Upload, RefreshCw } from 'lucide-react';
 import { useDesignStore } from '../../stores/designStore';
-import { useProjectStore } from '../../stores/projectStore';
+import * as api from '../../api/client';
 import './ImageImportDialog.css';
 
 interface ImageImportDialogProps {
@@ -30,7 +30,6 @@ interface ImportSettings {
 
 export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
   const { addDesignElement, field } = useDesignStore();
-  const { project } = useProjectStore();
 
   // Image state
   const [imageData, setImageData] = useState<string | null>(null);
@@ -131,7 +130,7 @@ export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
 
     setPreviewLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/geometry/image-preview', {
+      const response = await fetch(`${api.API_BASE_URL}/geometry/image-preview`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,7 +148,9 @@ export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
       setPreviewData(result.preview);
       setContourCount(result.contourCount || 0);
     } catch (err) {
-      console.error('[ImageImport] Preview error:', err);
+      if (import.meta.env.DEV) {
+        console.error('[ImageImport] Preview error:', err);
+      }
       setError('Failed to generate preview');
     } finally {
       setPreviewLoading(false);
@@ -185,7 +186,7 @@ export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
     try {
       const position = getFieldCenter();
 
-      const response = await fetch('http://localhost:8000/geometry/image-to-paths', {
+      const response = await fetch(`${api.API_BASE_URL}/geometry/image-to-paths`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -205,7 +206,9 @@ export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
 
       const result = await response.json();
 
-      console.log(`[ImageImport] Response: ${result.polygons?.length || 0} polygons`);
+      if (import.meta.env.DEV) {
+        console.log(`[ImageImport] Response: ${result.polygons?.length || 0} polygons`);
+      }
 
       if (!result.polygons || result.polygons.length === 0) {
         setError('No shapes could be extracted from the image. Try adjusting the threshold.');
@@ -216,12 +219,11 @@ export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
       // Add each polygon as a design element
       let addedCount = 0;
       for (const polygon of result.polygons) {
-        // Include all polygons (holes are now marked false by backend)
         const points = polygon.points.map((p: [number, number]) => [p[0], p[1]] as [number, number]);
 
         if (points.length >= 3) {
           addDesignElement({
-            type: 'clipart', // Use clipart type for imported images
+            type: 'clipart',
             points,
             width: 0.2,
             closed: true,
@@ -230,11 +232,15 @@ export function ImageImportDialog({ onClose }: ImageImportDialogProps) {
         }
       }
 
-      console.log(`[ImageImport] Added ${addedCount} design elements from image`);
+      if (import.meta.env.DEV) {
+        console.log(`[ImageImport] Added ${addedCount} design elements from image`);
+      }
 
       onClose();
     } catch (err) {
-      console.error('[ImageImport] Import error:', err);
+      if (import.meta.env.DEV) {
+        console.error('[ImageImport] Import error:', err);
+      }
       setError(err instanceof Error ? err.message : 'Import failed');
     } finally {
       setImporting(false);

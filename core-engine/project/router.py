@@ -95,6 +95,10 @@ def load_project(filename: str):
     """Load a project from disk by filename."""
     _ensure_dirs()
 
+    # Prevent path traversal attacks
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail={"error": "Invalid filename"})
+
     filepath = PROJECTS_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail={"error": f"Project not found: {filename}"})
@@ -156,7 +160,7 @@ def list_projects():
                 "version": data.get("version", 1),
                 "size": f.stat().st_size,
             })
-        except:
+        except (json.JSONDecodeError, KeyError, OSError):
             projects.append({
                 "filename": f.name,
                 "name": f.stem,
@@ -171,6 +175,9 @@ def list_projects():
 @router.delete("/delete")
 def delete_project(filename: str):
     """Delete a saved project."""
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail={"error": "Invalid filename"})
+
     filepath = PROJECTS_DIR / filename
     if not filepath.exists():
         raise HTTPException(status_code=404, detail={"error": f"Project not found: {filename}"})
@@ -230,7 +237,7 @@ def check_autosave():
             "savedAt": data.get("savedAt", ""),
             "name": data.get("name", "Autosave"),
         }
-    except:
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
         return {"exists": False}
 
 

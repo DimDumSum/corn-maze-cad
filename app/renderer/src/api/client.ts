@@ -4,7 +4,7 @@
 
 import type { FieldBoundary, MazeWalls } from '../../../shared/types';
 
-const API_BASE_URL = 'http://localhost:8000';
+export const API_BASE_URL = 'http://localhost:8000';
 
 export interface ApiErrorResponse {
   error: string;
@@ -265,34 +265,17 @@ export async function healthCheck(): Promise<{ status: string }> {
 }
 
 // === Validation Types ===
-
-export interface Violation {
-  id: string;
-  type: 'wall_width' | 'edge_buffer' | 'corner_radius';
-  severity: 'error' | 'warning';
-  message: string;
-  location: [number, number];
-  elementIds: string[];
-  actualValue: number;
-  requiredValue: number;
-  highlightArea?: [number, number][] | null;
-}
+// Violation type is the canonical definition in designStore.ts
+import type { Violation, DesignElement } from '../stores/designStore';
+export type { Violation };
 
 export interface ValidateRequest {
-  elements: Array<{
-    id: string;
-    type: string;
-    points: [number, number][];
-    width: number;
-    closed: boolean;
-    rotation?: number;
-  }>;
-  maze?: { geometry?: unknown };
+  elements: DesignElement[];
   field?: { geometry?: unknown; exterior?: [number, number][] };
   constraints: {
     wallWidthMin: number;
     edgeBuffer: number;
-    pathWidthMin: number;
+    pathWidthMin?: number;
   };
 }
 
@@ -350,7 +333,7 @@ export async function autoFixDesign(req: AutoFixRequest): Promise<AutoFixRespons
  */
 export async function carveBatch(
   elements: ValidateRequest['elements'],
-  maze?: { geometry?: unknown }
+  maze?: MazeWalls
 ): Promise<{ maze: MazeWalls | null; error?: string }> {
   const response = await fetch(`${API_BASE_URL}/geometry/carve-batch`, {
     method: 'POST',

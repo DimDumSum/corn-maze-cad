@@ -208,7 +208,7 @@ function App() {
       emergencyExits: state.emergencyExits,
       difficultyPhases: state.difficultyPhases,
       camera,
-      gridSize,
+      gridSize: useUiStore.getState().gridSize,
       showGrid: useUiStore.getState().showGrid,
     };
 
@@ -268,7 +268,9 @@ function App() {
       try {
         const check = await api.checkAutosave();
         if (check.exists) {
-          console.log('[App] Autosave found from', check.savedAt);
+          if (import.meta.env.DEV) {
+            console.log('[App] Autosave found from', check.savedAt);
+          }
         }
       } catch {
         // Backend not ready yet

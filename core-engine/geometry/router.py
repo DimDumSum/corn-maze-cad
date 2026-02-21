@@ -322,7 +322,7 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
             font_prop = fm.FontProperties(family=font_name, weight=font_weight)
             font_file = fm.findfont(font_prop)
             print(f"[Text] Using font: {font_name}, weight: {font_weight}")
-        except:
+        except Exception:
             # Fallback to default font
             font_prop = fm.FontProperties(weight=font_weight)
             font_file = fm.findfont(font_prop)
@@ -948,7 +948,7 @@ def svg_to_paths_endpoint(req: SvgToPathsRequest):
                         poly = poly.buffer(0)
                     if poly.is_valid and not poly.is_empty:
                         polygons.append(poly)
-                except:
+                except (ValueError, TypeError):
                     pass
 
         if not polygons:
@@ -1213,7 +1213,7 @@ def validate_design(req: ValidateRequest):
                                         if hasattr(g, 'exterior'):
                                             highlight = [[float(x), float(y)] for x, y in g.exterior.coords]
                                             break
-                            except:
+                            except Exception:
                                 loc = [float((geom1.centroid.x + geom2.centroid.x) / 2),
                                        float((geom1.centroid.y + geom2.centroid.y) / 2)]
                                 highlight = None
@@ -1267,7 +1267,7 @@ def validate_design(req: ValidateRequest):
                         try:
                             pt1, pt2 = nearest_points(geom, carved_edges)
                             loc = [float((pt1.x + pt2.x) / 2), float((pt1.y + pt2.y) / 2)]
-                        except:
+                        except Exception:
                             # Fallback to element centroid
                             loc = [float(geom.centroid.x), float(geom.centroid.y)]
 

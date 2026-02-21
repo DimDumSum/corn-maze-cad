@@ -175,22 +175,15 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
 
     try {
       // Validate first
-      const validateRes = await fetch('http://localhost:8000/geometry/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          elements: designElements,
-          maze: maze?.geometry,
-          field: field?.geometry,
-          constraints: {
-            wallWidthMin: wallWidthMin || 2,
-            edgeBuffer: edgeBuffer || 3,
-            pathWidthMin: pathWidthMin || 4.0,
-          },
-        }),
+      const result = await api.validateDesign({
+        elements: designElements,
+        field: field?.geometry,
+        constraints: {
+          wallWidthMin: wallWidthMin || 2,
+          edgeBuffer: edgeBuffer || 3,
+          pathWidthMin: pathWidthMin || 4.0,
+        },
       });
-
-      const result = await validateRes.json();
       setViolations(result.violations || []);
 
       if (!result.valid) {
@@ -221,13 +214,7 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
 
     setIsCarving(true);
     try {
-      const carveRes = await fetch('http://localhost:8000/geometry/carve-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ elements: designElements, maze: maze?.geometry }),
-      });
-
-      const result = await carveRes.json();
+      const result = await api.carveBatch(designElements, maze ?? undefined);
 
       if (result.error) {
         if (import.meta.env.DEV) {
@@ -255,21 +242,14 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
   const handleAutoFix = async () => {
     setIsFixing(true);
     try {
-      const res = await fetch('http://localhost:8000/geometry/auto-fix', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          elements: designElements,
-          violations,
-          field: field?.geometry,
-          constraints: {
-            wallWidthMin: wallWidthMin || 2,
-            edgeBuffer: edgeBuffer || 3,
-          },
-        }),
+      const result = await api.autoFixDesign({
+        elements: designElements,
+        field: field?.geometry,
+        constraints: {
+          wallWidthMin: wallWidthMin || 2,
+          edgeBuffer: edgeBuffer || 3,
+        },
       });
-
-      const result = await res.json();
 
       if (result.elements) {
         // Replace design elements with fixed versions (with undo support)
@@ -410,7 +390,7 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
         <div style={{ position: 'relative' }}>
           <button
             className="toolbar-dropdown-button"
-            onClick={() => { setShowExportMenu(!showExportMenu); setShowAlgoMenu(false); }}
+            onClick={() => { setShowExportMenu(!showExportMenu); }}
             title="Export"
             aria-label="Export"
           >

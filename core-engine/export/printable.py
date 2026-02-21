@@ -97,7 +97,7 @@ def export_printable_map(
     # Title
     try:
         title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", int(title_height * 0.6))
-    except:
+    except (OSError, IOError):
         title_font = ImageFont.load_default()
 
     draw.text((width_px // 2, margin), title, fill=(40, 40, 40), font=title_font, anchor="mt")
@@ -163,7 +163,7 @@ def export_printable_map(
 
     try:
         small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", max(14, int(width_px * 0.012)))
-    except:
+    except (OSError, IOError):
         small_font = ImageFont.load_default()
 
     if scale_meters >= 1000:
