@@ -63,10 +63,19 @@ def generate_maze(
             row_spacing=corn_row_spacing,
         )
 
+        # Re-apply any previously carved areas so carvings survive regeneration
+        carved_areas = app_state.get_carved_areas()
+        if carved_areas and not carved_areas.is_empty:
+            walls = walls.difference(carved_areas)
+
         app_state.set_walls(walls)
 
         # Include headland walls if they exist (set during planter grid computation)
+        # and also apply carved areas to them
         headland_walls = app_state.get_headland_walls()
+        if headland_walls and carved_areas and not carved_areas.is_empty:
+            headland_walls = headland_walls.difference(carved_areas)
+            app_state.set_headland_walls(headland_walls)
         headland_walls_flat = flatten_geometry(headland_walls) if headland_walls else []
 
         return {

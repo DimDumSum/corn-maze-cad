@@ -93,8 +93,9 @@ def carve_path_endpoint(req: PathRequest):
             updated_headland = headland_walls.difference(carve_polygon)
             app_state.set_headland_walls(updated_headland)
 
-        # Track carved edges for validation
+        # Track carved edges for validation and carve areas for retention
         app_state.add_carved_edges(carve_polygon.boundary)
+        app_state.add_carved_area(carve_polygon)
 
         # Return updated walls (including headland walls)
         result = {
@@ -1716,11 +1717,12 @@ def carve_batch(req: CarveBatchRequest):
                     app_state.set_headland_walls(updated_headland)
                     print(f"[Batch Carve] Also carved headland walls")
 
-                # Track carved edges for validation
+                # Track carved edges for validation and carve areas for retention
                 boundary = all_carves.boundary
                 print(f"[Batch Carve] all_carves type: {type(all_carves).__name__}, boundary type: {type(boundary).__name__}")
                 print(f"[Batch Carve] boundary is_empty: {boundary.is_empty}, bounds: {boundary.bounds}")
                 app_state.add_carved_edges(boundary)
+                app_state.add_carved_area(all_carves)
                 carved_state = app_state.get_carved_edges()
                 print(f"[Batch Carve] After add - carved_edges type: {type(carved_state).__name__ if carved_state else 'None'}")
                 print(f"[Batch Carve] carved_edges is_empty: {carved_state.is_empty if carved_state else 'N/A'}")
