@@ -1,64 +1,59 @@
 """
-Maze generation algorithms.
+Maze generation algorithms aligned to corn planter rows.
 
-Provides various maze generation strategies including
-grid-based patterns, recursive backtracker, and Prim's algorithm.
+Grid cells are oriented along the planting direction so that
+maze walls correspond to standing corn rows and paths correspond
+to mowed rows.
 """
 
 import random
 import numpy as np
 from shapely.geometry import LineString, MultiLineString, Point
+from shapely.affinity import rotate as shapely_rotate
 from shapely.geometry.base import BaseGeometry
 from typing import List, Tuple, Optional
-
-
-def generate_grid_maze(
-    field_boundary: BaseGeometry,
-    spacing: float = 10.0
-) -> BaseGeometry:
-    """
-    Generate a simple grid maze clipped to field boundary.
-
-    Creates evenly-spaced horizontal and vertical lines
-    that are clipped to the field boundary polygon.
-
-    Args:
-        field_boundary: Shapely polygon defining the field boundary
-        spacing: Distance between grid lines in meters (default: 10.0)
-
-    Returns:
-        MultiLineString geometry containing maze walls
-    """
-    if field_boundary is None or field_boundary.is_empty:
-        raise ValueError("Field boundary must be provided")
-
-    minx, miny, maxx, maxy = field_boundary.bounds
-    lines: List[LineString] = []
-
-    for x in np.arange(minx, maxx, spacing):
-        lines.append(LineString([(x, miny), (x, maxy)]))
-
-    for y in np.arange(miny, maxy, spacing):
-        lines.append(LineString([(minx, y), (maxx, y)]))
-
-    grid = MultiLineString(lines)
-    clipped_walls = grid.intersection(field_boundary)
-
-    return clipped_walls
 
 
 def _build_grid_cells(
     field_boundary: BaseGeometry,
     spacing: float,
-) -> Tuple[int, int, np.ndarray, float, float, float, float]:
+    direction_deg: float = 0.0,
+    headland_inset: float = 0.0,
+) -> Tuple[int, int, np.ndarray, float, float, float, float, Tuple[float, float], BaseGeometry]:
     """
-    Build a grid of cells over the field boundary.
+    Build a grid of cells aligned to the planting direction.
+
+    The field is rotated so that the planting direction aligns with the
+    Y-axis, cells are built in that rotated space, and the resulting
+    inside mask is returned alongside the rotated (axis-aligned) boundary.
+
+    Args:
+        field_boundary: Shapely polygon defining the field boundary
+        spacing: Distance between grid lines in meters
+        direction_deg: Planting direction in degrees (0 = North, 90 = East)
+        headland_inset: Distance to inset from field boundary (headland area)
 
     Returns:
-        (cols, rows, inside_mask, minx, miny, maxx, maxy)
-        inside_mask[row][col] is True if that cell's center is inside the field.
+        (cols, rows, inside_mask, minx, miny, maxx, maxy, rotation_center, working_area)
     """
-    minx, miny, maxx, maxy = field_boundary.bounds
+    # Inset the field to exclude headland area
+    working_area = field_boundary
+    if headland_inset > 0:
+        inset = field_boundary.buffer(-headland_inset)
+        if not inset.is_empty and inset.area > 0:
+            if inset.geom_type == 'MultiPolygon':
+                working_area = max(inset.geoms, key=lambda g: g.area)
+            else:
+                working_area = inset
+
+    # Use working_area centroid as the rotation center (same in both directions)
+    rot_cx, rot_cy = working_area.centroid.x, working_area.centroid.y
+
+    # Rotate the boundary so planting direction aligns with the Y-axis.
+    # This lets us build an axis-aligned grid in the rotated space.
+    rotated = shapely_rotate(working_area, direction_deg, origin=(rot_cx, rot_cy))
+
+    minx, miny, maxx, maxy = rotated.bounds
 
     cols = max(1, int((maxx - minx) / spacing))
     rows = max(1, int((maxy - miny) / spacing))
@@ -66,12 +61,12 @@ def _build_grid_cells(
     inside = np.zeros((rows, cols), dtype=bool)
     for r in range(rows):
         for c in range(cols):
-            cx = minx + (c + 0.5) * spacing
-            cy = miny + (r + 0.5) * spacing
-            if field_boundary.contains(Point(cx, cy)):
+            cell_cx = minx + (c + 0.5) * spacing
+            cell_cy = miny + (r + 0.5) * spacing
+            if rotated.contains(Point(cell_cx, cell_cy)):
                 inside[r, c] = True
 
-    return cols, rows, inside, minx, miny, maxx, maxy
+    return cols, rows, inside, minx, miny, maxx, maxy, (rot_cx, rot_cy), working_area
 
 
 def _grid_to_walls(
@@ -83,17 +78,19 @@ def _grid_to_walls(
     spacing: float,
     minx: float,
     miny: float,
-    field_boundary: BaseGeometry,
+    clip_boundary: BaseGeometry,
+    direction_deg: float = 0.0,
+    rotation_center: Tuple[float, float] = (0.0, 0.0),
 ) -> BaseGeometry:
     """
-    Convert wall arrays to Shapely geometry clipped to the field boundary.
+    Convert wall arrays to Shapely geometry, rotated back to world coordinates.
 
-    h_walls[r][c]: horizontal wall on the south side of row r at column c.
-    v_walls[r][c]: vertical wall on the west side of row r at column c.
+    Walls are built in the rotated (axis-aligned) coordinate system and then
+    rotated back by -direction_deg around the same center used in _build_grid_cells.
     """
     lines: List[LineString] = []
 
-    # Horizontal walls
+    # Horizontal walls (perpendicular to planting direction in rotated space)
     for r in range(rows + 1):
         for c in range(cols):
             top_inside = (r < rows) and inside[r, c]
@@ -106,7 +103,7 @@ def _grid_to_walls(
                 y = miny + r * spacing
                 lines.append(LineString([(x1, y), (x2, y)]))
 
-    # Vertical walls
+    # Vertical walls (along planting direction in rotated space = corn rows)
     for r in range(rows):
         for c in range(cols + 1):
             left_inside = (c > 0) and inside[r, c - 1]
@@ -123,7 +120,12 @@ def _grid_to_walls(
         return MultiLineString()
 
     result = MultiLineString(lines)
-    clipped = result.intersection(field_boundary)
+
+    # Rotate walls back to world coordinates using the same center
+    if direction_deg != 0:
+        result = shapely_rotate(result, -direction_deg, origin=rotation_center)
+
+    clipped = result.intersection(clip_boundary)
     return clipped
 
 
@@ -131,18 +133,20 @@ def generate_recursive_backtracker(
     field_boundary: BaseGeometry,
     spacing: float = 10.0,
     seed: Optional[int] = None,
+    direction_deg: float = 0.0,
+    headland_inset: float = 0.0,
 ) -> BaseGeometry:
     """
     Generate a maze using the recursive backtracker (depth-first search) algorithm.
 
-    Creates a perfect maze (exactly one path between any two cells) with long,
-    winding corridors. This produces harder mazes with fewer dead ends compared
-    to Prim's algorithm.
+    Grid cells are aligned to the planting direction defined by direction_deg.
 
     Args:
         field_boundary: Shapely polygon defining the field boundary
-        spacing: Distance between grid lines in meters (default: 10.0)
+        spacing: Distance between grid lines in meters
         seed: Optional random seed for reproducibility
+        direction_deg: Planting direction in degrees (0 = North, 90 = East)
+        headland_inset: Distance to inset from field boundary (headland area)
 
     Returns:
         MultiLineString geometry containing maze walls
@@ -153,7 +157,9 @@ def generate_recursive_backtracker(
     if seed is not None:
         random.seed(seed)
 
-    cols, rows, inside, minx, miny, maxx, maxy = _build_grid_cells(field_boundary, spacing)
+    cols, rows, inside, minx, miny, maxx, maxy, rot_center, working_area = _build_grid_cells(
+        field_boundary, spacing, direction_deg, headland_inset
+    )
 
     if not inside.any():
         return MultiLineString()
@@ -203,24 +209,30 @@ def generate_recursive_backtracker(
         else:
             stack.pop()
 
-    return _grid_to_walls(cols, rows, inside, h_walls, v_walls, spacing, minx, miny, field_boundary)
+    return _grid_to_walls(
+        cols, rows, inside, h_walls, v_walls, spacing,
+        minx, miny, working_area, direction_deg, rot_center
+    )
 
 
 def generate_prims(
     field_boundary: BaseGeometry,
     spacing: float = 10.0,
     seed: Optional[int] = None,
+    direction_deg: float = 0.0,
+    headland_inset: float = 0.0,
 ) -> BaseGeometry:
     """
     Generate a maze using a randomized Prim's algorithm.
 
-    Creates a perfect maze with many short dead ends, producing an
-    easier maze with more branching paths. Good for younger audiences.
+    Grid cells are aligned to the planting direction defined by direction_deg.
 
     Args:
         field_boundary: Shapely polygon defining the field boundary
-        spacing: Distance between grid lines in meters (default: 10.0)
+        spacing: Distance between grid lines in meters
         seed: Optional random seed for reproducibility
+        direction_deg: Planting direction in degrees (0 = North, 90 = East)
+        headland_inset: Distance to inset from field boundary (headland area)
 
     Returns:
         MultiLineString geometry containing maze walls
@@ -231,7 +243,9 @@ def generate_prims(
     if seed is not None:
         random.seed(seed)
 
-    cols, rows, inside, minx, miny, maxx, maxy = _build_grid_cells(field_boundary, spacing)
+    cols, rows, inside, minx, miny, maxx, maxy, rot_center, working_area = _build_grid_cells(
+        field_boundary, spacing, direction_deg, headland_inset
+    )
 
     if not inside.any():
         return MultiLineString()
@@ -283,12 +297,14 @@ def generate_prims(
 
         add_frontiers(nr, nc)
 
-    return _grid_to_walls(cols, rows, inside, h_walls, v_walls, spacing, minx, miny, field_boundary)
+    return _grid_to_walls(
+        cols, rows, inside, h_walls, v_walls, spacing,
+        minx, miny, working_area, direction_deg, rot_center
+    )
 
 
 # Lookup for algorithm selection
 ALGORITHMS = {
-    "grid": generate_grid_maze,
     "backtracker": generate_recursive_backtracker,
     "prims": generate_prims,
 }
