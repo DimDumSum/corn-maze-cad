@@ -262,7 +262,12 @@ export function PanelTray() {
                 );
                 if (!result.error) {
                   setPlanterRowGrid({
-                    planterConfig: result.planter_config,
+                    planterConfig: {
+                      rows: result.planter_config.rows ?? result.planter_config.planter_rows,
+                      spacingInches: result.planter_config.spacingInches ?? result.planter_config.spacing_inches,
+                      directionDeg: result.planter_config.directionDeg ?? result.planter_config.direction_deg,
+                      headlands: result.planter_config.headlands,
+                    },
                     headlandLines: result.headland_lines,
                     interiorLines: result.interior_lines,
                     headlandBoundary: result.headland_boundary,
@@ -291,7 +296,9 @@ export function PanelTray() {
                   }
                 }
               } catch (err) {
-                console.error('[PanelTray] Planter grid failed:', err);
+                if (import.meta.env.DEV) {
+                  console.error('[PanelTray] Planter grid failed:', err);
+                }
               }
               setApplyingGrid(false);
             }}
@@ -312,7 +319,7 @@ export function PanelTray() {
             </div>
             <div className="prop-row">
               <span className="prop-label">Row spacing</span>
-              <span className="prop-value">{planterRowGrid.planterConfig.spacing_inches}" ({fmtShort(planterRowGrid.planterConfig.spacing_inches * 0.0254)})</span>
+              <span className="prop-value">{planterRowGrid.planterConfig.spacingInches}" ({fmtShort(planterRowGrid.planterConfig.spacingInches * 0.0254)})</span>
             </div>
             <div className="prop-row">
               <span className="prop-label">Planter width</span>
@@ -343,7 +350,9 @@ export function PanelTray() {
                     });
                   }
                 } catch (err) {
-                  console.error('[PanelTray] Satellite fetch failed:', err);
+                  if (import.meta.env.DEV) {
+                    console.error('[PanelTray] Satellite fetch failed:', err);
+                  }
                 }
                 setFetchingSatellite(false);
               }

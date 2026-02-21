@@ -156,7 +156,7 @@ def list_projects():
                 "version": data.get("version", 1),
                 "size": f.stat().st_size,
             })
-        except:
+        except (json.JSONDecodeError, KeyError, OSError):
             projects.append({
                 "filename": f.name,
                 "name": f.stem,
@@ -230,7 +230,7 @@ def check_autosave():
             "savedAt": data.get("savedAt", ""),
             "name": data.get("name", "Autosave"),
         }
-    except:
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
         return {"exists": False}
 
 

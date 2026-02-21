@@ -152,7 +152,7 @@ interface DesignState {
   selectElements: (ids: string[]) => void;
   clearSelection: () => void;
   setHoveredElement: (id: string | null) => void;
-  startTransform: (handle: TransformHandle, pos: [number, number], bounds: TransformState['startBounds'], rotation?: number, aspectRatio?: number) => void;
+  startTransform: (handle: TransformHandle, pos: [number, number], bounds: TransformState['startBounds'], rotation?: number, aspectRatio?: number | null) => void;
   endTransform: () => void;
 
   // === VERTEX EDITING ACTIONS ===
@@ -627,14 +627,14 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set({ hoveredElementId: id });
   },
 
-  startTransform: (handle, pos, bounds, rotation = 0, aspectRatio = null) => {
+  startTransform: (handle, pos, bounds, rotation = 0, aspectRatio) => {
     set({
       transformState: {
         activeHandle: handle,
         startPos: pos,
         startRotation: rotation,
         startBounds: bounds,
-        aspectRatio,
+        aspectRatio: aspectRatio ?? null,
       },
     });
   },

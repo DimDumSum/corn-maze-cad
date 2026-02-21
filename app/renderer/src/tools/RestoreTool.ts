@@ -198,7 +198,9 @@ async function finishRestore(): Promise<void> {
     const result = await response.json();
 
     if (result.error) {
-      console.error('[RestoreTool] Uncarve error:', result.error);
+      if (import.meta.env.DEV) {
+        console.error('[RestoreTool] Uncarve error:', result.error);
+      }
     } else {
       // Update maze state with restored walls
       const { setMaze } = useDesignStore.getState();
@@ -209,6 +211,8 @@ async function finishRestore(): Promise<void> {
       });
     }
   } catch (error) {
-    console.error('[RestoreTool] Failed to uncarve:', error);
+    if (import.meta.env.DEV) {
+      console.error('[RestoreTool] Failed to uncarve:', error);
+    }
   }
 }

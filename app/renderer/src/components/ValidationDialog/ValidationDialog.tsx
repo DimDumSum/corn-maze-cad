@@ -4,19 +4,8 @@
  */
 
 import { AlertTriangle, Wrench, Edit3, Play, X } from 'lucide-react';
+import type { Violation } from '../../stores/designStore';
 import './ValidationDialog.css';
-
-export interface Violation {
-  id: string;
-  type: 'wall_width' | 'edge_buffer';
-  severity: 'error' | 'warning';
-  message: string;
-  location: [number, number];
-  elementIds: string[];
-  actualValue: number;
-  requiredValue: number;
-  highlightArea?: [number, number][] | null;
-}
 
 interface ValidationDialogProps {
   violations: Violation[];

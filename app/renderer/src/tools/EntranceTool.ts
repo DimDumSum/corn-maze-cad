@@ -6,7 +6,7 @@
  */
 
 import type { Tool } from './types';
-import type { Camera } from '../../../../shared/types';
+import type { Camera } from '../../../shared/types';
 import { useDesignStore } from '../stores/designStore';
 
 export const EntranceTool: Tool = {
