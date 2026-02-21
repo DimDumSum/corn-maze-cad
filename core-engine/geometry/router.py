@@ -1634,7 +1634,7 @@ def carve_batch(req: CarveBatchRequest):
 
                 # TEXT (always polygon), CLOSED SHAPES: Use polygon directly (filled area)
                 if is_text or is_closed_flag or points_close_loop:
-                    print(f"[Batch Carve] Processing as POLYGON: {el.id[:8]} (type={el.type}, closed={el.closed}, is_text_or_clipart={is_text_or_clipart}, points_close_loop={points_close_loop})")
+                    print(f"[Batch Carve] Processing as POLYGON: {el.id[:8]} (type={el.type}, closed={el.closed}, is_text={is_text}, points_close_loop={points_close_loop})")
                     poly = Polygon(points)
                     print(f"[Batch Carve]   -> Polygon valid: {poly.is_valid}, area: {poly.area:.2f}m²")
                     if poly.is_valid and poly.area > 0.1:  # Minimum 0.1 m² to filter degenerate polygons
