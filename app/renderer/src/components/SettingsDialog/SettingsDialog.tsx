@@ -10,7 +10,10 @@ import {
   useSettingsStore,
   DEFAULT_KEYBINDINGS,
   KEY_ACTION_LABELS,
+  MOUSE_BUTTON_LABELS,
+  MOUSE_ACTION_LABELS,
   type KeyAction,
+  type MouseButtonAction,
 } from '../../stores/settingsStore';
 import type { UnitSystem } from '../../utils/units';
 import './SettingsDialog.css';
@@ -21,8 +24,11 @@ interface SettingsDialogProps {
 }
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
-  const { unitSystem, setUnitSystem, keybindings, setKeybinding, resetKeybindings } =
-    useSettingsStore();
+  const {
+    unitSystem, setUnitSystem,
+    keybindings, setKeybinding, resetKeybindings,
+    mouseButtons, setMouseButton, resetMouseButtons,
+  } = useSettingsStore();
 
   // Which action is currently being captured (null = none)
   const [capturing, setCapturing] = useState<KeyAction | null>(null);
@@ -149,6 +155,37 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
             <div className="kb-group">
               <div className="kb-group-title">Restore Brush</div>
               {restoreActions.map(renderRow)}
+            </div>
+          </div>
+
+          {/* Mouse Buttons */}
+          <div className="settings-section">
+            <div className="settings-section-header">
+              <h3>Mouse Buttons</h3>
+              <button className="kb-reset-btn" onClick={resetMouseButtons}>
+                Reset All
+              </button>
+            </div>
+
+            <div className="kb-group">
+              {Object.keys(MOUSE_BUTTON_LABELS).map((btnStr) => {
+                const btn = Number(btnStr);
+                const currentAction = mouseButtons[btn] || 'none';
+                return (
+                  <div key={btn} className="kb-row">
+                    <span className="kb-label">{MOUSE_BUTTON_LABELS[btn]}</span>
+                    <select
+                      className="kb-key"
+                      value={currentAction}
+                      onChange={(e) => setMouseButton(btn, e.target.value as MouseButtonAction)}
+                    >
+                      {Object.entries(MOUSE_ACTION_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

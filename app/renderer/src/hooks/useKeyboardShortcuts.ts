@@ -53,6 +53,12 @@ import {
 import { adjustRestoreBrushWidth } from '../tools/RestoreTool';
 import { useSettingsStore, TOOL_ACTION_MAP, type KeyAction } from '../stores/settingsStore';
 
+// Clipboard for copy/paste operations
+import type { DesignElement } from '../stores/designStore';
+type ClipboardEntry = Omit<DesignElement, 'id'>;
+let clipboard: ClipboardEntry[] = [];
+let clipboardPasteCount = 0;
+
 interface KeyboardShortcutsOptions {
   onShowHelp?: () => void;
 }
@@ -385,6 +391,54 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
           selectToolDuplicate();
           return;
         }
+
+        // Copy (Ctrl+C) - copy selected elements to clipboard
+        if (e.key === 'c') {
+          const { designElements, selectedElementIds } = useDesignStore.getState();
+          if (selectedElementIds.size > 0) {
+            e.preventDefault();
+            const selected = designElements.filter(el => selectedElementIds.has(el.id));
+            clipboard = selected.map(el => ({
+              type: el.type,
+              points: el.points.map(p => [...p] as [number, number]),
+              width: el.width,
+              closed: el.closed,
+              rotation: el.rotation,
+            }));
+            clipboardPasteCount = 0;
+            if (import.meta.env.DEV) {
+              console.log('[Keyboard] Copied', clipboard.length, 'elements to clipboard');
+            }
+            return;
+          }
+        }
+
+        // Paste (Ctrl+V) - paste elements from clipboard
+        if (e.key === 'v' && clipboard.length > 0) {
+          e.preventDefault();
+          const { addDesignElement, selectElements, pushSnapshot } = useDesignStore.getState();
+          pushSnapshot();
+          clipboardPasteCount++;
+          const offset = clipboardPasteCount * 2; // 2m offset per paste
+          const newIds: string[] = [];
+          for (const el of clipboard) {
+            const newId = addDesignElement({
+              type: el.type,
+              points: el.points.map(([x, y]) => [x + offset, y + offset] as [number, number]),
+              width: el.width,
+              closed: el.closed,
+              rotation: el.rotation,
+            });
+            newIds.push(newId);
+          }
+          if (newIds.length > 0) {
+            selectElements(newIds);
+          }
+          if (import.meta.env.DEV) {
+            console.log('[Keyboard] Pasted', newIds.length, 'elements (offset:', offset, 'm)');
+          }
+          return;
+        }
       }
 
       // Delete/Backspace - delete selection or vertices
@@ -426,6 +480,20 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         }
       }
 
+      // Canvas rotation shortcuts (Shift+[ = rotate left, Shift+] = rotate right)
+      if (e.key === '{') {
+        e.preventDefault();
+        const { rotateCanvas } = useUiStore.getState();
+        rotateCanvas(-Math.PI / 12); // -15 degrees
+        return;
+      }
+      if (e.key === '}') {
+        e.preventDefault();
+        const { rotateCanvas } = useUiStore.getState();
+        rotateCanvas(Math.PI / 12); // +15 degrees
+        return;
+      }
+
       // Zoom shortcuts
       if (e.ctrlKey || e.metaKey) {
         // Zoom in (Ctrl+= or Ctrl++)
@@ -444,7 +512,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
           return;
         }
 
-        // Reset zoom (Ctrl+0)
+        // Reset zoom and rotation (Ctrl+0)
         if (e.key === '0') {
           e.preventDefault();
           const { resetCamera } = useUiStore.getState();

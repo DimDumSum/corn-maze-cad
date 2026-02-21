@@ -2,7 +2,7 @@
  * Main App Component - Fully Integrated with Zustand stores, tools, and API
  */
 
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Toolbar, type ExportFormat } from './components/Toolbar/Toolbar';
 import { StatusBar } from './components/StatusBar/StatusBar';
 import { KeyboardHelp } from './components/KeyboardHelp/KeyboardHelp';
@@ -11,6 +11,7 @@ import { SatelliteBoundaryPicker } from './components/SatelliteBoundaryPicker';
 import { useUiStore } from './stores/uiStore';
 import { useConstraintStore } from './stores/constraintStore';
 import { useDesignStore } from './stores/designStore';
+import { useSettingsStore } from './stores/settingsStore';
 import { useTool } from './tools';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { renderSnapIndicator, renderGuideLines } from './snapping/SnapVisuals';
@@ -298,9 +299,25 @@ function App() {
   // === COORDINATE TRANSFORMATION ===
   const screenToWorld = (screenX: number, screenY: number): [number, number] => {
     // Convert from screen coordinates to world coordinates
+    // Account for canvas rotation (rotate around canvas center)
+    let sx = screenX;
+    let sy = screenY;
+    if (camera.rotation) {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const cos = Math.cos(-camera.rotation);
+        const sin = Math.sin(-camera.rotation);
+        const dx = sx - cx;
+        const dy = sy - cy;
+        sx = cx + dx * cos - dy * sin;
+        sy = cy + dx * sin + dy * cos;
+      }
+    }
     // Y is negated because canvas Y-axis is flipped (north = up)
-    const worldX = (screenX - camera.x) / camera.scale;
-    const worldY = -(screenY - camera.y) / camera.scale;
+    const worldX = (sx - camera.x) / camera.scale;
+    const worldY = -(sy - camera.y) / camera.scale;
     return [worldX, worldY];
   };
 
@@ -317,6 +334,11 @@ function App() {
 
     // Apply camera transform (Y-axis flipped so north = up)
     ctx.save();
+    if (camera.rotation) {
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(camera.rotation);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    }
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.scale, -camera.scale);
 
@@ -587,13 +609,28 @@ function App() {
 
     ctx.restore();
 
-    // Layer 4: Tool Overlay (rendered in screen space)
+    // Layer 4: Tool Overlay (rendered in screen space, with canvas rotation)
     if (tool.renderOverlay) {
+      if (camera.rotation) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(camera.rotation);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+      }
       tool.renderOverlay(ctx, camera);
+      if (camera.rotation) {
+        ctx.restore();
+      }
     }
 
     // Layer 4.5: Persistent Entrance / Exit / Emergency Exit markers
     {
+      if (camera.rotation) {
+        ctx.save();
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate(camera.rotation);
+        ctx.translate(-canvas.width / 2, -canvas.height / 2);
+      }
       const { entrances, exits, emergencyExits } = useDesignStore.getState();
 
       // Entrances (green circles with "IN")
@@ -681,6 +718,9 @@ function App() {
           ctx.font = '11px sans-serif';
           ctx.fillText(exit.label, sx, sy + r + 14);
         }
+      }
+      if (camera.rotation) {
+        ctx.restore();
       }
     }
 
@@ -812,11 +852,34 @@ function App() {
     };
   };
 
+  // === MOUSE BUTTON PAN STATE ===
+  // Track panning initiated by custom mouse button mapping
+  const mousePanState = useRef<{ active: boolean; lastX: number; lastY: number }>({
+    active: false, lastX: 0, lastY: 0,
+  });
+
   // === MOUSE HANDLERS ===
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Check custom mouse button mapping
+    const mouseAction = useSettingsStore.getState().getMouseAction(e.button);
+
+    // Block disabled buttons
+    if (mouseAction === 'none') return;
+
+    // Handle pan action from any mouse button
+    if (mouseAction === 'pan') {
+      e.preventDefault();
+      mousePanState.current = { active: true, lastX: e.clientX, lastY: e.clientY };
+      return;
+    }
+
+    // Context menu action - let the browser handle it
+    if (mouseAction === 'contextMenu') return;
+
+    // Primary action - pass to the active tool
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
@@ -834,6 +897,17 @@ function App() {
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Handle mouse-button panning
+    if (mousePanState.current.active) {
+      const dx = e.clientX - mousePanState.current.lastX;
+      const dy = e.clientY - mousePanState.current.lastY;
+      mousePanState.current.lastX = e.clientX;
+      mousePanState.current.lastY = e.clientY;
+      const { panCamera } = useUiStore.getState();
+      panCamera(dx, dy);
+      return;
+    }
 
     const rect = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
@@ -855,6 +929,12 @@ function App() {
   );
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    // End mouse-button panning
+    if (mousePanState.current.active) {
+      mousePanState.current.active = false;
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -869,6 +949,7 @@ function App() {
   };
 
   const handleMouseLeave = () => {
+    mousePanState.current.active = false;
     setMouseWorldPos(null);
 
     if (tool.onMouseLeave) {
@@ -895,7 +976,20 @@ function App() {
     };
 
     canvas.addEventListener('wheel', handleWheel, { passive: false });
-    return () => canvas.removeEventListener('wheel', handleWheel);
+
+    // Prevent context menu when right-click is remapped away from 'contextMenu'
+    const handleContextMenu = (e: Event) => {
+      const mouseAction = useSettingsStore.getState().getMouseAction(2);
+      if (mouseAction !== 'contextMenu') {
+        e.preventDefault();
+      }
+    };
+    canvas.addEventListener('contextmenu', handleContextMenu);
+
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel);
+      canvas.removeEventListener('contextmenu', handleContextMenu);
+    };
   }, []);
 
   // === UI ===
