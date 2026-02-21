@@ -78,6 +78,7 @@ export async function generateMaze(
   seed?: number,
   directionDeg: number = 0,
   headlandInset: number = 0,
+  cornRowSpacing?: number,
 ): Promise<MazeResponse & { algorithm?: string }> {
   const params = new URLSearchParams({
     spacing: String(spacing),
@@ -86,6 +87,7 @@ export async function generateMaze(
     headland_inset: String(headlandInset),
   });
   if (seed !== undefined) params.set('seed', String(seed));
+  if (cornRowSpacing !== undefined) params.set('corn_row_spacing', String(cornRowSpacing));
   const response = await fetch(`${API_BASE_URL}/maze/generate?${params}`);
   return response.json();
 }

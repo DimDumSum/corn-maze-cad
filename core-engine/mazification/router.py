@@ -17,6 +17,7 @@ def generate_maze(
     seed: int = None,
     direction_deg: float = 0.0,
     headland_inset: float = 0.0,
+    corn_row_spacing: float = None,
 ):
     """
     Generate a maze clipped to the field boundary, aligned to the planting direction.
@@ -27,6 +28,8 @@ def generate_maze(
         seed: Optional random seed for reproducibility
         direction_deg: Planting direction in degrees (0 = North, 90 = East)
         headland_inset: Distance to inset from field boundary for headlands (meters)
+        corn_row_spacing: Corn-row spacing in meters.  When provided the maze
+            output is standing corn-row segments instead of abstract grid lines.
 
     Returns:
         { "walls": [[[x, y], ...], ...], "algorithm": str }
@@ -56,6 +59,7 @@ def generate_maze(
             seed=seed,
             direction_deg=direction_deg,
             headland_inset=headland_inset,
+            row_spacing=corn_row_spacing,
         )
 
         app_state.set_walls(walls)

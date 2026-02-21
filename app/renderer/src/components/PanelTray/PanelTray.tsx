@@ -255,6 +255,7 @@ export function PanelTray() {
                     undefined,
                     planterConfig.directionDeg,
                     headlandInset,
+                    rowSpacingM,
                   );
                   if (!mazeResult.error) {
                     setMaze(mazeResult);
