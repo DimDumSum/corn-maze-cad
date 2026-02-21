@@ -44,6 +44,9 @@ interface UIState {
   showCarvedOverlay: boolean;
   showCarvedBorder: boolean;
 
+  // Restore brush
+  restoreBrushWidth: number;
+
   // Actions - Camera
   setCamera: (camera: Camera) => void;
   panCamera: (dx: number, dy: number) => void;
@@ -89,6 +92,9 @@ interface UIState {
   setShowSatellite: (show: boolean) => void;
   setShowCarvedOverlay: (show: boolean) => void;
   setShowCarvedBorder: (show: boolean) => void;
+
+  // Actions - Restore Brush
+  setRestoreBrushWidth: (width: number) => void;
 }
 
 const DEFAULT_CAMERA: Camera = {
@@ -117,6 +123,7 @@ export const useUiStore = create<UIState>((set) => ({
   showSatellite: false,
   showCarvedOverlay: false,
   showCarvedBorder: false,
+  restoreBrushWidth: 4.0,
 
   // Camera actions
   setCamera: (camera) =>
@@ -306,4 +313,8 @@ export const useUiStore = create<UIState>((set) => ({
 
   setShowCarvedBorder: (show) =>
     set({ showCarvedBorder: show }),
+
+  // Restore brush actions
+  setRestoreBrushWidth: (width) =>
+    set({ restoreBrushWidth: Math.max(1.0, Math.min(20.0, width)) }),
 }));
