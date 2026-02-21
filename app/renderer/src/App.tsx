@@ -383,7 +383,10 @@ function App() {
       if (_cachedSatelliteImg && _cachedSatelliteImg.complete && _cachedSatelliteImg.naturalWidth > 0) {
         const { minx, miny, maxx, maxy } = aerialUnderlay.bounds;
         ctx.globalAlpha = aerialUnderlay.opacity;
-        ctx.drawImage(_cachedSatelliteImg, minx, miny, maxx - minx, maxy - miny);
+        // Canvas Y-axis is flipped (ctx.scale(s, -s)), so drawImage's top-left
+        // pixel must be placed at maxy (north) with negative height extending
+        // to miny (south) — otherwise the image renders upside-down.
+        ctx.drawImage(_cachedSatelliteImg, minx, maxy, maxx - minx, miny - maxy);
         ctx.globalAlpha = 1;
       }
     }
