@@ -144,8 +144,11 @@ def test_planter_grid(loaded_client):
     })
     assert resp.status_code == 200
     data = resp.json()
-    assert "row_lines" in data
+    assert "headland_lines" in data
+    assert "interior_lines" in data
     assert data["total_rows"] > 0
+    assert data["headland_row_count"] > 0
+    assert data["interior_row_count"] > 0
     assert data["planter_width"] > 0
 
 

@@ -122,7 +122,9 @@ export const useUiStore = create<UIState>((set) => ({
 
   zoomCamera: (delta, centerX, centerY) =>
     set((state) => {
-      const newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, state.camera.scale + delta));
+      // Multiplicative zoom: delta ±0.1 → factor 1.1 or 0.9 (10% per step)
+      const factor = 1 + delta;
+      const newScale = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, state.camera.scale * factor));
 
       // If zoom center is provided, zoom towards that point
       if (centerX !== undefined && centerY !== undefined) {

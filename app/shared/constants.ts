@@ -55,8 +55,8 @@ export const DEFAULT_API_URL = 'http://localhost:8000';
 /**
  * Zoom limits for canvas
  */
-export const ZOOM_MIN = 0.1;
-export const ZOOM_MAX = 10.0;
+export const ZOOM_MIN = 0.01;
+export const ZOOM_MAX = 200.0;
 export const ZOOM_STEP = 0.1;
 
 /**

@@ -34,7 +34,7 @@ export const ExitTool: Tool = {
     for (const exit of exits) {
       const [wx, wy] = exit.position;
       const sx = wx * camera.scale + camera.x;
-      const sy = wy * camera.scale + camera.y;
+      const sy = -wy * camera.scale + camera.y;
       const r = 10;
 
       // Red circle

@@ -168,11 +168,14 @@ export interface PlanterConfig {
 
 export interface PlanterRowGrid {
   planterConfig: PlanterConfig;
-  rowLines: [number, number][][];           // Planted row lines (clipped to field)
+  headlandLines: [number, number][][];      // Concentric rings following field boundary
+  interiorLines: [number, number][][];      // Straight parallel rows in planting area
   headlandBoundary: [number, number][] | null;  // Inset polygon showing headland edge
   planterWidth: number;                     // Total planter width in meters
   headlandInset: number;                    // Headland inset distance in meters
   totalRows: number;
+  headlandRowCount: number;
+  interiorRowCount: number;
 }
 
 // === AERIAL IMAGE UNDERLAY ===

@@ -219,7 +219,7 @@ export const ClipArtTool: Tool = {
     ctx.save();
 
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     const lineWidth = 2 / camera.scale;
     const crossSize = 10 / camera.scale;

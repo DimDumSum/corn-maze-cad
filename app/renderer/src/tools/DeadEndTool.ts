@@ -44,7 +44,7 @@ export const DeadEndTool: Tool = {
     for (let i = 0; i < deadEndPoints.length; i++) {
       const [wx, wy] = deadEndPoints[i];
       const sx = wx * camera.scale + camera.x;
-      const sy = wy * camera.scale + camera.y;
+      const sy = -wy * camera.scale + camera.y;
       if (i === 0) ctx.moveTo(sx, sy);
       else ctx.lineTo(sx, sy);
     }
@@ -53,7 +53,7 @@ export const DeadEndTool: Tool = {
     const mousePos = useUiStore.getState().mouseWorldPos;
     if (mousePos) {
       const sx = mousePos[0] * camera.scale + camera.x;
-      const sy = mousePos[1] * camera.scale + camera.y;
+      const sy = -mousePos[1] * camera.scale + camera.y;
       ctx.lineTo(sx, sy);
     }
 
@@ -63,7 +63,7 @@ export const DeadEndTool: Tool = {
     // Draw vertices
     for (const [wx, wy] of deadEndPoints) {
       const sx = wx * camera.scale + camera.x;
-      const sy = wy * camera.scale + camera.y;
+      const sy = -wy * camera.scale + camera.y;
       ctx.fillStyle = '#f59e0b';
       ctx.beginPath();
       ctx.arc(sx, sy, 4, 0, Math.PI * 2);
@@ -81,7 +81,7 @@ export const DeadEndTool: Tool = {
     if (totalLength > 0) {
       const lastPt = deadEndPoints[deadEndPoints.length - 1];
       const sx = lastPt[0] * camera.scale + camera.x;
-      const sy = lastPt[1] * camera.scale + camera.y;
+      const sy = -lastPt[1] * camera.scale + camera.y;
 
       ctx.fillStyle = 'rgba(245, 158, 11, 0.9)';
       ctx.font = 'bold 12px sans-serif';
@@ -93,7 +93,7 @@ export const DeadEndTool: Tool = {
     // Dead end symbol at start
     if (startPoint) {
       const sx = startPoint[0] * camera.scale + camera.x;
-      const sy = startPoint[1] * camera.scale + camera.y;
+      const sy = -startPoint[1] * camera.scale + camera.y;
 
       ctx.strokeStyle = '#f59e0b';
       ctx.lineWidth = 2;

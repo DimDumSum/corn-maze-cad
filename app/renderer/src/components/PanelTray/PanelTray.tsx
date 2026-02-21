@@ -39,7 +39,7 @@ function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps
 }
 
 export function PanelTray() {
-  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, setPlanterRowGrid, showPlanterRows, setShowPlanterRows } = useDesignStore();
+  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
   const { setTool } = useUiStore();
@@ -231,11 +231,14 @@ export function PanelTray() {
                 if (!result.error) {
                   setPlanterRowGrid({
                     planterConfig: result.planter_config,
-                    rowLines: result.row_lines,
+                    headlandLines: result.headland_lines,
+                    interiorLines: result.interior_lines,
                     headlandBoundary: result.headland_boundary,
                     planterWidth: result.planter_width,
                     headlandInset: result.headland_inset,
                     totalRows: result.total_rows,
+                    headlandRowCount: result.headland_row_count,
+                    interiorRowCount: result.interior_row_count,
                   });
                   setShowPlanterRows(true);
                 }
@@ -260,9 +263,24 @@ export function PanelTray() {
           )}
         </div>
 
-        {showPlanterRows && (
-          <div className="prop-row" style={{ marginTop: '4px', fontSize: '10px', color: '#888' }}>
-            <span>{planterConfig.rows}R &times; {planterConfig.spacingInches}" = {((planterConfig.rows * planterConfig.spacingInches * 0.0254) * 3.28084).toFixed(1)}ft planter</span>
+        {showPlanterRows && planterRowGrid && (
+          <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px', borderTop: '1px solid #c0c0c0', paddingTop: '6px' }}>
+            <div className="prop-row">
+              <span className="prop-label">Headland rows</span>
+              <span className="prop-value">{planterRowGrid.headlandRowCount.toLocaleString()}</span>
+            </div>
+            <div className="prop-row">
+              <span className="prop-label">Interior rows</span>
+              <span className="prop-value">{planterRowGrid.interiorRowCount.toLocaleString()}</span>
+            </div>
+            <div className="prop-row">
+              <span className="prop-label">Row spacing</span>
+              <span className="prop-value">{planterRowGrid.planterConfig.spacing_inches}" ({(planterRowGrid.planterConfig.spacing_inches * 0.0254).toFixed(3)}m)</span>
+            </div>
+            <div className="prop-row">
+              <span className="prop-label">Planter width</span>
+              <span className="prop-value">{(planterRowGrid.planterWidth * 3.28084).toFixed(1)}ft</span>
+            </div>
           </div>
         )}
       </PanelSection>
