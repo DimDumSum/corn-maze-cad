@@ -1,6 +1,6 @@
 /**
  * Restore Tool - Draw a path to restore carved corn rows back to their original state.
- * Works like the inverse of carving: draws a brush path and calls /uncarve
+ * Works like the inverse of carving: click and drag a brush path, then calls /uncarve
  * to add original walls back in that region.
  */
 
@@ -10,46 +10,55 @@ import { useUiStore } from '../stores/uiStore';
 import { useDesignStore } from '../stores/designStore';
 
 const RESTORE_WIDTH = 4.0; // Default restore brush width in meters
+const MIN_POINT_DISTANCE_PX = 5; // Minimum screen-pixel distance between path points
+
+/**
+ * Check if a new point is far enough from the last point (in screen space)
+ * to avoid collecting too many points during fast drags.
+ */
+function shouldAddPoint(
+  newWorldPos: [number, number],
+  lastWorldPos: [number, number],
+  camera: Camera
+): boolean {
+  const dx = (newWorldPos[0] - lastWorldPos[0]) * camera.scale;
+  const dy = (newWorldPos[1] - lastWorldPos[1]) * camera.scale;
+  return Math.hypot(dx, dy) >= MIN_POINT_DISTANCE_PX;
+}
 
 export const RestoreTool: Tool = {
   name: 'restore',
   cursor: 'crosshair',
-  hint: 'Draw over carved areas to restore corn rows. Click to start, click again to finish.',
+  hint: 'Click and drag to paint restore area. Release to apply.',
 
   onMouseDown: (_e: MouseEvent, worldPos: [number, number]) => {
-    const { isDrawing, startDrawing } = useUiStore.getState();
-
-    if (!isDrawing) {
-      // First click - start drawing restore path
-      startDrawing(worldPos);
-    } else {
-      // Subsequent click - add point and finish
-      finishRestore();
-    }
+    const { startDrawing } = useUiStore.getState();
+    startDrawing(worldPos);
   },
 
   onMouseMove: (_e: MouseEvent, worldPos: [number, number]) => {
-    const { isDrawing, currentPath } = useUiStore.getState();
+    const { isDrawing, currentPath, updateDrawing, camera } = useUiStore.getState();
 
-    if (isDrawing && currentPath.length >= 1) {
-      // Update endpoint to follow mouse (keep start + intermediate points + current)
-      const pathCopy = [...currentPath];
-      // If we already have a trailing mouse point, replace it; otherwise append
-      if (pathCopy.length >= 2) {
-        pathCopy[pathCopy.length - 1] = worldPos;
-      } else {
-        pathCopy.push(worldPos);
-      }
-      useUiStore.setState({ currentPath: pathCopy });
+    if (!isDrawing || currentPath.length === 0) return;
+
+    const lastPoint = currentPath[currentPath.length - 1];
+    if (shouldAddPoint(worldPos, lastPoint, camera)) {
+      updateDrawing(worldPos);
     }
   },
 
   onMouseUp: (_e: MouseEvent, _worldPos: [number, number]) => {
-    // Nothing on mouse up
+    const { isDrawing } = useUiStore.getState();
+    if (isDrawing) {
+      finishRestore();
+    }
   },
 
   onMouseLeave: () => {
-    // Keep state on leave
+    const { isDrawing, cancelDrawing } = useUiStore.getState();
+    if (isDrawing) {
+      cancelDrawing();
+    }
   },
 
   renderOverlay: (ctx: CanvasRenderingContext2D, camera: Camera) => {
