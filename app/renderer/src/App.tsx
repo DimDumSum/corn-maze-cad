@@ -232,7 +232,7 @@ function App() {
       difficultyPhases: state.difficultyPhases,
       camera,
       gridSize,
-      showGrid,
+      showGrid: useUiStore.getState().showGrid,
     };
 
     try {
@@ -654,7 +654,7 @@ function App() {
     animationId = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(animationId);
-  }, [camera, field, maze, tool, showGrid, loading, error]);
+  }, [camera, field, maze, tool, loading, error]);
 
   // Handle canvas resize
   useEffect(() => {
