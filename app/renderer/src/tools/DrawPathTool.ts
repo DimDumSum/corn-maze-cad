@@ -186,7 +186,7 @@ export const DrawPathTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     // Choose colors: Blue while drawing, Red while processing
     const isProcessing = !isDrawing && currentPath.length > 0;
@@ -249,7 +249,7 @@ export const DrawPathTool: Tool = {
       }
 
       ctx.save();
-      ctx.scale(1 / camera.scale, 1 / camera.scale);
+      ctx.scale(1 / camera.scale, -1 / camera.scale);
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = '#000';
       ctx.font = 'bold 14px Arial';
@@ -258,7 +258,7 @@ export const DrawPathTool: Tool = {
       ctx.textBaseline = 'top';
 
       const labelX = lastPoint[0] * camera.scale;
-      const labelY = lastPoint[1] * camera.scale + 15;
+      const labelY = -(lastPoint[1] * camera.scale) + 15;
       const label = `Length: ${totalLength.toFixed(2)} m`;
 
       ctx.strokeText(label, labelX, labelY);
@@ -269,7 +269,7 @@ export const DrawPathTool: Tool = {
     // === LAYER 6: Processing label ===
     if (isProcessing) {
       ctx.save();
-      ctx.scale(1 / camera.scale, 1 / camera.scale);
+      ctx.scale(1 / camera.scale, -1 / camera.scale);
 
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 12px Arial';
@@ -278,7 +278,7 @@ export const DrawPathTool: Tool = {
       ctx.lineWidth = 3;
 
       const labelX = lastPoint[0] * camera.scale;
-      const labelY = lastPoint[1] * camera.scale - 15;
+      const labelY = -(lastPoint[1] * camera.scale) - 15;
       const label = 'Processing...';
 
       ctx.strokeText(label, labelX, labelY);

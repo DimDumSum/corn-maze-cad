@@ -134,10 +134,28 @@ function App() {
     setError(null);
 
     try {
-      // Use pathWidthMin as the maze spacing (grid line distance)
-      const spacing = constraints.pathWidthMin || 10.0;
-      const algo = algorithm || 'grid';
-      const result = await api.generateMaze(spacing, algo);
+      const algo = algorithm || 'standing';
+
+      // Use planter config for direction
+      const { planterConfig } = useDesignStore.getState();
+      const rowSpacingM = planterConfig.spacingInches * 0.0254;
+
+      // For standing rows (load-only), no headland inset — the entire
+      // field is carvable including headlands.  For grid, headland
+      // inset is not used either.
+      const headlandInset = 0;
+
+      // Snap maze cell size to a whole number of planter rows so walls
+      // align exactly with corn rows (the planter grid IS the maze grid).
+      const desiredWidth = constraints.pathWidthMin || 3.0;
+      const rowsPerCell = Math.max(1, Math.round(desiredWidth / rowSpacingM));
+      const spacing = rowsPerCell * rowSpacingM;
+
+      const result = await api.generateMaze(
+        spacing, algo, undefined,
+        planterConfig.directionDeg, headlandInset,
+        rowSpacingM,
+      );
 
       if (result.error) {
         setError(result.error);
@@ -232,7 +250,7 @@ function App() {
       difficultyPhases: state.difficultyPhases,
       camera,
       gridSize,
-      showGrid,
+      showGrid: useUiStore.getState().showGrid,
     };
 
     try {
@@ -377,7 +395,7 @@ function App() {
       }
 
       // Draw headland rows (concentric rings following the field boundary)
-      ctx.strokeStyle = 'rgba(180, 120, 40, 0.25)';
+      ctx.strokeStyle = 'rgba(120, 80, 20, 0.7)';
       ctx.lineWidth = 0.5 / camera.scale;
 
       for (const ring of planterRowGrid.headlandLines) {
@@ -392,18 +410,21 @@ function App() {
         }
       }
 
-      // Draw interior rows (straight parallel lines at planting direction)
-      ctx.strokeStyle = 'rgba(46, 125, 50, 0.25)';
-      ctx.lineWidth = 0.5 / camera.scale;
+      // Draw interior rows only when no maze is present — when a maze
+      // exists the maze walls replace interior rows (standing corn = walls).
+      if (!maze?.walls) {
+        ctx.strokeStyle = 'rgba(30, 90, 30, 0.7)';
+        ctx.lineWidth = 0.5 / camera.scale;
 
-      for (const line of planterRowGrid.interiorLines) {
-        if (line.length >= 2) {
-          ctx.beginPath();
-          ctx.moveTo(line[0][0], line[0][1]);
-          for (let i = 1; i < line.length; i++) {
-            ctx.lineTo(line[i][0], line[i][1]);
+        for (const line of planterRowGrid.interiorLines) {
+          if (line.length >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(line[0][0], line[0][1]);
+            for (let i = 1; i < line.length; i++) {
+              ctx.lineTo(line[i][0], line[i][1]);
+            }
+            ctx.stroke();
           }
-          ctx.stroke();
         }
       }
     }
@@ -420,12 +441,21 @@ function App() {
       }
     }
 
-    // Layer 2: Maze Walls (dark brown/amber for light bg)
-    // Carved paths appear as light gaps (absence of walls)
+    // Layer 2: Maze Walls
+    // When planter rows are visible the walls render as corn rows (thin
+    // green lines) so the planter grid IS the maze grid.  Paths appear as
+    // gaps where walls were removed.  Without planter rows the walls
+    // render as the original thick brown lines.
     if (maze?.walls) {
       ctx.beginPath();
-      ctx.strokeStyle = '#8B6914';
-      ctx.lineWidth = 2 / camera.scale;
+      if (showPlanterRows && planterRowGrid) {
+        // Corn-row style — walls = standing corn
+        ctx.strokeStyle = 'rgba(30, 90, 30, 0.85)';
+        ctx.lineWidth = 0.5 / camera.scale;
+      } else {
+        ctx.strokeStyle = '#8B6914';
+        ctx.lineWidth = 2 / camera.scale;
+      }
 
       maze.walls.forEach((line: [number, number][]) => {
         if (line.length >= 2) {
@@ -445,7 +475,7 @@ function App() {
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     for (const el of designElements) {
       ctx.strokeStyle = '#2563eb'; // Blue (darker for light bg)
@@ -654,7 +684,7 @@ function App() {
     animationId = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(animationId);
-  }, [camera, field, maze, tool, showGrid, loading, error]);
+  }, [camera, field, maze, tool, loading, error]);
 
   // Handle canvas resize
   useEffect(() => {

@@ -291,7 +291,7 @@ export const ArcTool: Tool = {
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     const { mode, point1, point2, point3, previewArc, bulge } = arcState;
 
@@ -372,9 +372,9 @@ export const ArcTool: Tool = {
         const angle = Math.abs(4 * Math.atan(bulge) * (180 / Math.PI));
 
         ctx.save();
-        ctx.scale(1 / camera.scale, 1 / camera.scale);
+        ctx.scale(1 / camera.scale, -1 / camera.scale);
         const midX = previewArc[Math.floor(previewArc.length / 2)][0] * camera.scale;
-        const midY = previewArc[Math.floor(previewArc.length / 2)][1] * camera.scale - 15;
+        const midY = -(previewArc[Math.floor(previewArc.length / 2)][1] * camera.scale) - 15;
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 11px Arial';
         ctx.textAlign = 'center';
@@ -390,7 +390,7 @@ export const ArcTool: Tool = {
 
     // Mode indicator
     ctx.save();
-    ctx.scale(1 / camera.scale, 1 / camera.scale);
+    ctx.scale(1 / camera.scale, -1 / camera.scale);
     ctx.fillStyle = '#8b5cf6';
     ctx.font = 'bold 10px Arial';
     ctx.textAlign = 'left';

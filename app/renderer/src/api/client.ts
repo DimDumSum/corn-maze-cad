@@ -68,15 +68,26 @@ export async function importFieldFromFile(file: File): Promise<FieldResponse> {
 }
 
 /**
- * Generate maze with algorithm selection
+ * Generate maze with algorithm selection, aligned to planting direction
  */
-export type MazeAlgorithm = 'grid';
+export type MazeAlgorithm = 'grid' | 'standing';
 
 export async function generateMaze(
   spacing: number = 10.0,
-  algorithm: MazeAlgorithm = 'grid',
+  algorithm: MazeAlgorithm = 'standing',
+  seed?: number,
+  directionDeg: number = 0,
+  headlandInset: number = 0,
+  cornRowSpacing?: number,
 ): Promise<MazeResponse & { algorithm?: string }> {
-  const params = new URLSearchParams({ spacing: String(spacing), algorithm });
+  const params = new URLSearchParams({
+    spacing: String(spacing),
+    algorithm,
+    direction_deg: String(directionDeg),
+    headland_inset: String(headlandInset),
+  });
+  if (seed !== undefined) params.set('seed', String(seed));
+  if (cornRowSpacing !== undefined) params.set('corn_row_spacing', String(cornRowSpacing));
   const response = await fetch(`${API_BASE_URL}/maze/generate?${params}`);
   return response.json();
 }

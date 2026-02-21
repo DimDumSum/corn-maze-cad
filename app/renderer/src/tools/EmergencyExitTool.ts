@@ -31,7 +31,7 @@ export const EmergencyExitTool: Tool = {
     for (const exit of emergencyExits) {
       const [wx, wy] = exit.position;
       const sx = wx * camera.scale + camera.x;
-      const sy = wy * camera.scale + camera.y;
+      const sy = -wy * camera.scale + camera.y;
       const r = 10;
 
       // Orange triangle

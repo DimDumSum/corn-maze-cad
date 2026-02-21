@@ -76,7 +76,7 @@ export const PlantingDirectionTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     ctx.strokeStyle = '#e65100';
     ctx.lineWidth = 2 / camera.scale;
@@ -112,11 +112,15 @@ export const PlantingDirectionTool: Tool = {
     const labelX = (dragStart[0] + dragEnd[0]) / 2;
     const labelY = (dragStart[1] + dragEnd[1]) / 2;
     const fontSize = 14 / camera.scale;
+    ctx.save();
+    ctx.translate(labelX, labelY);
+    ctx.scale(1, -1);
     ctx.font = `bold ${fontSize}px monospace`;
     ctx.fillStyle = '#e65100';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`${angleDeg}°`, labelX, labelY - 4 / camera.scale);
+    ctx.fillText(`${angleDeg}°`, 0, -4 / camera.scale);
+    ctx.restore();
 
     ctx.restore();
   },

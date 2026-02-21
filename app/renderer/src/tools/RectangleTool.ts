@@ -178,7 +178,7 @@ export const RectangleTool: Tool = {
 
       // Transform to world coordinates
       ctx.translate(camera.x, camera.y);
-      ctx.scale(camera.scale, camera.scale);
+      ctx.scale(camera.scale, -camera.scale);
 
       const [x1, y1] = currentPath[0];
       const [x2, y2] = currentPath[currentPath.length - 1];
@@ -240,7 +240,7 @@ export const RectangleTool: Tool = {
       const absHeight = Math.abs(height);
 
       ctx.save();
-      ctx.scale(1 / camera.scale, 1 / camera.scale);
+      ctx.scale(1 / camera.scale, -1 / camera.scale);
       ctx.fillStyle = '#fff';
       ctx.strokeStyle = '#000';
       ctx.font = 'bold 14px Arial';
@@ -252,7 +252,7 @@ export const RectangleTool: Tool = {
       const centerX = (x1 + x2) / 2;
       const centerY = (y1 + y2) / 2;
       const labelX = centerX * camera.scale;
-      const labelY = centerY * camera.scale - 8;
+      const labelY = -(centerY * camera.scale) - 8;
 
       ctx.strokeText(dimensionLabel, labelX, labelY);
       ctx.fillText(dimensionLabel, labelX, labelY);

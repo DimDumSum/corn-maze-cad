@@ -92,7 +92,7 @@ export const MeasureTool: Tool = {
 
       // Transform to world coordinates
       ctx.translate(camera.x, camera.y);
-      ctx.scale(camera.scale, camera.scale);
+      ctx.scale(camera.scale, -camera.scale);
 
       const startPoint = currentPath[0];
       const endPoint = currentPath[currentPath.length - 1];
@@ -131,6 +131,12 @@ export const MeasureTool: Tool = {
       // Draw distance label with background
       const midX = (startPoint[0] + endPoint[0]) / 2;
       const midY = (startPoint[1] + endPoint[1]) / 2;
+
+      // Un-flip for text rendering
+      ctx.save();
+      ctx.translate(midX, midY);
+      ctx.scale(1, -1);
+      ctx.translate(-midX, -midY);
 
       ctx.font = `bold ${16 / camera.scale}px sans-serif`;
       ctx.textAlign = 'center';
@@ -187,6 +193,8 @@ export const MeasureTool: Tool = {
           startPoint[1] + dy * 0.3 - 5 / camera.scale
         );
       }
+
+      ctx.restore(); // un-flip
 
       ctx.restore();
     }

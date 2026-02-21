@@ -39,7 +39,7 @@ function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps
 }
 
 export function PanelTray() {
-  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows } = useDesignStore();
+  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, setMaze } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
   const { setTool } = useUiStore();
@@ -222,6 +222,7 @@ export function PanelTray() {
               if (!field) return;
               setApplyingGrid(true);
               try {
+                // Compute visual corn row overlay
                 const result = await api.computePlanterGrid(
                   planterConfig.rows,
                   planterConfig.spacingInches,
@@ -241,6 +242,24 @@ export function PanelTray() {
                     interiorRowCount: result.interior_row_count,
                   });
                   setShowPlanterRows(true);
+
+                  // Load all corn rows as standing walls (no auto-generated
+                  // maze pattern).  Headland inset = 0 so headlands are
+                  // carvable too.
+                  const rowSpacingM = planterConfig.spacingInches * 0.0254;
+                  const rowsPerCell = Math.max(1, Math.round((pathWidthMin || 3.0) / rowSpacingM));
+                  const mazeSpacing = rowsPerCell * rowSpacingM;
+                  const mazeResult = await api.generateMaze(
+                    mazeSpacing,
+                    'standing',
+                    undefined,
+                    planterConfig.directionDeg,
+                    0,
+                    rowSpacingM,
+                  );
+                  if (!mazeResult.error) {
+                    setMaze(mazeResult);
+                  }
                 }
               } catch (err) {
                 console.error('[PanelTray] Planter grid failed:', err);

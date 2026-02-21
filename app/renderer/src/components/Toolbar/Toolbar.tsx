@@ -409,6 +409,9 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
           </button>
           {showAlgoMenu && (
             <div className="export-dropdown">
+              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('standing'); setShowAlgoMenu(false); }}>
+                Load Rows (Manual Carve)
+              </button>
               <button className="export-dropdown-item" onClick={() => { onGenerateMaze('grid'); setShowAlgoMenu(false); }}>
                 Simple Grid
               </button>

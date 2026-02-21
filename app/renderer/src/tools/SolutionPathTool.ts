@@ -40,7 +40,7 @@ export const SolutionPathTool: Tool = {
       for (let i = 0; i < pathPoints.length; i++) {
         const [wx, wy] = pathPoints[i];
         const sx = wx * camera.scale + camera.x;
-        const sy = wy * camera.scale + camera.y;
+        const sy = -wy * camera.scale + camera.y;
         if (i === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
       }
@@ -49,7 +49,7 @@ export const SolutionPathTool: Tool = {
       const mousePos = useUiStore.getState().mouseWorldPos;
       if (mousePos) {
         const sx = mousePos[0] * camera.scale + camera.x;
-        const sy = mousePos[1] * camera.scale + camera.y;
+        const sy = -mousePos[1] * camera.scale + camera.y;
         ctx.lineTo(sx, sy);
       }
 
@@ -59,7 +59,7 @@ export const SolutionPathTool: Tool = {
       // Draw vertices
       for (const [wx, wy] of pathPoints) {
         const sx = wx * camera.scale + camera.x;
-        const sy = wy * camera.scale + camera.y;
+        const sy = -wy * camera.scale + camera.y;
         ctx.fillStyle = '#dc2626';
         ctx.beginPath();
         ctx.arc(sx, sy, 4, 0, Math.PI * 2);
@@ -82,7 +82,7 @@ export const SolutionPathTool: Tool = {
 
       for (let i = 0; i < phase.path.length; i++) {
         const sx = phase.path[i][0] * camera.scale + camera.x;
-        const sy = phase.path[i][1] * camera.scale + camera.y;
+        const sy = -phase.path[i][1] * camera.scale + camera.y;
         if (i === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
       }

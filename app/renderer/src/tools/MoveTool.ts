@@ -283,7 +283,7 @@ export const MoveTool: Tool = {
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     // Stage 1: Picking origin - show selection center
     if (moveState.stage === 'pickingOrigin') {
@@ -392,7 +392,7 @@ export const MoveTool: Tool = {
 
       // Distance label
       ctx.save();
-      ctx.scale(1 / camera.scale, 1 / camera.scale);
+      ctx.scale(1 / camera.scale, -1 / camera.scale);
       const midX = (origin[0] + dest[0]) / 2;
       const midY = (origin[1] + dest[1]) / 2;
       ctx.fillStyle = '#fff';
@@ -401,8 +401,8 @@ export const MoveTool: Tool = {
       const label = copyMode ? `Copy: ${distance.toFixed(2)} m` : `${distance.toFixed(2)} m`;
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 3;
-      ctx.strokeText(label, midX * camera.scale, midY * camera.scale - 10);
-      ctx.fillText(label, midX * camera.scale, midY * camera.scale - 10);
+      ctx.strokeText(label, midX * camera.scale, -(midY * camera.scale) - 10);
+      ctx.fillText(label, midX * camera.scale, -(midY * camera.scale) - 10);
       ctx.restore();
     }
 
