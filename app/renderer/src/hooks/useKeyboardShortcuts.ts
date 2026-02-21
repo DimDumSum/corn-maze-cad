@@ -23,7 +23,9 @@ import {
   circleToolFinish,
   circleToolCancel,
   circleToolAdjustSegments,
+  circleToolToggleFillMode,
 } from '../tools/CircleTool';
+import { rectangleToolToggleFillMode } from '../tools/RectangleTool';
 import {
   arcToolFinish,
   arcToolCancel,
@@ -195,9 +197,19 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         }
       }
 
-      // Tab - cycle arc mode
+      // Tab - toggle fill mode (rectangle, circle) or cycle arc mode
       if (e.key === 'Tab') {
         const { selectedTool } = useUiStore.getState();
+        if (selectedTool === 'rectangle') {
+          e.preventDefault();
+          rectangleToolToggleFillMode();
+          return;
+        }
+        if (selectedTool === 'circle') {
+          e.preventDefault();
+          circleToolToggleFillMode();
+          return;
+        }
         if (selectedTool === 'arc') {
           e.preventDefault();
           arcToolCycleMode();

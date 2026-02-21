@@ -15,6 +15,39 @@ import {
   findPerpendicularGuides,
 } from '../snapping/SnapVisuals';
 
+// Rectangle tool fill mode state
+interface RectangleToolState {
+  fillMode: 'filled' | 'outline';
+}
+
+function getRectangleState(): RectangleToolState {
+  const state = (useUiStore.getState() as any).rectangleToolState;
+  if (!state) {
+    useUiStore.setState({
+      rectangleToolState: { fillMode: 'outline' },
+    } as any);
+    return { fillMode: 'outline' };
+  }
+  return state;
+}
+
+function updateRectangleState(updates: Partial<RectangleToolState>) {
+  const current = getRectangleState();
+  useUiStore.setState({
+    rectangleToolState: { ...current, ...updates },
+  } as any);
+}
+
+/** Toggle between filled and outline carve modes */
+export function rectangleToolToggleFillMode() {
+  const state = getRectangleState();
+  const newMode = state.fillMode === 'filled' ? 'outline' : 'filled';
+  updateRectangleState({ fillMode: newMode });
+  if (import.meta.env.DEV) {
+    console.log('[RectangleTool] Fill mode:', newMode);
+  }
+}
+
 // Helper to apply snapping to a world position with guide lines
 function applySnap(worldPos: [number, number]): [number, number] {
   const { snapToGrid, gridSize, camera, setCurrentSnap, setCurrentGuides, showSnapIndicators } = useUiStore.getState();
@@ -95,7 +128,7 @@ function applySnap(worldPos: [number, number]): [number, number] {
 export const RectangleTool: Tool = {
   name: 'rectangle',
   cursor: 'crosshair',
-  hint: 'Click and drag to draw rectangle. Shift = Square. Escape = Cancel.',
+  hint: 'Click and drag to draw rectangle. Tab = Toggle fill/outline. Shift = Square. Escape = Cancel.',
 
   onMouseDown: (e: MouseEvent, worldPos: [number, number]) => {
     const snappedPos = applySnap(worldPos);
@@ -144,14 +177,16 @@ export const RectangleTool: Tool = {
       ];
 
       const { pathWidthMin } = useConstraintStore.getState();
+      const { fillMode } = getRectangleState();
+      const isFilled = fillMode === 'filled';
 
       // Add to design store (instant, no network call)
       const { addDesignElement } = useDesignStore.getState();
       addDesignElement({
         type: 'rectangle',
         points: rectanglePath,
-        width: pathWidthMin || 4.0,
-        closed: true,
+        width: isFilled ? 0 : (pathWidthMin || 4.0),
+        closed: isFilled,
       });
 
       if (import.meta.env.DEV) {
@@ -172,6 +207,24 @@ export const RectangleTool: Tool = {
   renderOverlay: (ctx: CanvasRenderingContext2D, camera: Camera) => {
     const { isDrawing, currentPath } = useUiStore.getState();
     const { pathWidthMin } = useConstraintStore.getState();
+    const { fillMode } = getRectangleState();
+    const isFilled = fillMode === 'filled';
+
+    // === Fill mode badge (always visible when tool is active) ===
+    ctx.save();
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const badge = isFilled ? 'Filled' : 'Outline';
+    const badgeColor = isFilled ? '#cc3333' : '#ff6600';
+    const badgeWidth = ctx.measureText(badge).width + 16;
+    ctx.fillStyle = badgeColor;
+    ctx.beginPath();
+    ctx.roundRect(10, 52, badgeWidth, 22, 4);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(badge, 18, 56);
+    ctx.restore();
 
     if (isDrawing && currentPath.length > 0) {
       ctx.save();
@@ -186,38 +239,50 @@ export const RectangleTool: Tool = {
       const width = x2 - x1;
       const height = y2 - y1;
 
-      // === LAYER 1: Path width preview (semi-transparent) ===
-      ctx.strokeStyle = 'rgba(255, 102, 0, 0.2)'; // Light orange
-      ctx.lineWidth = pathWidthMin || 4.0;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      if (isFilled) {
+        // === FILLED MODE: Show solid fill preview ===
+        ctx.fillStyle = 'rgba(204, 51, 51, 0.2)';
+        ctx.fillRect(x1, y1, width, height);
 
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y1);
-      ctx.lineTo(x2, y2);
-      ctx.lineTo(x1, y2);
-      ctx.closePath();
-      ctx.stroke();
+        ctx.strokeStyle = '#cc3333';
+        ctx.lineWidth = 2 / camera.scale;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x1, y2);
+        ctx.closePath();
+        ctx.stroke();
+      } else {
+        // === OUTLINE MODE: Show path width preview ===
+        ctx.strokeStyle = 'rgba(255, 102, 0, 0.2)';
+        ctx.lineWidth = pathWidthMin || 4.0;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-      // === LAYER 2: Centerline (solid, precise) ===
-      ctx.strokeStyle = '#ff6600'; // Solid orange
-      ctx.lineWidth = 2 / camera.scale;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x1, y2);
+        ctx.closePath();
+        ctx.stroke();
 
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y1);
-      ctx.lineTo(x2, y2);
-      ctx.lineTo(x1, y2);
-      ctx.closePath();
-      ctx.stroke();
+        // Centerline
+        ctx.strokeStyle = '#ff6600';
+        ctx.lineWidth = 2 / camera.scale;
 
-      // === LAYER 3: Semi-transparent fill ===
-      ctx.fillStyle = 'rgba(255, 102, 0, 0.1)';
-      ctx.fillRect(x1, y1, width, height);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y1);
+        ctx.lineTo(x2, y2);
+        ctx.lineTo(x1, y2);
+        ctx.closePath();
+        ctx.stroke();
+      }
 
-      // === LAYER 4: Corner points (orange circles) ===
-      ctx.fillStyle = '#ff6600';
+      // === Corner points ===
+      ctx.fillStyle = isFilled ? '#cc3333' : '#ff6600';
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2 / camera.scale;
 
@@ -235,7 +300,7 @@ export const RectangleTool: Tool = {
         ctx.stroke();
       }
 
-      // === LAYER 5: Dimension labels ===
+      // === Dimension labels ===
       const absWidth = Math.abs(width);
       const absHeight = Math.abs(height);
 

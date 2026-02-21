@@ -25,6 +25,7 @@ interface CircleToolState {
   center: [number, number] | null;
   previewRadius: number | null;
   segments: number; // Number of sides (default 24, range 3-360)
+  fillMode: 'filled' | 'outline';
 }
 
 // Initialize circle state in uiStore
@@ -38,6 +39,7 @@ function getCircleState(): CircleToolState {
         center: null,
         previewRadius: null,
         segments: 24,
+        fillMode: 'outline',
       },
     } as any);
     return (useUiStore.getState() as any).circleToolState;
@@ -178,7 +180,7 @@ function generateCirclePoints(
 export const CircleTool: Tool = {
   name: 'circle',
   cursor: 'crosshair',
-  hint: 'Click center, then radius. Type exact value + Enter. ↑/↓ = Segments. Shift = Round values.',
+  hint: 'Click center, then radius. Tab = Toggle fill/outline. Type value + Enter. ↑/↓ = Segments.',
 
   onMouseDown: (_e: MouseEvent, worldPos: [number, number]) => {
     const circleState = getCircleState();
@@ -272,17 +274,35 @@ export const CircleTool: Tool = {
 
     if (!circleState.isActive) return;
 
+    const { center, previewRadius, segments, stage, fillMode } = circleState;
+    const isFilled = fillMode === 'filled';
+
+    // === Fill mode badge (always visible when tool is active) ===
+    ctx.save();
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const badge = isFilled ? 'Filled' : 'Outline';
+    const badgeColor = isFilled ? '#cc3333' : '#06b6d4';
+    const badgeWidth = ctx.measureText(badge).width + 16;
+    ctx.fillStyle = badgeColor;
+    ctx.beginPath();
+    ctx.roundRect(10, 52, badgeWidth, 22, 4);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.fillText(badge, 18, 56);
+    ctx.restore();
+
     ctx.save();
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.scale, -camera.scale);
 
-    const { center, previewRadius, segments, stage } = circleState;
-
     if (center) {
-      // === LAYER 1: Center point marker (cyan) ===
-      ctx.fillStyle = '#06b6d4'; // Cyan
+      // === LAYER 1: Center point marker ===
+      const toolColor = isFilled ? '#cc3333' : '#06b6d4';
+      ctx.fillStyle = toolColor;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2 / camera.scale;
       ctx.beginPath();
@@ -292,7 +312,7 @@ export const CircleTool: Tool = {
 
       // Crosshair at center
       const crossSize = 10 / camera.scale;
-      ctx.strokeStyle = '#06b6d4';
+      ctx.strokeStyle = toolColor;
       ctx.lineWidth = 1 / camera.scale;
       ctx.beginPath();
       ctx.moveTo(center[0] - crossSize, center[1]);
@@ -302,26 +322,40 @@ export const CircleTool: Tool = {
       ctx.stroke();
 
       if (previewRadius !== null && previewRadius > 0 && stage === 'pickingRadius') {
-        // === LAYER 2: Path width preview (semi-transparent) ===
-        ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)'; // Light cyan
-        ctx.lineWidth = pathWidthMin || 4.0;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        if (isFilled) {
+          // === FILLED MODE: Show solid fill preview ===
+          ctx.fillStyle = 'rgba(204, 51, 51, 0.2)';
+          ctx.beginPath();
+          ctx.arc(center[0], center[1], previewRadius, 0, Math.PI * 2);
+          ctx.fill();
 
-        ctx.beginPath();
-        ctx.arc(center[0], center[1], previewRadius, 0, Math.PI * 2);
-        ctx.stroke();
+          ctx.strokeStyle = '#cc3333';
+          ctx.lineWidth = 2 / camera.scale;
+          ctx.beginPath();
+          ctx.arc(center[0], center[1], previewRadius, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          // === OUTLINE MODE: Show path width preview ===
+          ctx.strokeStyle = 'rgba(6, 182, 212, 0.2)';
+          ctx.lineWidth = pathWidthMin || 4.0;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
 
-        // === LAYER 3: Thin circle outline (solid) ===
-        ctx.strokeStyle = '#06b6d4'; // Solid cyan
-        ctx.lineWidth = 2 / camera.scale;
+          ctx.beginPath();
+          ctx.arc(center[0], center[1], previewRadius, 0, Math.PI * 2);
+          ctx.stroke();
 
-        ctx.beginPath();
-        ctx.arc(center[0], center[1], previewRadius, 0, Math.PI * 2);
-        ctx.stroke();
+          // Thin circle outline (solid)
+          ctx.strokeStyle = '#06b6d4';
+          ctx.lineWidth = 2 / camera.scale;
 
-        // === LAYER 4: Segment vertices ===
-        ctx.fillStyle = '#06b6d4';
+          ctx.beginPath();
+          ctx.arc(center[0], center[1], previewRadius, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // === Segment vertices ===
+        ctx.fillStyle = isFilled ? '#cc3333' : '#06b6d4';
         for (let i = 0; i < segments; i++) {
           const angle = (i / segments) * Math.PI * 2;
           const x = center[0] + previewRadius * Math.cos(angle);
@@ -331,7 +365,7 @@ export const CircleTool: Tool = {
           ctx.fill();
         }
 
-        // === LAYER 5: Radius line from center to mouse position ===
+        // === Radius line from center to mouse position ===
         const angleToMouse = Math.atan2(
           (useUiStore.getState() as any).mouseWorldPos?.[1] - center[1] || 0,
           (useUiStore.getState() as any).mouseWorldPos?.[0] - center[0] || 0
@@ -346,7 +380,7 @@ export const CircleTool: Tool = {
         ctx.lineTo(edgeX, edgeY);
         ctx.stroke();
 
-        // === LAYER 6: Dimension label ===
+        // === Dimension label ===
         const midX = center[0] + Math.cos(angleToMouse) * (previewRadius / 2);
         const midY = center[1] + Math.sin(angleToMouse) * (previewRadius / 2);
 
@@ -371,7 +405,7 @@ export const CircleTool: Tool = {
 
         // Segment count (smaller, offset)
         ctx.font = '11px Arial';
-        ctx.fillStyle = '#06b6d4';
+        ctx.fillStyle = isFilled ? '#cc3333' : '#06b6d4';
         ctx.textBaseline = 'top';
         const segmentLabel = `${segments} sides`;
         ctx.strokeText(segmentLabel, labelX, labelY + 2);
@@ -418,14 +452,16 @@ export function circleToolFinish() {
   // Generate circle points (fast, synchronous)
   const circlePath = generateCirclePoints(center, finalRadius, segments);
   const { pathWidthMin } = useConstraintStore.getState();
+  const { fillMode } = circleState;
+  const isFilled = fillMode === 'filled';
 
   // Add to design store (instant, no network call)
   const { addDesignElement } = useDesignStore.getState();
   addDesignElement({
     type: 'circle',
     points: circlePath,
-    width: pathWidthMin || 4.0,
-    closed: true,
+    width: isFilled ? 0 : (pathWidthMin || 4.0),
+    closed: isFilled,
   });
 
   if (import.meta.env.DEV) {
@@ -472,5 +508,15 @@ export function circleToolAdjustSegments(delta: number) {
 export function circleToolSetRadius(radius: number) {
   if (radius > 0) {
     updateCircleState({ previewRadius: radius });
+  }
+}
+
+/** Toggle between filled and outline carve modes */
+export function circleToolToggleFillMode() {
+  const state = getCircleState();
+  const newMode = state.fillMode === 'filled' ? 'outline' : 'filled';
+  updateCircleState({ fillMode: newMode });
+  if (import.meta.env.DEV) {
+    console.log('[CircleTool] Fill mode:', newMode);
   }
 }
