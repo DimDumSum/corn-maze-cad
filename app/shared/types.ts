@@ -103,6 +103,7 @@ export interface Camera {
   x: number;
   y: number;
   scale: number;
+  rotation: number; // Canvas rotation in radians (0 = no rotation)
 }
 
 /**

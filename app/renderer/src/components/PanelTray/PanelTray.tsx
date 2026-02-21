@@ -423,6 +423,12 @@ export function PanelTray() {
           <span className="prop-label">Zoom</span>
           <span className="prop-value">{(camera.scale * 100).toFixed(0)}%</span>
         </div>
+        {camera.rotation !== 0 && (
+          <div className="prop-row">
+            <span className="prop-label">Rotation</span>
+            <span className="prop-value">{(camera.rotation * 180 / Math.PI).toFixed(1)}&deg;</span>
+          </div>
+        )}
       </PanelSection>
 
       {/* Settings */}
@@ -444,7 +450,7 @@ export function PanelTray() {
           onClick={() => setShowSettingsDialog(true)}
           style={{ marginTop: '4px' }}
         >
-          Customize Keybindings
+          Customize Controls
         </button>
       </PanelSection>
 

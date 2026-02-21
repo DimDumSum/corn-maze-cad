@@ -109,5 +109,6 @@ export function zoomToFit(
     x: canvasWidth / 2 - centerX * scale,
     y: canvasHeight / 2 + centerY * scale,  // + because canvas Y is flipped (north = up)
     scale,
+    rotation: 0,
   };
 }

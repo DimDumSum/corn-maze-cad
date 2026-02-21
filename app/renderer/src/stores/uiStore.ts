@@ -51,6 +51,7 @@ interface UIState {
   setCamera: (camera: Camera) => void;
   panCamera: (dx: number, dy: number) => void;
   zoomCamera: (delta: number, centerX?: number, centerY?: number) => void;
+  rotateCanvas: (deltaRad: number) => void;
   resetCamera: () => void;
 
   // Actions - Tool
@@ -101,6 +102,7 @@ const DEFAULT_CAMERA: Camera = {
   x: 0,
   y: 0,
   scale: 1,
+  rotation: 0,
 };
 
 export const useUiStore = create<UIState>((set) => ({
@@ -154,6 +156,7 @@ export const useUiStore = create<UIState>((set) => ({
 
         return {
           camera: {
+            ...state.camera,
             x: newX,
             y: newY,
             scale: newScale,
@@ -169,6 +172,14 @@ export const useUiStore = create<UIState>((set) => ({
         },
       };
     }),
+
+  rotateCanvas: (deltaRad) =>
+    set((state) => ({
+      camera: {
+        ...state.camera,
+        rotation: state.camera.rotation + deltaRad,
+      },
+    })),
 
   resetCamera: () =>
     set({

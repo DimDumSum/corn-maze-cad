@@ -281,6 +281,32 @@ def set_walls_endpoint(req: SetWallsRequest):
         )
 
 
+@router.get("/available-fonts")
+def get_available_fonts():
+    """
+    Return list of font families available on this system for text rendering.
+    """
+    import matplotlib.font_manager as fm
+
+    available = {}
+    for f in fm.fontManager.ttflist:
+        if f.name not in available:
+            available[f.name] = {
+                "name": f.name,
+                "styles": set(),
+            }
+        weight = "bold" if f.weight in (700, "bold") else "normal"
+        available[f.name]["styles"].add(weight)
+
+    fonts = []
+    for name, info in sorted(available.items()):
+        fonts.append({
+            "name": info["name"],
+            "styles": sorted(info["styles"]),
+        })
+    return {"fonts": fonts}
+
+
 @router.post("/text-to-paths")
 def text_to_paths_endpoint(req: TextToPathsRequest):
     """
@@ -342,7 +368,9 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
             if len(path) < 3:  # Need at least 3 points for a polygon
                 continue
             polygon = Polygon(path)
-            if polygon.is_valid:
+            if not polygon.is_valid:
+                polygon = polygon.buffer(0)
+            if polygon.is_valid and not polygon.is_empty:
                 raw_polygons.append(polygon)
 
         if not raw_polygons:
@@ -351,8 +379,33 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
                 detail={"error": "Failed to generate text paths", "error_code": "NO_PATHS"}
             )
 
-        # Combine all polygons to get unified bounds
-        combined = unary_union(raw_polygons)
+        # Properly handle letter holes (e.g. center of O, D, R, A, B, P, Q, etc.)
+        # matplotlib's to_polygons() returns both outer contours and inner holes as
+        # separate polygons. We identify holes by checking containment: if a smaller
+        # polygon is entirely inside a larger one, it's a hole and must be subtracted.
+        # Sort by area descending so outer contours come first.
+        raw_polygons.sort(key=lambda p: p.area, reverse=True)
+
+        outers = []
+        holes = []
+        for poly in raw_polygons:
+            is_hole = False
+            for outer in outers:
+                if outer.contains(poly):
+                    is_hole = True
+                    break
+            if is_hole:
+                holes.append(poly)
+            else:
+                outers.append(poly)
+
+        # Subtract holes from the outer contours
+        if holes:
+            hole_union = unary_union(holes)
+            combined = unary_union(outers).difference(hole_union)
+            print(f"[Text] Processed {len(outers)} outer contours, subtracted {len(holes)} holes")
+        else:
+            combined = unary_union(outers)
 
         # Get actual height of the combined text geometry
         minx, miny, maxx, maxy = combined.bounds
@@ -505,82 +558,133 @@ def image_to_paths_endpoint(req: ImageToPathsRequest):
             else:
                 binary = (img_array < req.threshold).astype(np.uint8) * 255
 
+        img_height, img_width = binary.shape[:2]
         print(f"[ImageToPath] Binary image created, non-zero pixels: {np.count_nonzero(binary)}")
 
         # Apply morphological operations to clean up the binary image
-        # This helps fill small gaps and smooth edges
         kernel = np.ones((3, 3), np.uint8)
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)  # Fill small holes
         binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)   # Remove small noise
 
-        # Find contours using OpenCV
-        # Use RETR_EXTERNAL to get only outer contours (filled shapes, not holes)
+        # Find contours using RETR_CCOMP for two-level hierarchy (outer + holes)
         contours, hierarchy = cv2.findContours(
             binary,
-            cv2.RETR_EXTERNAL,  # Only outer contours - treats shapes as filled
-            cv2.CHAIN_APPROX_SIMPLE
+            cv2.RETR_CCOMP,  # Two-level hierarchy: outers and their holes
+            cv2.CHAIN_APPROX_TC89_L1  # Better approximation than SIMPLE
         )
 
         print(f"[ImageToPath] Found {len(contours)} contours")
 
-        if not contours:
+        if not contours or hierarchy is None:
             return {'polygons': [], 'bounds': {'width': 0, 'height': 0}}
 
         # Calculate scale factor (pixels to meters)
-        img_width = img_array.shape[1]
-        img_height = img_array.shape[0]
         scale = req.targetWidth / img_width
         target_height = img_height * scale
 
         print(f"[ImageToPath] Scale: {scale:.4f} (1px = {scale:.4f}m)")
 
-        polygons = []
-        min_area_px = 100  # Minimum contour area in pixels
+        min_area_px = 50  # Minimum contour area in pixels
 
-        # Process contours
-        for i, contour in enumerate(contours):
-            # Skip very small contours
-            area = cv2.contourArea(contour)
-            if area < min_area_px:
-                continue
-
-            # Simplify contour
+        def contour_to_points(contour):
+            """Convert a contour to world-space points."""
             epsilon = req.simplify
             approx = cv2.approxPolyDP(contour, epsilon, True)
-
             if len(approx) < 3:
-                continue
-
-            # Convert to polygon points
-            # Flip Y axis and scale to meters, center at position
+                return None
             points = []
             for pt in approx:
                 x = pt[0][0] * scale + req.position[0] - req.targetWidth / 2
-                y = -(pt[0][1] * scale) + req.position[1] + target_height / 2  # Flip Y
+                y = -(pt[0][1] * scale) + req.position[1] + target_height / 2
                 points.append([round(x, 3), round(y, 3)])
+            return points
 
-            # Validate with Shapely
+        # Process contours with hierarchy to properly handle holes
+        # RETR_CCOMP hierarchy: [next, prev, first_child, parent]
+        # Top-level contours have parent == -1, holes have parent >= 0
+        polygons = []
+        h = hierarchy[0]  # hierarchy shape is (1, N, 4)
+
+        for i in range(len(contours)):
+            # Only process top-level contours (parent == -1)
+            if h[i][3] != -1:
+                continue
+
+            area = cv2.contourArea(contours[i])
+            if area < min_area_px:
+                continue
+
+            outer_points = contour_to_points(contours[i])
+            if outer_points is None:
+                continue
+
             try:
-                poly = Polygon(points)
-                if not poly.is_valid:
-                    poly = poly.buffer(0)
-                if poly.is_valid and poly.area > 0.5:  # At least 0.5 sq meter (lowered threshold)
-                    # With RETR_EXTERNAL, all contours are filled outer shapes
-                    polygons.append({
-                        'points': list(poly.exterior.coords)[:-1],  # Remove duplicate closing point
-                        'isHole': False  # All shapes are treated as carveable areas
-                    })
+                outer_poly = Polygon(outer_points)
+                if not outer_poly.is_valid:
+                    outer_poly = outer_poly.buffer(0)
+                if not outer_poly.is_valid or outer_poly.is_empty:
+                    continue
+
+                # Collect holes (child contours of this outer contour)
+                hole_polys = []
+                child_idx = h[i][2]  # First child
+                while child_idx != -1:
+                    child_area = cv2.contourArea(contours[child_idx])
+                    if child_area >= min_area_px:
+                        hole_points = contour_to_points(contours[child_idx])
+                        if hole_points and len(hole_points) >= 3:
+                            hole_poly = Polygon(hole_points)
+                            if not hole_poly.is_valid:
+                                hole_poly = hole_poly.buffer(0)
+                            if hole_poly.is_valid and not hole_poly.is_empty:
+                                hole_polys.append(hole_poly)
+                    child_idx = h[child_idx][0]  # Next sibling
+
+                # Subtract holes from the outer polygon
+                result_poly = outer_poly
+                for hole in hole_polys:
+                    result_poly = result_poly.difference(hole)
+
+                if result_poly.is_empty:
+                    continue
+
+                # Extract all resulting polygons (difference can create MultiPolygon)
+                from shapely.geometry import MultiPolygon as ShapelyMultiPolygon
+                result_geoms = []
+                if result_poly.geom_type == 'Polygon':
+                    result_geoms = [result_poly]
+                elif result_poly.geom_type == 'MultiPolygon':
+                    result_geoms = list(result_poly.geoms)
+
+                for geom in result_geoms:
+                    if geom.area > 0.5:  # At least 0.5 sq meter
+                        # Add exterior
+                        ext_coords = list(geom.exterior.coords)[:-1]
+                        polygons.append({
+                            'points': ext_coords,
+                            'isHole': False
+                        })
+                        # Add interior rings (holes within this polygon)
+                        for interior in geom.interiors:
+                            int_coords = list(interior.coords)[:-1]
+                            if len(int_coords) >= 3:
+                                polygons.append({
+                                    'points': int_coords,
+                                    'isHole': True
+                                })
+
             except Exception as e:
-                print(f"[ImageToPath] Skipping invalid contour {i}: {e}")
+                print(f"[ImageToPath] Skipping contour {i}: {e}")
                 continue
 
         print(f"[ImageToPath] Extracted {len(polygons)} valid polygons")
         total_area = 0
         for i, p in enumerate(polygons):
-            poly_area = Polygon(p['points']).area
-            total_area += poly_area
-            if i < 5:  # Log first 5
-                print(f"  Polygon {i}: {len(p['points'])} points, area={poly_area:.2f}m²")
+            if not p['isHole']:
+                poly_area = Polygon(p['points']).area
+                total_area += poly_area
+                if i < 5:
+                    print(f"  Polygon {i}: {len(p['points'])} points, area={poly_area:.2f}m²")
         print(f"[ImageToPath] Total polygon area: {total_area:.2f}m²")
 
         return {
@@ -663,13 +767,27 @@ def image_preview_endpoint(req: ImagePreviewRequest):
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
         binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 
-        # Find and draw contours for preview
-        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        # Find and draw contours for preview (RETR_CCOMP for proper hole handling)
+        contours, hierarchy = cv2.findContours(binary, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_TC89_L1)
 
-        # Create preview with filled contours (shows what will be carved)
-        preview = cv2.cvtColor(binary, cv2.COLOR_GRAY2RGB)
-        cv2.drawContours(preview, contours, -1, (0, 255, 0), -1)  # -1 = filled
-        cv2.drawContours(preview, contours, -1, (0, 200, 0), 1)   # outline on top
+        # Create preview with filled contours showing holes properly
+        preview = np.zeros((binary.shape[0], binary.shape[1], 3), dtype=np.uint8)
+        preview[:] = (40, 40, 40)  # Dark background
+
+        if hierarchy is not None:
+            h = hierarchy[0]
+            # Draw outer contours filled green, then draw holes filled dark
+            for i in range(len(contours)):
+                if h[i][3] == -1:  # Top-level contour
+                    cv2.drawContours(preview, contours, i, (0, 220, 0), -1)
+            for i in range(len(contours)):
+                if h[i][3] != -1:  # Hole contour
+                    cv2.drawContours(preview, contours, i, (40, 40, 40), -1)
+            # Draw outlines
+            cv2.drawContours(preview, contours, -1, (0, 180, 0), 1)
+        else:
+            cv2.drawContours(preview, contours, -1, (0, 220, 0), -1)
+            cv2.drawContours(preview, contours, -1, (0, 180, 0), 1)
 
         # Encode as base64 PNG
         _, buffer = cv2.imencode('.png', preview)
