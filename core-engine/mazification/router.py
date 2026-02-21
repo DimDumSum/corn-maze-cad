@@ -78,9 +78,13 @@ def generate_maze(
             app_state.set_headland_walls(headland_walls)
         headland_walls_flat = flatten_geometry(headland_walls) if headland_walls else []
 
+        # Serialize carved areas as WKT for frontend snapshot
+        carved_areas_wkt = carved_areas.wkt if carved_areas and not carved_areas.is_empty else ""
+
         return {
             "walls": flatten_geometry(walls),
             "headlandWalls": headland_walls_flat,
+            "carvedAreas": carved_areas_wkt,
             "algorithm": algorithm,
         }
 
