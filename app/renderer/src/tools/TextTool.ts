@@ -261,10 +261,6 @@ export const TextTool: Tool = {
       const offsetX = originalPosition ? position[0] - originalPosition[0] : 0;
       const offsetY = originalPosition ? position[1] - originalPosition[1] : 0;
 
-      // Pre-compute Y-flip constant (2 * posY for original position)
-      const origPosY = originalPosition ? originalPosition[1] : position[1];
-      const yFlipBase = origPosY * 2;
-
       for (let p = 0; p < previewPaths.length; p++) {
         const geojsonPath = previewPaths[p];
         if (!geojsonPath?.coordinates?.[0]) continue;
@@ -274,9 +270,9 @@ export const TextTool: Tool = {
         if (pathLen < 2) continue;
 
         ctx.beginPath();
-        ctx.moveTo(path[0][0] + offsetX, yFlipBase - path[0][1] + offsetY);
+        ctx.moveTo(path[0][0] + offsetX, path[0][1] + offsetY);
         for (let i = 1; i < pathLen; i++) {
-          ctx.lineTo(path[i][0] + offsetX, yFlipBase - path[i][1] + offsetY);
+          ctx.lineTo(path[i][0] + offsetX, path[i][1] + offsetY);
         }
         ctx.closePath();
         ctx.stroke();
@@ -625,10 +621,6 @@ export async function textToolFinish(): Promise<void> {
   const offsetX = originalPosition ? position[0] - originalPosition[0] : 0;
   const offsetY = originalPosition ? position[1] - originalPosition[1] : 0;
 
-  // Y-flip uses the original position where paths were generated
-  const origPosY = originalPosition ? originalPosition[1] : position[1];
-  const yFlipBase = origPosY * 2;
-
   // Collect IDs of newly added elements for auto-selection
   const addedIds: string[] = [];
 
@@ -648,19 +640,20 @@ export async function textToolFinish(): Promise<void> {
         continue;
       }
 
-      // Pre-allocate flipped coords array with offset applied
+      // Apply drag offset to coords (no Y-flip: backend returns Y-up which
+      // matches the world coordinate system used by the canvas)
       const coordLen = coords.length;
-      const flippedCoords: [number, number][] = new Array(coordLen);
+      const finalCoords: [number, number][] = new Array(coordLen);
       for (let i = 0; i < coordLen; i++) {
-        flippedCoords[i] = [
+        finalCoords[i] = [
           coords[i][0] + offsetX,
-          yFlipBase - coords[i][1] + offsetY,
+          coords[i][1] + offsetY,
         ];
       }
 
       const id = addDesignElement({
         type: 'text',
-        points: flippedCoords,
+        points: finalCoords,
         width: 0,
         closed: true,
         rotation: 0, // Always 0, user can rotate with transform handles
