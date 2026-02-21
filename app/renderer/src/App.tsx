@@ -150,6 +150,7 @@ function App() {
       const result = await api.generateMaze(
         spacing, algo, undefined,
         planterConfig.directionDeg, headlandInset,
+        rowSpacingM,
       );
 
       if (result.error) {

@@ -4,13 +4,18 @@ Maze generation algorithms aligned to corn planter rows.
 Grid cells are oriented along the planting direction so that
 maze walls correspond to standing corn rows and paths correspond
 to mowed rows.
+
+When ``row_spacing`` (corn-row spacing) is provided the output is
+**standing corn-row segments** — the actual corn lines with mowed
+passages subtracted.  Without it the legacy grid-line output is used.
 """
 
 import random
 import numpy as np
-from shapely.geometry import LineString, MultiLineString, Point
+from shapely.geometry import LineString, MultiLineString, Point, box
 from shapely.affinity import rotate as shapely_rotate
 from shapely.geometry.base import BaseGeometry
+from shapely.ops import unary_union
 from typing import List, Tuple, Optional
 
 
@@ -129,12 +134,126 @@ def _grid_to_walls(
     return clipped
 
 
+def _carve_from_corn_rows(
+    cols: int,
+    rows: int,
+    inside: np.ndarray,
+    h_walls: np.ndarray,
+    v_walls: np.ndarray,
+    spacing: float,
+    row_spacing: float,
+    minx: float,
+    miny: float,
+    clip_boundary: BaseGeometry,
+    direction_deg: float = 0.0,
+    rotation_center: Tuple[float, float] = (0.0, 0.0),
+) -> BaseGeometry:
+    """
+    Generate standing corn-row segments by carving maze passages.
+
+    Instead of abstract grid-line walls this function:
+    1. Generates parallel corn-row lines at *row_spacing* intervals
+    2. Builds rectangular mow-zones for every cell interior and passage
+    3. Subtracts the mow-zones from the corn rows
+    4. Returns the remaining standing-corn LineStrings
+
+    The result looks like actual corn rows with paths cut through them.
+    """
+    maxx = minx + cols * spacing
+    maxy = miny + rows * spacing
+
+    # Wall half-width — corn rows within ±wall_half of a cell boundary
+    # remain standing (forming the wall).  2× row_spacing ≈ 2 standing
+    # rows on each side of the boundary.
+    wall_half = row_spacing
+
+    # --- build mow zones ---------------------------------------------------
+    mow_boxes: List[BaseGeometry] = []
+
+    # Cell interiors (always mowed — these are the walkable areas)
+    for r in range(rows):
+        for c in range(cols):
+            if not inside[r, c]:
+                continue
+            x1 = minx + c * spacing + wall_half
+            y1 = miny + r * spacing + wall_half
+            x2 = minx + (c + 1) * spacing - wall_half
+            y2 = miny + (r + 1) * spacing - wall_half
+            if x2 > x1 and y2 > y1:
+                mow_boxes.append(box(x1, y1, x2, y2))
+
+    # Horizontal passages (wall removed between vertically-adjacent cells)
+    for r in range(rows + 1):
+        for c in range(cols):
+            if h_walls[r, c]:
+                continue  # wall still present — don't mow
+            top_inside = (r < rows) and inside[r, c]
+            bot_inside = (r > 0) and inside[r - 1, c]
+            if not (top_inside or bot_inside):
+                continue
+            x1 = minx + c * spacing + wall_half
+            x2 = minx + (c + 1) * spacing - wall_half
+            y_center = miny + r * spacing
+            if x2 > x1:
+                mow_boxes.append(box(x1, y_center - wall_half,
+                                     x2, y_center + wall_half))
+
+    # Vertical passages (wall removed between horizontally-adjacent cells)
+    for r in range(rows):
+        for c in range(cols + 1):
+            if v_walls[r, c]:
+                continue  # wall still present — don't mow
+            left_inside = (c > 0) and inside[r, c - 1]
+            right_inside = (c < cols) and inside[r, c]
+            if not (left_inside or right_inside):
+                continue
+            x_center = minx + c * spacing
+            y1 = miny + r * spacing + wall_half
+            y2 = miny + (r + 1) * spacing - wall_half
+            if y2 > y1:
+                mow_boxes.append(box(x_center - wall_half, y1,
+                                     x_center + wall_half, y2))
+
+    mow_zone = unary_union(mow_boxes) if mow_boxes else None
+
+    # --- generate corn-row lines in rotated space ---------------------------
+    # Corn rows are vertical lines (parallel to Y axis in rotated space)
+    rotated_boundary = shapely_rotate(
+        clip_boundary, direction_deg, origin=rotation_center
+    )
+
+    corn_lines: List[BaseGeometry] = []
+    num_corn_rows = int((maxx - minx) / row_spacing) + 2
+    for i in range(num_corn_rows):
+        x = minx + i * row_spacing
+        line = LineString([(x, miny - spacing), (x, maxy + spacing)])
+        clipped = line.intersection(rotated_boundary)
+        if not clipped.is_empty:
+            corn_lines.append(clipped)
+
+    if not corn_lines:
+        return MultiLineString()
+
+    all_corn = unary_union(corn_lines)
+
+    # --- subtract mow zones from corn rows ----------------------------------
+    standing = all_corn.difference(mow_zone) if mow_zone is not None else all_corn
+
+    # --- rotate back to world coordinates ------------------------------------
+    if direction_deg != 0:
+        standing = shapely_rotate(standing, -direction_deg, origin=rotation_center)
+
+    result = standing.intersection(clip_boundary)
+    return result
+
+
 def generate_recursive_backtracker(
     field_boundary: BaseGeometry,
     spacing: float = 10.0,
     seed: Optional[int] = None,
     direction_deg: float = 0.0,
     headland_inset: float = 0.0,
+    row_spacing: Optional[float] = None,
 ) -> BaseGeometry:
     """
     Generate a maze using the recursive backtracker (depth-first search) algorithm.
@@ -147,9 +266,11 @@ def generate_recursive_backtracker(
         seed: Optional random seed for reproducibility
         direction_deg: Planting direction in degrees (0 = North, 90 = East)
         headland_inset: Distance to inset from field boundary (headland area)
+        row_spacing: Corn-row spacing in meters.  When provided the output is
+            standing corn-row segments instead of abstract grid lines.
 
     Returns:
-        MultiLineString geometry containing maze walls
+        MultiLineString geometry containing maze walls (or corn-row segments)
     """
     if field_boundary is None or field_boundary.is_empty:
         raise ValueError("Field boundary must be provided")
@@ -209,6 +330,13 @@ def generate_recursive_backtracker(
         else:
             stack.pop()
 
+    if row_spacing is not None:
+        return _carve_from_corn_rows(
+            cols, rows, inside, h_walls, v_walls, spacing,
+            row_spacing, minx, miny, working_area,
+            direction_deg, rot_center,
+        )
+
     return _grid_to_walls(
         cols, rows, inside, h_walls, v_walls, spacing,
         minx, miny, working_area, direction_deg, rot_center
@@ -221,6 +349,7 @@ def generate_prims(
     seed: Optional[int] = None,
     direction_deg: float = 0.0,
     headland_inset: float = 0.0,
+    row_spacing: Optional[float] = None,
 ) -> BaseGeometry:
     """
     Generate a maze using a randomized Prim's algorithm.
@@ -233,9 +362,11 @@ def generate_prims(
         seed: Optional random seed for reproducibility
         direction_deg: Planting direction in degrees (0 = North, 90 = East)
         headland_inset: Distance to inset from field boundary (headland area)
+        row_spacing: Corn-row spacing in meters.  When provided the output is
+            standing corn-row segments instead of abstract grid lines.
 
     Returns:
-        MultiLineString geometry containing maze walls
+        MultiLineString geometry containing maze walls (or corn-row segments)
     """
     if field_boundary is None or field_boundary.is_empty:
         raise ValueError("Field boundary must be provided")
@@ -296,6 +427,13 @@ def generate_prims(
             v_walls[r, c] = False
 
         add_frontiers(nr, nc)
+
+    if row_spacing is not None:
+        return _carve_from_corn_rows(
+            cols, rows, inside, h_walls, v_walls, spacing,
+            row_spacing, minx, miny, working_area,
+            direction_deg, rot_center,
+        )
 
     return _grid_to_walls(
         cols, rows, inside, h_walls, v_walls, spacing,
