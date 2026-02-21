@@ -328,8 +328,41 @@ function App() {
       ctx.stroke();
     }
 
-    // Planter row grid overlay removed — the maze walls already represent
-    // standing corn rows, so a separate grid layer is redundant.
+    // Layer 1.5a: Headland overlay (concentric rings around field perimeter)
+    if (showPlanterRows && planterRowGrid) {
+      // Draw headland boundary (dashed orange line showing where headlands end)
+      if (planterRowGrid.headlandBoundary && planterRowGrid.headlandBoundary.length > 2) {
+        ctx.strokeStyle = 'rgba(230, 81, 0, 0.5)';
+        ctx.lineWidth = 1.5 / camera.scale;
+        ctx.setLineDash([8 / camera.scale, 4 / camera.scale]);
+
+        ctx.beginPath();
+        const hb = planterRowGrid.headlandBoundary;
+        ctx.moveTo(hb[0][0], hb[0][1]);
+        for (let i = 1; i < hb.length; i++) {
+          ctx.lineTo(hb[i][0], hb[i][1]);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Draw headland rows (concentric rings following the field boundary)
+      ctx.strokeStyle = 'rgba(120, 80, 20, 0.7)';
+      ctx.lineWidth = 0.5 / camera.scale;
+
+      for (const ring of planterRowGrid.headlandLines) {
+        if (ring.length >= 3) {
+          ctx.beginPath();
+          ctx.moveTo(ring[0][0], ring[0][1]);
+          for (let i = 1; i < ring.length; i++) {
+            ctx.lineTo(ring[i][0], ring[i][1]);
+          }
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+    }
 
     // Layer 1.6: Aerial Image Underlay
     if (aerialUnderlay && aerialUnderlay.imageData) {
