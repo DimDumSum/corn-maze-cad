@@ -124,53 +124,6 @@ function App() {
     }
   };
 
-  const handleGenerateMaze = async (algorithm?: api.MazeAlgorithm) => {
-    if (!field) {
-      setError('Import a field boundary first');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const algo = algorithm || 'standing';
-
-      // Use planter config for direction
-      const { planterConfig } = useDesignStore.getState();
-      const rowSpacingM = planterConfig.spacingInches * 0.0254;
-
-      // For standing rows (load-only), no headland inset — the entire
-      // field is carvable including headlands.  For grid, headland
-      // inset is not used either.
-      const headlandInset = 0;
-
-      // Snap maze cell size to a whole number of planter rows so walls
-      // align exactly with corn rows (the planter grid IS the maze grid).
-      const desiredWidth = constraints.pathWidthMin || 3.0;
-      const rowsPerCell = Math.max(1, Math.round(desiredWidth / rowSpacingM));
-      const spacing = rowsPerCell * rowSpacingM;
-
-      const result = await api.generateMaze(
-        spacing, algo, undefined,
-        planterConfig.directionDeg, headlandInset,
-        rowSpacingM,
-      );
-
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      // Set maze directly (computed result from backend)
-      setMaze(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate maze');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleExport = async (format: ExportFormat) => {
     if (!field) {
       setError('Import a field boundary first');
@@ -360,7 +313,7 @@ function App() {
     ctx.scale(camera.scale, -camera.scale);
 
     // Layer 1: Field Boundary (Green - darker for light bg)
-    const { aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
+    const { aerialUnderlay, planterRowGrid, showPlanterRows, mazeDisplayMode } = useDesignStore.getState();
     if (field?.geometry) {
       ctx.beginPath();
       ctx.strokeStyle = '#2e7d32';
@@ -375,59 +328,8 @@ function App() {
       ctx.stroke();
     }
 
-    // Layer 1.5a: Planter Row Grid (planted rows based on real planter specs)
-    if (showPlanterRows && planterRowGrid) {
-      // Draw headland boundary (dashed orange line showing where headlands end)
-      if (planterRowGrid.headlandBoundary && planterRowGrid.headlandBoundary.length > 2) {
-        ctx.strokeStyle = 'rgba(230, 81, 0, 0.5)';
-        ctx.lineWidth = 1.5 / camera.scale;
-        ctx.setLineDash([8 / camera.scale, 4 / camera.scale]);
-
-        ctx.beginPath();
-        const hb = planterRowGrid.headlandBoundary;
-        ctx.moveTo(hb[0][0], hb[0][1]);
-        for (let i = 1; i < hb.length; i++) {
-          ctx.lineTo(hb[i][0], hb[i][1]);
-        }
-        ctx.closePath();
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Draw headland rows (concentric rings following the field boundary)
-      ctx.strokeStyle = 'rgba(120, 80, 20, 0.7)';
-      ctx.lineWidth = 0.5 / camera.scale;
-
-      for (const ring of planterRowGrid.headlandLines) {
-        if (ring.length >= 3) {
-          ctx.beginPath();
-          ctx.moveTo(ring[0][0], ring[0][1]);
-          for (let i = 1; i < ring.length; i++) {
-            ctx.lineTo(ring[i][0], ring[i][1]);
-          }
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
-
-      // Draw interior rows only when no maze is present — when a maze
-      // exists the maze walls replace interior rows (standing corn = walls).
-      if (!maze?.walls) {
-        ctx.strokeStyle = 'rgba(30, 90, 30, 0.7)';
-        ctx.lineWidth = 0.5 / camera.scale;
-
-        for (const line of planterRowGrid.interiorLines) {
-          if (line.length >= 2) {
-            ctx.beginPath();
-            ctx.moveTo(line[0][0], line[0][1]);
-            for (let i = 1; i < line.length; i++) {
-              ctx.lineTo(line[i][0], line[i][1]);
-            }
-            ctx.stroke();
-          }
-        }
-      }
-    }
+    // Planter row grid overlay removed — the maze walls already represent
+    // standing corn rows, so a separate grid layer is redundant.
 
     // Layer 1.6: Aerial Image Underlay
     if (aerialUnderlay && aerialUnderlay.imageData) {
@@ -442,30 +344,55 @@ function App() {
     }
 
     // Layer 2: Maze Walls
-    // When planter rows are visible the walls render as corn rows (thin
-    // green lines) so the planter grid IS the maze grid.  Paths appear as
-    // gaps where walls were removed.  Without planter rows the walls
-    // render as the original thick brown lines.
     if (maze?.walls) {
-      ctx.beginPath();
-      if (showPlanterRows && planterRowGrid) {
-        // Corn-row style — walls = standing corn
+      if (mazeDisplayMode === 'grid') {
+        // Solid overlay — thick opaque lines that look like filled cells
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(139, 105, 20, 0.6)';
+        ctx.lineWidth = 4 / camera.scale;
+        ctx.lineCap = 'square';
+
+        maze.walls.forEach((line: [number, number][]) => {
+          if (line.length >= 2) {
+            ctx.moveTo(line[0][0], line[0][1]);
+            for (let i = 1; i < line.length; i++) {
+              ctx.lineTo(line[i][0], line[i][1]);
+            }
+          }
+        });
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+      } else if (showPlanterRows && planterRowGrid) {
+        // Corn-row style — walls = standing corn (thin green lines)
+        ctx.beginPath();
         ctx.strokeStyle = 'rgba(30, 90, 30, 0.85)';
         ctx.lineWidth = 0.5 / camera.scale;
+
+        maze.walls.forEach((line: [number, number][]) => {
+          if (line.length >= 2) {
+            ctx.moveTo(line[0][0], line[0][1]);
+            for (let i = 1; i < line.length; i++) {
+              ctx.lineTo(line[i][0], line[i][1]);
+            }
+          }
+        });
+        ctx.stroke();
       } else {
+        // Fallback thick brown lines
+        ctx.beginPath();
         ctx.strokeStyle = '#8B6914';
         ctx.lineWidth = 2 / camera.scale;
-      }
 
-      maze.walls.forEach((line: [number, number][]) => {
-        if (line.length >= 2) {
-          ctx.moveTo(line[0][0], line[0][1]);
-          for (let i = 1; i < line.length; i++) {
-            ctx.lineTo(line[i][0], line[i][1]);
+        maze.walls.forEach((line: [number, number][]) => {
+          if (line.length >= 2) {
+            ctx.moveTo(line[0][0], line[0][1]);
+            for (let i = 1; i < line.length; i++) {
+              ctx.lineTo(line[i][0], line[i][1]);
+            }
           }
-        }
-      });
-      ctx.stroke();
+        });
+        ctx.stroke();
+      }
     }
 
     ctx.restore();
@@ -809,7 +736,6 @@ function App() {
       <Toolbar
         onImportField={handleImportField}
         onImportFromSatellite={() => setShowSatellitePicker(true)}
-        onGenerateMaze={handleGenerateMaze}
         onExport={handleExport}
         onSave={handleSave}
       />
