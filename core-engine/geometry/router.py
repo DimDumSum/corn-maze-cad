@@ -255,6 +255,15 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
         actual_height = new_maxy - new_miny
         print(f"[Text] After scaling - height: {actual_height:.2f} meters")
 
+        # If stroke mode, convert filled polygons to outlined strokes
+        if req.fillMode == 'stroke' and req.strokeWidth and req.strokeWidth > 0:
+            stroke_w = req.strokeWidth * scale_factor  # scale stroke width to match
+            # Buffer outward and inward, then subtract to get the outline ring
+            outer = combined.buffer(stroke_w / 2)
+            inner = combined.buffer(-stroke_w / 2)
+            combined = outer.difference(inner)
+            print(f"[Text] Stroke mode: strokeWidth={req.strokeWidth}m (scaled={stroke_w:.4f}), created outline")
+
         # Translate to position
         from shapely.affinity import translate
         combined = translate(combined, xoff=req.position[0] - new_minx, yoff=req.position[1] - new_miny)
