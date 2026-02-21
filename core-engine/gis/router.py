@@ -384,10 +384,12 @@ def _tile_to_latlon(x: int, y: int, zoom: int):
 def fetch_satellite_image(zoom: int = Query(default=18, ge=10, le=20)):
     """
     Fetch satellite imagery tiles for the current field bounds,
-    composite them, and return as base64 PNG with bounds in the
-    app's centered coordinate system.
+    reproject from Web Mercator to the app's UTM CRS, and return
+    as base64 PNG with bounds in the app's centered coordinate system.
     """
     import urllib.request
+    import numpy as np
+    import pyproj
     from PIL import Image
 
     field = app_state.get_field()
@@ -398,10 +400,10 @@ def fetch_satellite_image(zoom: int = Query(default=18, ge=10, le=20)):
         return {"error": "No field loaded"}
 
     # Convert centered field bounds back to absolute UTM
-    minx, miny, maxx, maxy = field.bounds
+    fminx, fminy, fmaxx, fmaxy = field.bounds
     cx, cy = offset
-    abs_minx, abs_miny = minx + cx, miny + cy
-    abs_maxx, abs_maxy = maxx + cx, maxy + cy
+    abs_minx, abs_miny = fminx + cx, fminy + cy
+    abs_maxx, abs_maxy = fmaxx + cx, fmaxy + cy
 
     # Add 10% padding around the field
     pad_x = (abs_maxx - abs_minx) * 0.10
@@ -411,23 +413,21 @@ def fetch_satellite_image(zoom: int = Query(default=18, ge=10, le=20)):
     abs_maxx += pad_x
     abs_maxy += pad_y
 
-    # Build absolute UTM bounding box as polygon and reproject to WGS84
+    # Build absolute UTM bounding box and reproject to WGS84 to find tiles
     from shapely.geometry import box
     abs_box = box(abs_minx, abs_miny, abs_maxx, abs_maxy)
     wgs_box = reproject_geometry(abs_box, crs, "EPSG:4326")
-    wlon1, wlat1, wlon2, wlat2 = wgs_box.bounds  # (min_lon, min_lat, max_lon, max_lat)
+    wlon1, wlat1, wlon2, wlat2 = wgs_box.bounds
 
     # Find tiles covering the WGS84 bounding box
     tx_min, ty_max = _latlon_to_tile(wlat1, wlon1, zoom)  # SW corner
     tx_max, ty_min = _latlon_to_tile(wlat2, wlon2, zoom)  # NE corner
-    # Clamp
     tx_min = max(0, tx_min)
     ty_min = max(0, ty_min)
 
     num_tiles_x = tx_max - tx_min + 1
     num_tiles_y = ty_max - ty_min + 1
 
-    # Safety limit (avoid fetching hundreds of tiles)
     if num_tiles_x * num_tiles_y > 64:
         return {"error": f"Too many tiles ({num_tiles_x * num_tiles_y}). Lower zoom or use smaller field."}
 
@@ -448,28 +448,70 @@ def fetch_satellite_image(zoom: int = Query(default=18, ge=10, le=20)):
                 py = (ty - ty_min) * TILE_SIZE
                 composite.paste(tile_img, (px, py))
             except Exception:
-                # If a tile fails, leave it black
                 pass
 
-    # Compute the geo bounds of the composited image
-    # NW corner of top-left tile → SE corner of bottom-right tile
-    nw_lat, nw_lon = _tile_to_latlon(tx_min, ty_min, zoom)
-    se_lat, se_lon = _tile_to_latlon(tx_max + 1, ty_max + 1, zoom)
+    # --- Reproject composite from Web Mercator to UTM ---
+    # Tile pixels are linearly spaced in Web Mercator (EPSG:3857).
+    # Compute the Web Mercator bounds of the tile composite.
+    ORIGIN_SHIFT = 20037508.342789244  # half circumference in meters
 
-    # Reproject image corners from WGS84 back to centered UTM
-    from shapely.geometry import Point
-    nw_utm = reproject_geometry(Point(nw_lon, nw_lat), "EPSG:4326", crs)
-    se_utm = reproject_geometry(Point(se_lon, se_lat), "EPSG:4326", crs)
+    n = 2 ** zoom
+    src_mx_min = tx_min / n * 2 * ORIGIN_SHIFT - ORIGIN_SHIFT
+    src_mx_max = (tx_max + 1) / n * 2 * ORIGIN_SHIFT - ORIGIN_SHIFT
+    src_my_max = ORIGIN_SHIFT - ty_min / n * 2 * ORIGIN_SHIFT      # north
+    src_my_min = ORIGIN_SHIFT - (ty_max + 1) / n * 2 * ORIGIN_SHIFT  # south
 
-    # Convert to centered coordinates
-    img_minx = min(nw_utm.x, se_utm.x) - cx
-    img_maxx = max(nw_utm.x, se_utm.x) - cx
-    img_miny = min(nw_utm.y, se_utm.y) - cy
-    img_maxy = max(nw_utm.y, se_utm.y) - cy
+    src_w = composite.width
+    src_h = composite.height
+    src_arr = np.array(composite)  # (H, W, 3)
+
+    # Output image covers the padded field bounds in UTM.
+    # Match source pixel density (approx 1 src pixel per output pixel).
+    utm_width = abs_maxx - abs_minx
+    utm_height = abs_maxy - abs_miny
+    src_m_per_px = (src_mx_max - src_mx_min) / src_w
+    out_w = max(1, int(utm_width / src_m_per_px))
+    out_h = max(1, int(utm_height / src_m_per_px))
+    MAX_DIM = 4096
+    if out_w > MAX_DIM or out_h > MAX_DIM:
+        s = MAX_DIM / max(out_w, out_h)
+        out_w = max(1, int(out_w * s))
+        out_h = max(1, int(out_h * s))
+
+    # Build a grid of absolute UTM coordinates for each output pixel.
+    # Row 0 = north (abs_maxy), last row = south (abs_miny).
+    utm_xs = np.linspace(abs_minx, abs_maxx, out_w)
+    utm_ys = np.linspace(abs_maxy, abs_miny, out_h)  # north→south (top→bottom)
+    grid_x, grid_y = np.meshgrid(utm_xs, utm_ys)
+
+    # Reproject UTM → Web Mercator to find source pixel positions.
+    # Two-step: UTM → WGS84 → EPSG:3857.
+    utm_to_wgs = pyproj.Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    wgs_to_merc = pyproj.Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+
+    wgs_lon, wgs_lat = utm_to_wgs.transform(grid_x.ravel(), grid_y.ravel())
+    merc_x, merc_y = wgs_to_merc.transform(wgs_lon, wgs_lat)
+
+    # Web Mercator → source pixel coordinates
+    src_px_x = ((merc_x - src_mx_min) / (src_mx_max - src_mx_min) * src_w).reshape(out_h, out_w)
+    src_px_y = ((src_my_max - merc_y) / (src_my_max - src_my_min) * src_h).reshape(out_h, out_w)
+
+    src_px_x = np.clip(src_px_x, 0, src_w - 1).astype(np.int32)
+    src_px_y = np.clip(src_px_y, 0, src_h - 1).astype(np.int32)
+
+    # Sample source image at the computed positions
+    out_arr = src_arr[src_px_y, src_px_x]
+    out_img = Image.fromarray(out_arr, "RGB")
+
+    # Bounds in centered UTM coordinates
+    img_minx = abs_minx - cx
+    img_miny = abs_miny - cy
+    img_maxx = abs_maxx - cx
+    img_maxy = abs_maxy - cy
 
     # Encode as base64 PNG
     buf = io.BytesIO()
-    composite.save(buf, format="PNG")
+    out_img.save(buf, format="PNG")
     b64 = base64.b64encode(buf.getvalue()).decode("ascii")
 
     return {
