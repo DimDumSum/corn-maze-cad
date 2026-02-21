@@ -88,8 +88,6 @@ interface DesignState {
   planterConfig: PlanterConfig;
   planterRowGrid: PlanterRowGrid | null;
   showPlanterRows: boolean;
-  mazeDisplayMode: 'corn_rows' | 'grid';
-
   // === AERIAL UNDERLAY ===
   aerialUnderlay: AerialUnderlay | null;
 
@@ -189,7 +187,6 @@ interface DesignState {
   setPlanterConfig: (config: Partial<PlanterConfig>) => void;
   setPlanterRowGrid: (grid: PlanterRowGrid | null) => void;
   setShowPlanterRows: (show: boolean) => void;
-  setMazeDisplayMode: (mode: 'corn_rows' | 'grid') => void;
 
   // === AERIAL UNDERLAY ACTIONS ===
   setAerialUnderlay: (underlay: AerialUnderlay | null) => void;
@@ -218,7 +215,6 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   planterConfig: { rows: 16, spacingInches: 30, directionDeg: 0, headlands: 2 },
   planterRowGrid: null,
   showPlanterRows: false,
-  mazeDisplayMode: 'corn_rows',
   aerialUnderlay: null,
   selectedElementIds: new Set<string>(),
   hoveredElementId: null,
@@ -832,8 +828,6 @@ export const useDesignStore = create<DesignState>((set, get) => ({
   })),
   setPlanterRowGrid: (grid) => set({ planterRowGrid: grid }),
   setShowPlanterRows: (show) => set({ showPlanterRows: show }),
-  setMazeDisplayMode: (mode) => set({ mazeDisplayMode: mode }),
-
   // === AERIAL UNDERLAY ACTIONS ===
 
   setAerialUnderlay: (underlay) => set({ aerialUnderlay: underlay, isDirty: true }),
@@ -862,7 +856,6 @@ export const useDesignStore = create<DesignState>((set, get) => ({
       planterConfig: { rows: 16, spacingInches: 30, directionDeg: 0, headlands: 2 },
       planterRowGrid: null,
       showPlanterRows: false,
-      mazeDisplayMode: 'corn_rows',
       aerialUnderlay: null,
       selectedElementIds: new Set(),
       hoveredElementId: null,

@@ -54,18 +54,14 @@ def generate_maze(
     try:
         gen_func = ALGORITHMS[algorithm]
 
-        # grid generator doesn't accept direction/headland/seed params
-        if algorithm == "grid":
-            walls = gen_func(current_field, spacing=spacing)
-        else:
-            walls = gen_func(
-                current_field,
-                spacing=spacing,
-                seed=seed,
-                direction_deg=direction_deg,
-                headland_inset=headland_inset,
-                row_spacing=corn_row_spacing,
-            )
+        walls = gen_func(
+            current_field,
+            spacing=spacing,
+            seed=seed,
+            direction_deg=direction_deg,
+            headland_inset=headland_inset,
+            row_spacing=corn_row_spacing,
+        )
 
         app_state.set_walls(walls)
 
@@ -90,11 +86,6 @@ def list_algorithms():
                 "id": "standing",
                 "name": "Load Rows",
                 "description": "All corn rows standing with no passages carved. Draw and carve your own paths.",
-            },
-            {
-                "id": "grid",
-                "name": "Simple Grid",
-                "description": "Basic grid pattern - not a true maze, just evenly-spaced lines",
             },
         ]
     }

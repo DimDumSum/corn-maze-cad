@@ -5,11 +5,9 @@ Contains maze generation strategies aligned to corn planter rows.
 """
 
 from .generators import (
-    generate_grid_maze,
     generate_standing_rows,
 )
 
 __all__ = [
-    "generate_grid_maze",
     "generate_standing_rows",
 ]
