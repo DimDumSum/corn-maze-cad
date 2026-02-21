@@ -39,7 +39,7 @@ function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps
 }
 
 export function PanelTray() {
-  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, setMaze } = useDesignStore();
+  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, mazeDisplayMode, setMazeDisplayMode, setMaze } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
   const { setTool } = useUiStore();
@@ -214,6 +214,44 @@ export function PanelTray() {
           <span className="constraint-unit">passes</span>
         </div>
 
+        <div className="constraint-row">
+          <label>Mode</label>
+          <div style={{ display: 'flex', gap: '2px' }}>
+            <button
+              className={`panel-toggle-btn ${mazeDisplayMode === 'corn_rows' ? 'active' : ''}`}
+              onClick={async () => {
+                if (mazeDisplayMode === 'corn_rows') return;
+                setMazeDisplayMode('corn_rows');
+                if (!field || !showPlanterRows) return;
+                // Re-generate with standing algorithm
+                const rowSpacingM = planterConfig.spacingInches * 0.0254;
+                const rowsPerCell = Math.max(1, Math.round((pathWidthMin || 3.0) / rowSpacingM));
+                const mazeSpacing = rowsPerCell * rowSpacingM;
+                const result = await api.generateMaze(mazeSpacing, 'standing', undefined, planterConfig.directionDeg, 0, rowSpacingM);
+                if (!result.error) setMaze(result);
+              }}
+            >
+              Corn Rows
+            </button>
+            <button
+              className={`panel-toggle-btn ${mazeDisplayMode === 'grid' ? 'active' : ''}`}
+              onClick={async () => {
+                if (mazeDisplayMode === 'grid') return;
+                setMazeDisplayMode('grid');
+                if (!field || !showPlanterRows) return;
+                // Re-generate with grid algorithm
+                const rowSpacingM = planterConfig.spacingInches * 0.0254;
+                const rowsPerCell = Math.max(1, Math.round((pathWidthMin || 3.0) / rowSpacingM));
+                const mazeSpacing = rowsPerCell * rowSpacingM;
+                const result = await api.generateMaze(mazeSpacing, 'grid', undefined, planterConfig.directionDeg, 0);
+                if (!result.error) setMaze(result);
+              }}
+            >
+              Simple Grid
+            </button>
+          </div>
+        </div>
+
         <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
           <button
             className="panel-apply-btn"
@@ -243,19 +281,17 @@ export function PanelTray() {
                   });
                   setShowPlanterRows(true);
 
-                  // Load all corn rows as standing walls (no auto-generated
-                  // maze pattern).  Headland inset = 0 so headlands are
-                  // carvable too.
+                  // Generate maze walls using the current display mode
                   const rowSpacingM = planterConfig.spacingInches * 0.0254;
                   const rowsPerCell = Math.max(1, Math.round((pathWidthMin || 3.0) / rowSpacingM));
                   const mazeSpacing = rowsPerCell * rowSpacingM;
                   const mazeResult = await api.generateMaze(
                     mazeSpacing,
-                    'standing',
+                    mazeDisplayMode === 'grid' ? 'grid' : 'standing',
                     undefined,
                     planterConfig.directionDeg,
                     0,
-                    rowSpacingM,
+                    mazeDisplayMode === 'grid' ? undefined : rowSpacingM,
                   );
                   if (!mazeResult.error) {
                     setMaze(mazeResult);
