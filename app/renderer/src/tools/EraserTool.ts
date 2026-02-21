@@ -163,7 +163,7 @@ export const EraserTool: Tool = {
 
         // Transform to world coordinates
         ctx.translate(camera.x, camera.y);
-        ctx.scale(camera.scale, camera.scale);
+        ctx.scale(camera.scale, -camera.scale);
 
         // Draw highlight around hovered element (red, bold, dashed)
         ctx.strokeStyle = '#ef4444'; // Red

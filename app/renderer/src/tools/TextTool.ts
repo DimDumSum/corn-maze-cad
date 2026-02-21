@@ -234,7 +234,7 @@ export const TextTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     // Pre-compute line width (avoid division in loop)
     const lineWidth = 2 / camera.scale;

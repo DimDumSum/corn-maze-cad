@@ -865,7 +865,7 @@ export const SelectTool: Tool = {
 
     // Transform to world coordinates
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
+    ctx.scale(camera.scale, -camera.scale);
 
     const handleSize = 10 / camera.scale;
     const vertexHandleSize = 8 / camera.scale;
@@ -916,25 +916,34 @@ export const SelectTool: Tool = {
 
           // Show vertex index when hovered
           if (isHovered) {
+            ctx.save();
+            ctx.translate(x + vertexHandleSize, y - vertexHandleSize / 2);
+            ctx.scale(1, -1);
             ctx.fillStyle = '#000';
             ctx.font = `${10 / camera.scale}px sans-serif`;
             ctx.textAlign = 'left';
             ctx.textBaseline = 'bottom';
-            ctx.fillText(`V${i}`, x + vertexHandleSize, y - vertexHandleSize / 2);
+            ctx.fillText(`V${i}`, 0, 0);
+            ctx.restore();
           }
         }
 
         // Show hint text
+        const bounds = getElementBounds(element);
+        const hintX = (bounds.minX + bounds.maxX) / 2;
+        const hintY = bounds.maxY + 20 / camera.scale;
+        ctx.save();
+        ctx.translate(hintX, hintY);
+        ctx.scale(1, -1);
         ctx.fillStyle = '#f59e0b';
         ctx.font = `${12 / camera.scale}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        const bounds = getElementBounds(element);
         ctx.fillText(
           'Vertex Edit • Drag to move • Delete to remove • Esc to exit',
-          (bounds.minX + bounds.maxX) / 2,
-          bounds.minY - 20 / camera.scale
+          0, 0
         );
+        ctx.restore();
       }
 
       ctx.restore();
@@ -1036,33 +1045,45 @@ export const SelectTool: Tool = {
 
         // Show rotation angle while rotating
         if (transformState.activeHandle === 'rotate') {
+          ctx.save();
+          ctx.translate(centerX, rotateY + handleSize);
+          ctx.scale(1, -1);
           ctx.fillStyle = '#10b981';
           ctx.font = `bold ${14 / camera.scale}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(`${Math.round(currentRotationAngle)}°`, centerX, rotateY - handleSize);
+          ctx.fillText(`${Math.round(currentRotationAngle)}°`, 0, 0);
+          ctx.restore();
         }
 
         // Show dimensions while scaling
         if (transformState.activeHandle && ['nw', 'ne', 'se', 'sw', 'n', 's', 'e', 'w'].includes(transformState.activeHandle)) {
           const width = bounds.maxX - bounds.minX;
           const height = bounds.maxY - bounds.minY;
+          ctx.save();
+          ctx.translate(centerX, bounds.maxY + handleSize * 2);
+          ctx.scale(1, -1);
           ctx.fillStyle = '#3b82f6';
           ctx.font = `${12 / camera.scale}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
-          ctx.fillText(`${width.toFixed(1)}m × ${height.toFixed(1)}m`, centerX, bounds.minY - handleSize * 2);
+          ctx.fillText(`${width.toFixed(1)}m × ${height.toFixed(1)}m`, 0, 0);
+          ctx.restore();
         }
 
         // Show distance while moving
         if (transformState.activeHandle === 'move' && currentMoveDistance > 0.01) {
           const label = copyMode ? `Copy: ${currentMoveDistance.toFixed(2)}m` : `${currentMoveDistance.toFixed(2)}m`;
           const labelColor = copyMode ? '#22c55e' : '#3b82f6';
+          ctx.save();
+          ctx.translate(centerX, bounds.maxY + handleSize * 2);
+          ctx.scale(1, -1);
           ctx.fillStyle = labelColor;
           ctx.font = `bold ${14 / camera.scale}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'bottom';
-          ctx.fillText(label, centerX, bounds.minY - handleSize * 2);
+          ctx.fillText(label, 0, 0);
+          ctx.restore();
         }
       }
     }

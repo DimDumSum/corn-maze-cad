@@ -329,6 +329,36 @@ app.on('before-quit', async (event) => {
 
 After stopping the Python backend, `app.quit()` is called which triggers `before-quit` again. Since `pythonProcess` is set to `null` in `stopPythonBackend`'s exit handler, this should be safe — but if `stopPythonBackend` resolves before the exit handler fires (e.g., via the 5-second SIGKILL timeout), `pythonProcess` could still be truthy, causing an infinite loop.
 
+### 4.8 BUG: `?` Keyboard Shortcut Unreachable
+
+**File:** `app/renderer/src/hooks/useKeyboardShortcuts.ts:265-297`
+
+The `?` shortcut (show help) checks `!e.shiftKey` on line 265, but `?` requires Shift on most keyboard layouts. This means the `?` shortcut can never be triggered.
+
+**Fix:** Allow Shift when checking for `?`, or check for the key value directly.
+
+### 4.9 BUG: Dead Code / Wasted Rendering in PNG Export
+
+**File:** `core-engine/export/png.py:95-131`
+
+The function creates a first image `img` (line 96) with drawing operations (lines 100-106), then creates an entirely new `img2` (line 115) and only saves `img2` (line 132). The first `img` is never used — this is dead code that wastes CPU during export.
+
+### 4.10 ISSUE: No Error Handling on File Writes in All Export Modules
+
+Every export function (`kml.py`, `gpx.py`, `png.py`, `dxf.py`, `printable.py`, `prescription.py`, `shapefile.py`) writes files with bare `open()` calls and no try/except. If the output directory doesn't exist, the disk is full, or permissions are insufficient, these produce unhandled exceptions that bubble up as 500 errors with raw Python tracebacks.
+
+### 4.11 ISSUE: `datetime.utcnow()` Deprecated in Python 3.12+
+
+**File:** `core-engine/export/gpx.py:72, 135, 217`
+
+`datetime.utcnow()` is deprecated in Python 3.12+ in favor of `datetime.now(datetime.timezone.utc)`. This generates deprecation warnings on newer Python versions.
+
+### 4.12 ISSUE: Shapely 1.x Deprecated Integer API
+
+**Files:** `core-engine/export/kml.py:81`, `core-engine/export/prescription.py:80`
+
+Using integer values for `cap_style=2, join_style=2` is the Shapely 1.x API. In Shapely 2.x, these are deprecated in favor of named enums (`CapStyle.flat`, `JoinStyle.mitre`).
+
 ---
 
 ## 5. Code Quality Issues
@@ -479,7 +509,7 @@ Key dependencies: FastAPI, uvicorn, shapely, numpy, pyproj, Pillow, pyshp, fastk
 | **CRITICAL** | 1 | Path traversal in project save/load/delete (3 endpoints) |
 | **HIGH** | 1 | CORS `allow_origins=["*"]` with credentials |
 | **MEDIUM** | 9 | `NameError` in batch carve, `UnboundLocalError` in image import, zip slip in KMZ, no file size limits, unsanitized temp filenames, unbounded computation (pathfinding, maze gen, flow sim), no parameter range validation, lxml XXE risk, base64 memory bomb |
-| **LOW** | 8 | Bare excepts (8 instances), debug info leakage, file paths in responses, version mismatch, throttle bug, stale closure, seed pollution, unpinned deps |
+| **LOW** | 14 | Bare excepts (8 instances), debug info leakage, file paths in responses, version mismatch, throttle bug, stale closure, seed pollution, unpinned deps, `?` shortcut unreachable, dead code in PNG export, no I/O error handling in exports, `datetime.utcnow()` deprecated, Shapely 1.x deprecated API, autosave silent failure |
 | **Code Quality** | 5 | Dead stores, duplicated code, oversized router, inconsistent errors, `any` types |
 | **Testing** | 1 | No frontend tests, many untested backend paths |
 | **Performance** | 3 | Continuous rendering, slow rasterization, image recreation per frame |

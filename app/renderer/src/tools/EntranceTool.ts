@@ -34,7 +34,7 @@ export const EntranceTool: Tool = {
     for (const entrance of entrances) {
       const [wx, wy] = entrance.position;
       const sx = wx * camera.scale + camera.x;
-      const sy = wy * camera.scale + camera.y;
+      const sy = -wy * camera.scale + camera.y;
       const r = 10;
 
       // Green circle
