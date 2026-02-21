@@ -8,6 +8,7 @@ import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useConstraintStore } from '../stores/constraintStore';
+import { fmtLen } from '../utils/fmt';
 import { useDesignStore } from '../stores/designStore';
 import { SnapEngine } from '../snapping/SnapEngine';
 import {
@@ -276,7 +277,7 @@ export const LineTool: Tool = {
       const midY = (y1 + y2) / 2;
       const labelX = midX * camera.scale;
       const labelY = -(midY * camera.scale) - 8;
-      const label = `${segmentLength.toFixed(2)} m`;
+      const label = fmtLen(segmentLength);
 
       ctx.strokeText(label, labelX, labelY);
       ctx.fillText(label, labelX, labelY);
@@ -294,7 +295,7 @@ export const LineTool: Tool = {
       const midY = (lastPoint[1] + previewPoint[1]) / 2;
       const labelX = midX * camera.scale;
       const labelY = -(midY * camera.scale) - 8;
-      const label = `${previewLength.toFixed(2)} m`;
+      const label = fmtLen(previewLength);
 
       ctx.strokeText(label, labelX, labelY);
       ctx.fillText(label, labelX, labelY);
@@ -308,7 +309,7 @@ export const LineTool: Tool = {
       const endPoint = previewPoint || currentPath[currentPath.length - 1];
       const totalLabelX = endPoint[0] * camera.scale;
       const totalLabelY = -(endPoint[1] * camera.scale) - 28;
-      const totalLabel = `Total: ${totalLength.toFixed(2)} m`;
+      const totalLabel = `Total: ${fmtLen(totalLength)}`;
 
       ctx.font = 'bold 14px Arial';
       ctx.strokeText(totalLabel, totalLabelX, totalLabelY);

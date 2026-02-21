@@ -41,6 +41,7 @@ import { useDesignStore } from '../../stores/designStore';
 import { useConstraintStore } from '../../stores/constraintStore';
 import { ValidationDialog } from '../ValidationDialog/ValidationDialog';
 import { ImageImportDialog } from '../ImageImportDialog';
+import { fmtLen, fmtArea } from '../../utils/fmt';
 import type { ToolName } from '../../../../shared/constants';
 import './Toolbar.css';
 
@@ -512,7 +513,7 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#666' }}>Wall Length</span>
-                <span>{mazeMetrics.total_wall_length.toFixed(0)}m</span>
+                <span>{fmtLen(mazeMetrics.total_wall_length, 0)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#666' }}>Wall Segments</span>
@@ -520,7 +521,7 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: '#666' }}>Field Area</span>
-                <span>{(mazeMetrics.field_area_m2 / 10000).toFixed(2)} ha</span>
+                <span>{fmtArea(mazeMetrics.field_area_m2)}</span>
               </div>
               <button onClick={fetchMetrics} style={{
                 marginTop: '6px', padding: '4px 10px', background: '#4a90d9',

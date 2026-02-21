@@ -51,6 +51,7 @@ import {
   flipToolCancel,
 } from '../tools/FlipTool';
 import { adjustRestoreBrushWidth } from '../tools/RestoreTool';
+import { useSettingsStore, TOOL_ACTION_MAP, type KeyAction } from '../stores/settingsStore';
 
 interface KeyboardShortcutsOptions {
   onShowHelp?: () => void;
@@ -281,17 +282,6 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         }
       }
 
-      // Bracket keys - adjust restore brush width
-      if (e.key === '[' || e.key === ']') {
-        const { selectedTool } = useUiStore.getState();
-        if (selectedTool === 'restore') {
-          e.preventDefault();
-          const delta = e.key === ']' ? (e.shiftKey ? 2.0 : 0.5) : (e.shiftKey ? -2.0 : -0.5);
-          adjustRestoreBrushWidth(delta);
-          return;
-        }
-      }
-
       // Shift - enable angle constraint (for draw tool)
       if (e.key === 'Shift') {
         setAngleConstraint(true);
@@ -311,52 +301,51 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         }
       }
 
-      // Tool shortcuts (single keys)
-      if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
-        const toolMap: Record<string, ToolName> = {
-          v: 'select',
-          h: 'pan',
-          p: 'draw',
-          l: 'line',
-          r: 'rectangle',
-          e: 'eraser',
-          u: 'restore',  // U for "uncarve/restore"
-          g: 'move',     // G for "grab"
-          m: 'measure',  // M for "measure"
-          c: 'circle',
-          a: 'arc',
-          t: 'text',
-          i: 'clipart',  // I for "image/clipart"
-          f: 'flip',
-        };
+      // --- Configurable keybindings (tools, toggles, brush) ---
+      const { getActionForKey } = useSettingsStore.getState();
+      const action = getActionForKey(e.key, {
+        ctrl: e.ctrlKey || e.metaKey,
+        shift: e.shiftKey,
+      });
 
-        const key = e.key.toLowerCase();
-        if (key in toolMap) {
+      if (action) {
+        // Tool selection actions
+        const toolName = TOOL_ACTION_MAP[action];
+        if (toolName) {
           e.preventDefault();
-          setTool(toolMap[key]);
+          setTool(toolName);
           return;
         }
 
-        // Snap toggle (S key)
-        if (key === 's') {
+        // Toggle actions
+        if (action === 'toggle.snap') {
           e.preventDefault();
           toggleSnap();
           return;
         }
-
-        // Help modal (? key)
-        if (key === '?' && options.onShowHelp) {
+        if (action === 'toggle.grid') {
+          e.preventDefault();
+          toggleGrid();
+          return;
+        }
+        if (action === 'show.help' && options.onShowHelp) {
           e.preventDefault();
           options.onShowHelp();
           return;
         }
-      }
 
-      // Grid toggle (Ctrl+G) - separate from Move tool shortcut
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'g') {
-        e.preventDefault();
-        toggleGrid();
-        return;
+        // Restore brush size
+        if (action === 'restore.brushUp' || action === 'restore.brushDown') {
+          const { selectedTool } = useUiStore.getState();
+          if (selectedTool === 'restore') {
+            e.preventDefault();
+            const delta = action === 'restore.brushUp'
+              ? (e.shiftKey ? 2.0 : 0.5)
+              : (e.shiftKey ? -2.0 : -0.5);
+            adjustRestoreBrushWidth(delta);
+            return;
+          }
+        }
       }
 
       // Undo (Ctrl+Z or Cmd+Z)

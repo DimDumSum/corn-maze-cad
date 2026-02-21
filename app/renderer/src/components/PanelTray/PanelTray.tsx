@@ -14,6 +14,10 @@ import { useConstraintStore } from '../../stores/constraintStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
 import { getRestoreBrushWidth, setRestoreBrushWidth } from '../../tools/RestoreTool';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { fmtShort, fmtArea, fmtUnit, fmtFromMeters, fmtToMeters } from '../../utils/fmt';
+import { SettingsDialog } from '../SettingsDialog/SettingsDialog';
+import type { UnitSystem } from '../../utils/units';
 import * as api from '../../api/client';
 import './PanelTray.css';
 
@@ -47,13 +51,14 @@ export function PanelTray() {
   const camera = useUiStore((s) => s.camera);
   const [applyingGrid, setApplyingGrid] = useState(false);
   const [fetchingSatellite, setFetchingSatellite] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const { unitSystem, setUnitSystem } = useSettingsStore();
 
   // Get selected elements
   const selectedElements = designElements.filter(el => selectedElementIds.has(el.id));
 
   // Calculate field area
   const fieldArea = field ? calculateFieldArea(field.geometry) : 0;
-  const fieldAreaHectares = fieldArea / 10000;
 
   return (
     <div className="panel-tray">
@@ -73,7 +78,7 @@ export function PanelTray() {
             </div>
             <div className="prop-row">
               <span className="prop-label">Width</span>
-              <span className="prop-value">{selectedElements[0].width.toFixed(1)}m</span>
+              <span className="prop-value">{fmtShort(selectedElements[0].width)}</span>
             </div>
             {selectedElements[0].rotation !== undefined && selectedElements[0].rotation !== 0 && (
               <div className="prop-row">
@@ -104,15 +109,15 @@ export function PanelTray() {
             <input
               type="number"
               className="constraint-input"
-              value={getRestoreBrushWidth()}
+              value={parseFloat(fmtFromMeters(getRestoreBrushWidth()).toFixed(1))}
               min={1}
-              max={20}
+              max={65}
               step={0.5}
               onChange={(e) => {
-                setRestoreBrushWidth(parseFloat(e.target.value) || 1);
+                setRestoreBrushWidth(fmtToMeters(parseFloat(e.target.value) || 1));
               }}
             />
-            <span className="constraint-unit">m</span>
+            <span className="constraint-unit">{fmtUnit()}</span>
           </div>
           <div className="prop-row" style={{ opacity: 0.6, fontSize: '11px' }}>
             <span>[ / ] keys to adjust</span>
@@ -127,52 +132,52 @@ export function PanelTray() {
           <input
             type="number"
             className="constraint-input"
-            value={pathWidthMin}
+            value={parseFloat(fmtFromMeters(pathWidthMin).toFixed(1))}
             min={1}
-            max={20}
+            max={65}
             step={0.5}
-            onChange={(e) => updateConstraint('pathWidthMin', parseFloat(e.target.value) || 1)}
+            onChange={(e) => updateConstraint('pathWidthMin', fmtToMeters(parseFloat(e.target.value) || 1))}
           />
-          <span className="constraint-unit">m</span>
+          <span className="constraint-unit">{fmtUnit()}</span>
         </div>
         <div className="constraint-row">
           <label>Wall Width</label>
           <input
             type="number"
             className="constraint-input"
-            value={wallWidthMin}
+            value={parseFloat(fmtFromMeters(wallWidthMin).toFixed(1))}
             min={0.5}
-            max={10}
+            max={33}
             step={0.5}
-            onChange={(e) => updateConstraint('wallWidthMin', parseFloat(e.target.value) || 0.5)}
+            onChange={(e) => updateConstraint('wallWidthMin', fmtToMeters(parseFloat(e.target.value) || 0.5))}
           />
-          <span className="constraint-unit">m</span>
+          <span className="constraint-unit">{fmtUnit()}</span>
         </div>
         <div className="constraint-row">
           <label>Edge Buffer</label>
           <input
             type="number"
             className="constraint-input"
-            value={edgeBuffer}
+            value={parseFloat(fmtFromMeters(edgeBuffer).toFixed(1))}
             min={0}
-            max={20}
+            max={65}
             step={0.5}
-            onChange={(e) => updateConstraint('edgeBuffer', parseFloat(e.target.value) || 0)}
+            onChange={(e) => updateConstraint('edgeBuffer', fmtToMeters(parseFloat(e.target.value) || 0))}
           />
-          <span className="constraint-unit">m</span>
+          <span className="constraint-unit">{fmtUnit()}</span>
         </div>
         <div className="constraint-row">
           <label>Corner Radius</label>
           <input
             type="number"
             className="constraint-input"
-            value={cornerRadius}
+            value={parseFloat(fmtFromMeters(cornerRadius).toFixed(1))}
             min={0}
-            max={10}
+            max={33}
             step={0.5}
-            onChange={(e) => updateConstraint('cornerRadius', parseFloat(e.target.value) || 0)}
+            onChange={(e) => updateConstraint('cornerRadius', fmtToMeters(parseFloat(e.target.value) || 0))}
           />
-          <span className="constraint-unit">m</span>
+          <span className="constraint-unit">{fmtUnit()}</span>
         </div>
         <button className="panel-reset-btn" onClick={resetToDefaults}>
           Reset Defaults
@@ -307,11 +312,11 @@ export function PanelTray() {
             </div>
             <div className="prop-row">
               <span className="prop-label">Row spacing</span>
-              <span className="prop-value">{planterRowGrid.planterConfig.spacing_inches}" ({(planterRowGrid.planterConfig.spacing_inches * 0.0254).toFixed(3)}m)</span>
+              <span className="prop-value">{planterRowGrid.planterConfig.spacing_inches}" ({fmtShort(planterRowGrid.planterConfig.spacing_inches * 0.0254)})</span>
             </div>
             <div className="prop-row">
               <span className="prop-label">Planter width</span>
-              <span className="prop-value">{(planterRowGrid.planterWidth * 3.28084).toFixed(1)}ft</span>
+              <span className="prop-value">{fmtShort(planterRowGrid.planterWidth)}</span>
             </div>
           </div>
         )}
@@ -396,7 +401,7 @@ export function PanelTray() {
         </div>
         <div className="prop-row">
           <span className="prop-label">Field</span>
-          <span className="prop-value">{field ? `${fieldAreaHectares.toFixed(2)} ha` : 'None'}</span>
+          <span className="prop-value">{field ? fmtArea(fieldArea) : 'None'}</span>
         </div>
         <div className="prop-row">
           <span className="prop-label">Maze</span>
@@ -411,6 +416,35 @@ export function PanelTray() {
           <span className="prop-value">{(camera.scale * 100).toFixed(0)}%</span>
         </div>
       </PanelSection>
+
+      {/* Settings */}
+      <PanelSection title="Settings" defaultOpen={false}>
+        <div className="constraint-row">
+          <label>Units</label>
+          <select
+            className="constraint-input"
+            value={unitSystem}
+            onChange={(e) => setUnitSystem(e.target.value as UnitSystem)}
+            style={{ width: '80px' }}
+          >
+            <option value="metric">Metric</option>
+            <option value="imperial">Imperial</option>
+          </select>
+        </div>
+        <button
+          className="panel-apply-btn"
+          onClick={() => setShowSettingsDialog(true)}
+          style={{ marginTop: '4px' }}
+        >
+          Customize Keybindings
+        </button>
+      </PanelSection>
+
+      {/* Settings Dialog (modal) */}
+      <SettingsDialog
+        isOpen={showSettingsDialog}
+        onClose={() => setShowSettingsDialog(false)}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useDesignStore } from '../stores/designStore';
+import { fmtShort } from '../utils/fmt';
 
 const DEFAULT_RESTORE_WIDTH = 4.0; // Default restore brush width in meters
 const MIN_RESTORE_WIDTH = 1.0;
@@ -90,7 +91,7 @@ export const RestoreTool: Tool = {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillStyle = 'rgba(34, 197, 94, 0.85)';
-      ctx.fillText(`Brush: ${widthWorld.toFixed(1)}m`, 10, 10);
+      ctx.fillText(`Brush: ${fmtShort(widthWorld)}`, 10, 10);
 
       // Show brush circle cursor preview at mouse position
       if (mouseWorldPos) {
@@ -158,7 +159,7 @@ export const RestoreTool: Tool = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
-    ctx.fillText(`RESTORE (${widthWorld.toFixed(1)}m)`, 0, -widthWorld / 2 - 4 / camera.scale);
+    ctx.fillText(`RESTORE (${fmtShort(widthWorld)})`, 0, -widthWorld / 2 - 4 / camera.scale);
     ctx.restore();
 
     ctx.restore();

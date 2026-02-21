@@ -8,6 +8,7 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useConstraintStore } from '../stores/constraintStore';
 import { useDesignStore } from '../stores/designStore';
+import { fmtLen, fmtUnit } from '../utils/fmt';
 import { SnapEngine } from '../snapping/SnapEngine';
 import {
   findAlignmentGuides,
@@ -395,8 +396,8 @@ export const CircleTool: Tool = {
 
         // Show typed input if present, otherwise show calculated radius
         const label = inputBuffer.length > 0
-          ? `r = ${inputBuffer} m`
-          : `r = ${previewRadius.toFixed(2)} m`;
+          ? `r = ${inputBuffer} ${fmtUnit()}`
+          : `r = ${fmtLen(previewRadius)}`;
         const labelX = midX * camera.scale;
         const labelY = -(midY * camera.scale) - 8;
 
