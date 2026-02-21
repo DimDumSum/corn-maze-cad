@@ -15,7 +15,7 @@ import { useTool } from './tools';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { renderSnapIndicator, renderGuideLines } from './snapping/SnapVisuals';
 import * as api from './api/client';
-import { drawGrid, calculateBounds, zoomToFit } from './utils/canvas';
+import { calculateBounds, zoomToFit } from './utils/canvas';
 import './App.css';
 
 function App() {
@@ -27,8 +27,6 @@ function App() {
 
   // Zustand stores - Use selectors to avoid unnecessary re-renders
   const camera = useUiStore((state) => state.camera);
-  const showGrid = useUiStore((state) => state.showGrid);
-  const gridSize = useUiStore((state) => state.gridSize);
   const setMouseWorldPos = useUiStore((state) => state.setMouseWorldPos);
   const setCamera = useUiStore((state) => state.setCamera);
 
@@ -321,8 +319,9 @@ function App() {
   // === COORDINATE TRANSFORMATION ===
   const screenToWorld = (screenX: number, screenY: number): [number, number] => {
     // Convert from screen coordinates to world coordinates
+    // Y is negated because canvas Y-axis is flipped (north = up)
     const worldX = (screenX - camera.x) / camera.scale;
-    const worldY = (screenY - camera.y) / camera.scale;
+    const worldY = -(screenY - camera.y) / camera.scale;
     return [worldX, worldY];
   };
 
@@ -337,41 +336,10 @@ function App() {
     ctx.fillStyle = '#e8e8e8';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Apply camera transform
+    // Apply camera transform (Y-axis flipped so north = up)
     ctx.save();
     ctx.translate(camera.x, camera.y);
-    ctx.scale(camera.scale, camera.scale);
-
-    // Draw grid if enabled
-    if (showGrid) {
-      drawGrid(ctx, camera, gridSize, canvas.width, canvas.height);
-    }
-
-    // Draw colored origin axes (SketchUp-style: Red=X, Green=Y)
-    const axisLength = 10000;
-    const axisWidth = 1.5 / camera.scale;
-
-    // X-axis (Red)
-    ctx.strokeStyle = '#cc0000';
-    ctx.lineWidth = axisWidth;
-    ctx.beginPath();
-    ctx.moveTo(-axisLength, 0);
-    ctx.lineTo(axisLength, 0);
-    ctx.stroke();
-
-    // Y-axis (Green)
-    ctx.strokeStyle = '#008000';
-    ctx.lineWidth = axisWidth;
-    ctx.beginPath();
-    ctx.moveTo(0, -axisLength);
-    ctx.lineTo(0, axisLength);
-    ctx.stroke();
-
-    // Origin point
-    ctx.fillStyle = '#333';
-    ctx.beginPath();
-    ctx.arc(0, 0, 3 / camera.scale, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.scale(camera.scale, -camera.scale);
 
     // Layer 1: Field Boundary (Green - darker for light bg)
     const { aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
@@ -553,9 +521,14 @@ function App() {
         ctx.fill();
         ctx.stroke();
 
-        // Draw label with actual/required values
+        // Draw label with actual/required values (un-flip Y for text)
         const labelText = `${v.actualValue.toFixed(1)}m / ${v.requiredValue.toFixed(1)}m min`;
         const fontSize = Math.max(12, 14 / camera.scale);
+
+        ctx.save();
+        ctx.translate(v.location[0], v.location[1] + 14 / camera.scale);
+        ctx.scale(1, -1);  // Un-flip Y so text reads correctly
+
         ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
@@ -563,20 +536,19 @@ function App() {
         // Label background
         const textMetrics = ctx.measureText(labelText);
         const padding = 4 / camera.scale;
-        const labelX = v.location[0];
-        const labelY = v.location[1] - 14 / camera.scale;
 
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
         ctx.fillRect(
-          labelX - textMetrics.width / 2 - padding,
-          labelY - fontSize - padding,
+          -textMetrics.width / 2 - padding,
+          -fontSize - padding,
           textMetrics.width + padding * 2,
           fontSize + padding * 2
         );
 
         // Label text
         ctx.fillStyle = '#cc3333';
-        ctx.fillText(labelText, labelX, labelY);
+        ctx.fillText(labelText, 0, 0);
+        ctx.restore();
       }
     }
 

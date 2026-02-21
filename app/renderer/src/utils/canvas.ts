@@ -103,11 +103,11 @@ export function zoomToFit(
   // Calculate scale to fit with padding
   const scaleX = (canvasWidth - padding * 2) / width;
   const scaleY = (canvasHeight - padding * 2) / height;
-  const scale = Math.min(scaleX, scaleY, 10); // Cap at 10x zoom
+  const scale = Math.min(scaleX, scaleY);
 
   return {
     x: canvasWidth / 2 - centerX * scale,
-    y: canvasHeight / 2 - centerY * scale,
+    y: canvasHeight / 2 + centerY * scale,  // + because canvas Y is flipped (north = up)
     scale,
   };
 }
