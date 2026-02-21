@@ -136,7 +136,7 @@ function App() {
     try {
       // Use pathWidthMin as the maze spacing (grid line distance)
       const spacing = constraints.pathWidthMin || 10.0;
-      const algo = algorithm || 'backtracker';
+      const algo = algorithm || 'grid';
       const result = await api.generateMaze(spacing, algo);
 
       if (result.error) {

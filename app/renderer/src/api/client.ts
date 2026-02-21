@@ -70,15 +70,13 @@ export async function importFieldFromFile(file: File): Promise<FieldResponse> {
 /**
  * Generate maze with algorithm selection
  */
-export type MazeAlgorithm = 'grid' | 'backtracker' | 'prims';
+export type MazeAlgorithm = 'grid';
 
 export async function generateMaze(
   spacing: number = 10.0,
-  algorithm: MazeAlgorithm = 'backtracker',
-  seed?: number,
+  algorithm: MazeAlgorithm = 'grid',
 ): Promise<MazeResponse & { algorithm?: string }> {
   const params = new URLSearchParams({ spacing: String(spacing), algorithm });
-  if (seed !== undefined) params.set('seed', String(seed));
   const response = await fetch(`${API_BASE_URL}/maze/generate?${params}`);
   return response.json();
 }

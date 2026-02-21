@@ -13,16 +13,14 @@ router = APIRouter()
 @router.get("/generate")
 def generate_maze(
     spacing: float = 10.0,
-    algorithm: str = "backtracker",
-    seed: int = None,
+    algorithm: str = "grid",
 ):
     """
     Generate a maze clipped to the field boundary.
 
     Args:
         spacing: Distance between grid lines in meters (default: 10.0)
-        algorithm: Algorithm to use - "grid", "backtracker", or "prims" (default: "backtracker")
-        seed: Optional random seed for reproducibility
+        algorithm: Algorithm to use - "grid" (default: "grid")
 
     Returns:
         { "walls": [[[x, y], ...], ...], "algorithm": str }
@@ -46,12 +44,7 @@ def generate_maze(
 
     try:
         gen_func = ALGORITHMS[algorithm]
-
-        # grid generator doesn't accept seed
-        if algorithm == "grid":
-            walls = gen_func(current_field, spacing=spacing)
-        else:
-            walls = gen_func(current_field, spacing=spacing, seed=seed)
+        walls = gen_func(current_field, spacing=spacing)
 
         app_state.set_walls(walls)
 
@@ -76,16 +69,6 @@ def list_algorithms():
                 "id": "grid",
                 "name": "Simple Grid",
                 "description": "Basic grid pattern - not a true maze, just evenly-spaced lines",
-            },
-            {
-                "id": "backtracker",
-                "name": "Recursive Backtracker",
-                "description": "Depth-first search maze with long winding corridors. Harder difficulty.",
-            },
-            {
-                "id": "prims",
-                "name": "Prim's Algorithm",
-                "description": "Random spanning tree maze with many short branches. Easier difficulty.",
             },
         ]
     }
