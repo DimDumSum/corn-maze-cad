@@ -243,11 +243,14 @@ export function PanelTray() {
                   });
                   setShowPlanterRows(true);
 
-                  // Also generate maze walls aligned to corn rows
+                  // Generate maze walls aligned to corn rows — snap cell size
+                  // to a whole number of planter rows so walls fall on row lines.
                   const rowSpacingM = planterConfig.spacingInches * 0.0254;
                   const headlandInset = planterConfig.headlands * planterConfig.rows * rowSpacingM;
+                  const rowsPerCell = Math.max(1, Math.round((pathWidthMin || 3.0) / rowSpacingM));
+                  const mazeSpacing = rowsPerCell * rowSpacingM;
                   const mazeResult = await api.generateMaze(
-                    pathWidthMin || 3.0,
+                    mazeSpacing,
                     'backtracker',
                     undefined,
                     planterConfig.directionDeg,
