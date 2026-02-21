@@ -14,9 +14,14 @@ import { useDesignStore } from './stores/designStore';
 import { useTool } from './tools';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { renderSnapIndicator, renderGuideLines } from './snapping/SnapVisuals';
+import { parseWKTPolygons } from './utils/wkt';
 import * as api from './api/client';
 import { calculateBounds, zoomToFit } from './utils/canvas';
 import './App.css';
+
+// Cache decoded satellite image to avoid creating a new Image() every frame
+let _cachedSatelliteImg: HTMLImageElement | null = null;
+let _cachedSatelliteSrc: string | null = null;
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -365,14 +370,19 @@ function App() {
       }
     }
 
-    // Layer 1.6: Aerial Image Underlay
-    if (aerialUnderlay && aerialUnderlay.imageData) {
-      const img = new Image();
-      img.src = aerialUnderlay.imageData;
-      if (img.complete && img.naturalWidth > 0) {
+    // Layer 1.6: Aerial / Satellite Image Underlay
+    const { showSatellite } = useUiStore.getState();
+    if (showSatellite && aerialUnderlay && aerialUnderlay.imageData) {
+      // Cache the decoded image to avoid creating a new Image every frame
+      if (_cachedSatelliteSrc !== aerialUnderlay.imageData) {
+        _cachedSatelliteImg = new Image();
+        _cachedSatelliteImg.src = aerialUnderlay.imageData;
+        _cachedSatelliteSrc = aerialUnderlay.imageData;
+      }
+      if (_cachedSatelliteImg && _cachedSatelliteImg.complete && _cachedSatelliteImg.naturalWidth > 0) {
         const { minx, miny, maxx, maxy } = aerialUnderlay.bounds;
         ctx.globalAlpha = aerialUnderlay.opacity;
-        ctx.drawImage(img, minx, miny, maxx - minx, maxy - miny);
+        ctx.drawImage(_cachedSatelliteImg, minx, miny, maxx - minx, maxy - miny);
         ctx.globalAlpha = 1;
       }
     }
@@ -397,6 +407,45 @@ function App() {
           }
         });
         ctx.stroke();
+      }
+    }
+
+    // Layer 2.5: Carved area overlay and border
+    const { showCarvedOverlay, showCarvedBorder } = useUiStore.getState();
+    if ((showCarvedOverlay || showCarvedBorder) && maze?.carvedAreas) {
+      const carvedPolygons = parseWKTPolygons(maze.carvedAreas);
+      if (carvedPolygons.length > 0) {
+        for (const poly of carvedPolygons) {
+          if (poly.exterior.length < 3) continue;
+
+          ctx.beginPath();
+          ctx.moveTo(poly.exterior[0][0], poly.exterior[0][1]);
+          for (let i = 1; i < poly.exterior.length; i++) {
+            ctx.lineTo(poly.exterior[i][0], poly.exterior[i][1]);
+          }
+          ctx.closePath();
+
+          // Cut out interior rings (holes)
+          for (const hole of poly.interiors) {
+            if (hole.length < 3) continue;
+            ctx.moveTo(hole[0][0], hole[0][1]);
+            for (let i = 1; i < hole.length; i++) {
+              ctx.lineTo(hole[i][0], hole[i][1]);
+            }
+            ctx.closePath();
+          }
+
+          if (showCarvedOverlay) {
+            ctx.fillStyle = 'rgba(139, 69, 19, 0.25)';
+            ctx.fill('evenodd');
+          }
+
+          if (showCarvedBorder) {
+            ctx.strokeStyle = 'rgba(210, 105, 30, 0.7)';
+            ctx.lineWidth = 2 / camera.scale;
+            ctx.stroke();
+          }
+        }
       }
     }
 

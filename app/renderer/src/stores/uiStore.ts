@@ -39,6 +39,11 @@ interface UIState {
   // Dimension input (type-to-specify like SketchUp)
   inputBuffer: string;
 
+  // View overlay toggles
+  showSatellite: boolean;
+  showCarvedOverlay: boolean;
+  showCarvedBorder: boolean;
+
   // Actions - Camera
   setCamera: (camera: Camera) => void;
   panCamera: (dx: number, dy: number) => void;
@@ -79,6 +84,11 @@ interface UIState {
   setInputBuffer: (value: string) => void;
   appendInputBuffer: (char: string) => void;
   clearInputBuffer: () => void;
+
+  // Actions - View Overlays
+  setShowSatellite: (show: boolean) => void;
+  setShowCarvedOverlay: (show: boolean) => void;
+  setShowCarvedBorder: (show: boolean) => void;
 }
 
 const DEFAULT_CAMERA: Camera = {
@@ -104,6 +114,9 @@ export const useUiStore = create<UIState>((set) => ({
   currentGuides: [],
   mouseWorldPos: null,
   inputBuffer: '',
+  showSatellite: false,
+  showCarvedOverlay: false,
+  showCarvedBorder: false,
 
   // Camera actions
   setCamera: (camera) =>
@@ -283,4 +296,14 @@ export const useUiStore = create<UIState>((set) => ({
     set({
       inputBuffer: '',
     }),
+
+  // View overlay actions
+  setShowSatellite: (show) =>
+    set({ showSatellite: show }),
+
+  setShowCarvedOverlay: (show) =>
+    set({ showCarvedOverlay: show }),
+
+  setShowCarvedBorder: (show) =>
+    set({ showCarvedBorder: show }),
 }));

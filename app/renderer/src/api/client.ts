@@ -53,6 +53,20 @@ export async function importSatelliteBoundary(coordinates: [number, number][]): 
 }
 
 /**
+ * Fetch satellite imagery for the current field bounds
+ */
+export async function fetchSatelliteImage(zoom: number = 18): Promise<{
+  imageData?: string;
+  bounds?: { minx: number; miny: number; maxx: number; maxy: number };
+  tiles?: number;
+  zoom?: number;
+  error?: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/gis/fetch-satellite-image?zoom=${zoom}`);
+  return response.json();
+}
+
+/**
  * Import field boundary from file
  */
 export async function importFieldFromFile(file: File): Promise<FieldResponse> {

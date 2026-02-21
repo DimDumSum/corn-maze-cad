@@ -40,12 +40,13 @@ function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps
 }
 
 export function PanelTray() {
-  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, setMaze } = useDesignStore();
+  const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, setMaze, aerialUnderlay, setAerialUnderlay } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
-  const { setTool, selectedTool } = useUiStore();
+  const { setTool, selectedTool, showSatellite, setShowSatellite, showCarvedOverlay, setShowCarvedOverlay, showCarvedBorder, setShowCarvedBorder } = useUiStore();
   const camera = useUiStore((s) => s.camera);
   const [applyingGrid, setApplyingGrid] = useState(false);
+  const [fetchingSatellite, setFetchingSatellite] = useState(false);
 
   // Get selected elements
   const selectedElements = designElements.filter(el => selectedElementIds.has(el.id));
@@ -314,6 +315,77 @@ export function PanelTray() {
             </div>
           </div>
         )}
+      </PanelSection>
+
+      {/* View Overlays */}
+      <PanelSection title="View" defaultOpen={true}>
+        <div className="constraint-row">
+          <label>Satellite</label>
+          <input
+            type="checkbox"
+            checked={showSatellite}
+            onChange={async (e) => {
+              const checked = e.target.checked;
+              if (checked && !aerialUnderlay && field) {
+                setFetchingSatellite(true);
+                try {
+                  const result = await api.fetchSatelliteImage(18);
+                  if (!result.error && result.imageData && result.bounds) {
+                    setAerialUnderlay({
+                      imageData: result.imageData,
+                      bounds: result.bounds,
+                      opacity: 0.6,
+                    });
+                  }
+                } catch (err) {
+                  console.error('[PanelTray] Satellite fetch failed:', err);
+                }
+                setFetchingSatellite(false);
+              }
+              setShowSatellite(checked);
+            }}
+            disabled={!field || fetchingSatellite}
+          />
+          {fetchingSatellite && <span className="constraint-unit" style={{ fontSize: '10px' }}>Loading...</span>}
+        </div>
+        {showSatellite && aerialUnderlay && (
+          <div className="constraint-row">
+            <label>Opacity</label>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={aerialUnderlay.opacity}
+              onChange={(e) => {
+                setAerialUnderlay({
+                  ...aerialUnderlay,
+                  opacity: parseFloat(e.target.value),
+                });
+              }}
+              style={{ width: '80px' }}
+            />
+            <span className="constraint-unit">{Math.round(aerialUnderlay.opacity * 100)}%</span>
+          </div>
+        )}
+        <div className="constraint-row">
+          <label>Carve Fill</label>
+          <input
+            type="checkbox"
+            checked={showCarvedOverlay}
+            onChange={(e) => setShowCarvedOverlay(e.target.checked)}
+            disabled={!maze?.carvedAreas}
+          />
+        </div>
+        <div className="constraint-row">
+          <label>Carve Border</label>
+          <input
+            type="checkbox"
+            checked={showCarvedBorder}
+            onChange={(e) => setShowCarvedBorder(e.target.checked)}
+            disabled={!maze?.carvedAreas}
+          />
+        </div>
       </PanelSection>
 
       {/* Project Info */}
