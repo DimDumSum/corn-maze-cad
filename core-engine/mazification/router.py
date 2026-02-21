@@ -63,6 +63,12 @@ def generate_maze(
             row_spacing=corn_row_spacing,
         )
 
+        # Store original uncarved walls for the restore/uncarve tool
+        app_state.original_walls = walls
+        headland_walls_raw = app_state.get_headland_walls()
+        if headland_walls_raw:
+            app_state.original_headland_walls = headland_walls_raw
+
         # Re-apply any previously carved areas so carvings survive regeneration
         carved_areas = app_state.get_carved_areas()
         if carved_areas and not carved_areas.is_empty:

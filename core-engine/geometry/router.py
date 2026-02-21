@@ -120,6 +120,86 @@ def carve_path_endpoint(req: PathRequest):
         )
 
 
+@router.post("/uncarve")
+def uncarve_path_endpoint(req: PathRequest):
+    """
+    Restore corn rows in an area by reversing a previous carve.
+
+    Creates a buffer around the path line and restores original walls
+    within that region.
+    """
+    from shapely.geometry import LineString, Polygon
+    from shapely.ops import unary_union
+
+    original_walls = app_state.original_walls
+    if not original_walls:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "No original walls available. Generate maze first.", "error_code": "NO_ORIGINAL_WALLS"}
+        )
+
+    current_walls = app_state.get_walls()
+    if not current_walls:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "No maze walls to restore. Generate maze first.", "error_code": "NO_WALLS"}
+        )
+
+    try:
+        points = [(p[0], p[1]) for p in req.points]
+
+        if len(points) < 2:
+            raise ValueError("Path too short (need at least 2 points)")
+
+        path_line = LineString(points)
+        restore_region = path_line.buffer(req.width / 2.0, cap_style=1)
+
+        # Get original walls clipped to the restore region
+        restored_segments = original_walls.intersection(restore_region)
+
+        # Union restored segments with current walls
+        if not restored_segments.is_empty:
+            updated_walls = unary_union([current_walls, restored_segments])
+        else:
+            updated_walls = current_walls
+
+        app_state.set_walls(updated_walls)
+
+        # Also restore headland walls
+        original_headland = app_state.original_headland_walls
+        headland_walls = app_state.get_headland_walls()
+        if original_headland and headland_walls:
+            restored_headland = original_headland.intersection(restore_region)
+            if not restored_headland.is_empty:
+                headland_walls = unary_union([headland_walls, restored_headland])
+                app_state.set_headland_walls(headland_walls)
+
+        # Subtract restore region from carved_areas so regeneration stays consistent
+        carved_areas = app_state.get_carved_areas()
+        if carved_areas and not carved_areas.is_empty:
+            carved_areas = carved_areas.difference(restore_region)
+            if carved_areas.is_empty:
+                carved_areas = None
+            app_state.set_carved_areas(carved_areas)
+
+        # Serialize carved areas as WKT for frontend snapshot
+        carved_areas_wkt = carved_areas.wkt if carved_areas and not carved_areas.is_empty else ""
+
+        return {
+            "walls": flatten_geometry(updated_walls),
+            "headlandWalls": flatten_geometry(app_state.get_headland_walls()) if app_state.get_headland_walls() else [],
+            "carvedAreas": carved_areas_wkt,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail={"error": str(e), "error_code": "INVALID_PATH"})
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(e), "error_code": "UNCARVE_FAILED"}
+        )
+
+
 class SetWallsRequest(BaseModel):
     """Request model for setting maze walls state."""
     walls: List[List[List[float]]]  # [[[x, y], ...], ...]

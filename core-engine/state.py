@@ -35,6 +35,8 @@ class AppState:
             cls._instance.centroid_offset: Optional[tuple] = None
             cls._instance.carved_edges: Optional[BaseGeometry] = None
             cls._instance.carved_areas: Optional[BaseGeometry] = None  # Union of carve eraser polygons
+            cls._instance.original_walls: Optional[BaseGeometry] = None  # Uncarved walls for restore
+            cls._instance.original_headland_walls: Optional[BaseGeometry] = None  # Uncarved headland walls
             cls._instance.layers: List[Dict] = []
             cls._instance.entrances: List[Tuple[float, float]] = []
             cls._instance.exits: List[Tuple[float, float]] = []
@@ -49,6 +51,8 @@ class AppState:
         # Reset walls and carved edges when field changes
         self.current_walls = None
         self.headland_walls = None
+        self.original_walls = None
+        self.original_headland_walls = None
         self.carved_edges = None
         self.carved_areas = None
 
@@ -141,6 +145,8 @@ class AppState:
         self.current_field = None
         self.current_walls = None
         self.headland_walls = None
+        self.original_walls = None
+        self.original_headland_walls = None
         self.current_crs = None
         self.centroid_offset = None
         self.carved_edges = None

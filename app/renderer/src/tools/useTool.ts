@@ -10,6 +10,7 @@ import { DrawPathTool } from './DrawPathTool';
 import { LineTool } from './LineTool';
 import { RectangleTool } from './RectangleTool';
 import { EraserTool } from './EraserTool';
+import { RestoreTool } from './RestoreTool';
 import { MeasureTool } from './MeasureTool';
 import { MoveTool } from './MoveTool';
 import { CircleTool } from './CircleTool';
@@ -44,6 +45,8 @@ export function useTool(): Tool {
       return RectangleTool;
     case 'eraser':
       return EraserTool;
+    case 'restore':
+      return RestoreTool;
     case 'measure':
       return MeasureTool;
     case 'move':

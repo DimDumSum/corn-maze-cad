@@ -10,6 +10,7 @@ export { DrawPathTool } from './DrawPathTool';
 export { LineTool } from './LineTool';
 export { RectangleTool } from './RectangleTool';
 export { EraserTool } from './EraserTool';
+export { RestoreTool } from './RestoreTool';
 export { MeasureTool } from './MeasureTool';
 export { MoveTool } from './MoveTool';
 export { CircleTool } from './CircleTool';

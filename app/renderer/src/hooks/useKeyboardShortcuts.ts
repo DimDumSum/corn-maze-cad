@@ -308,6 +308,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
           l: 'line',
           r: 'rectangle',
           e: 'eraser',
+          u: 'restore',  // U for "uncarve/restore"
           g: 'move',     // G for "grab"
           m: 'measure',  // M for "measure"
           c: 'circle',

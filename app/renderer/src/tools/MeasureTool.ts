@@ -51,12 +51,12 @@ export const MeasureTool: Tool = {
 
   onMouseDown: (e: MouseEvent, worldPos: [number, number]) => {
     const snappedPos = applySnap(worldPos);
-    const { isDrawing, currentPath, startDrawing, endDrawing } = useUiStore.getState();
+    const { isDrawing, startDrawing, endDrawing } = useUiStore.getState();
 
     if (!isDrawing) {
       // First click - start measurement
       startDrawing(snappedPos);
-    } else if (currentPath.length === 1) {
+    } else {
       // Second click - complete measurement
       // Measurement is displayed in the overlay, no need to store it
       endDrawing();
@@ -65,11 +65,11 @@ export const MeasureTool: Tool = {
 
   onMouseMove: (e: MouseEvent, worldPos: [number, number]) => {
     const snappedPos = applySnap(worldPos);
-    const { isDrawing, currentPath, updateDrawing } = useUiStore.getState();
+    const { isDrawing, currentPath } = useUiStore.getState();
 
-    if (isDrawing && currentPath.length === 1) {
-      // Update the end point as mouse moves
-      updateDrawing(snappedPos);
+    if (isDrawing && currentPath.length >= 1) {
+      // Replace the endpoint (keep only start point + current mouse position)
+      useUiStore.setState({ currentPath: [currentPath[0], snappedPos] });
     }
   },
 
