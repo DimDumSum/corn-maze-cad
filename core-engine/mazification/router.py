@@ -82,6 +82,11 @@ def list_algorithms():
     return {
         "algorithms": [
             {
+                "id": "standing",
+                "name": "Load Rows",
+                "description": "All corn rows standing with no passages carved. Draw and carve your own paths.",
+            },
+            {
                 "id": "backtracker",
                 "name": "Recursive Backtracker",
                 "description": "Depth-first search maze with long winding corridors. Harder difficulty.",
