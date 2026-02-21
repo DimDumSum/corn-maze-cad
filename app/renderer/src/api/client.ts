@@ -70,11 +70,11 @@ export async function importFieldFromFile(file: File): Promise<FieldResponse> {
 /**
  * Generate maze with algorithm selection, aligned to planting direction
  */
-export type MazeAlgorithm = 'standing' | 'backtracker' | 'prims';
+export type MazeAlgorithm = 'grid' | 'standing';
 
 export async function generateMaze(
   spacing: number = 10.0,
-  algorithm: MazeAlgorithm = 'backtracker',
+  algorithm: MazeAlgorithm = 'standing',
   seed?: number,
   directionDeg: number = 0,
   headlandInset: number = 0,

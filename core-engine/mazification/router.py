@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("/generate")
 def generate_maze(
     spacing: float = 10.0,
-    algorithm: str = "backtracker",
+    algorithm: str = "standing",
     seed: int = None,
     direction_deg: float = 0.0,
     headland_inset: float = 0.0,
@@ -24,7 +24,7 @@ def generate_maze(
 
     Args:
         spacing: Distance between grid lines in meters (default: 10.0)
-        algorithm: Algorithm to use - "backtracker" or "prims" (default: "backtracker")
+        algorithm: Algorithm to use - "standing" or "grid" (default: "standing")
         seed: Optional random seed for reproducibility
         direction_deg: Planting direction in degrees (0 = North, 90 = East)
         headland_inset: Distance to inset from field boundary for headlands (meters)
@@ -53,14 +53,19 @@ def generate_maze(
 
     try:
         gen_func = ALGORITHMS[algorithm]
-        walls = gen_func(
-            current_field,
-            spacing=spacing,
-            seed=seed,
-            direction_deg=direction_deg,
-            headland_inset=headland_inset,
-            row_spacing=corn_row_spacing,
-        )
+
+        # grid generator doesn't accept direction/headland/seed params
+        if algorithm == "grid":
+            walls = gen_func(current_field, spacing=spacing)
+        else:
+            walls = gen_func(
+                current_field,
+                spacing=spacing,
+                seed=seed,
+                direction_deg=direction_deg,
+                headland_inset=headland_inset,
+                row_spacing=corn_row_spacing,
+            )
 
         app_state.set_walls(walls)
 
@@ -87,14 +92,9 @@ def list_algorithms():
                 "description": "All corn rows standing with no passages carved. Draw and carve your own paths.",
             },
             {
-                "id": "backtracker",
-                "name": "Recursive Backtracker",
-                "description": "Depth-first search maze with long winding corridors. Harder difficulty.",
-            },
-            {
-                "id": "prims",
-                "name": "Prim's Algorithm",
-                "description": "Random spanning tree maze with many short branches. Easier difficulty.",
+                "id": "grid",
+                "name": "Simple Grid",
+                "description": "Basic grid pattern - not a true maze, just evenly-spaced lines",
             },
         ]
     }

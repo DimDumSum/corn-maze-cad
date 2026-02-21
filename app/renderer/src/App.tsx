@@ -141,12 +141,9 @@ function App() {
       const rowSpacingM = planterConfig.spacingInches * 0.0254;
 
       // For standing rows (load-only), no headland inset — the entire
-      // field is carvable including headlands.  For maze algorithms,
-      // keep the headland inset so the auto-generated pattern stays
-      // inside the interior.
-      const headlandInset = algo === 'standing'
-        ? 0
-        : planterConfig.headlands * planterConfig.rows * rowSpacingM;
+      // field is carvable including headlands.  For grid, headland
+      // inset is not used either.
+      const headlandInset = 0;
 
       // Snap maze cell size to a whole number of planter rows so walls
       // align exactly with corn rows (the planter grid IS the maze grid).
