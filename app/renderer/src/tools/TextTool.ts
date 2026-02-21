@@ -252,8 +252,7 @@ export const TextTool: Tool = {
 
     // === Text preview paths ===
     if (previewPaths && previewPaths.length > 0 && stage === 'placingText') {
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = lineWidth;
+      const { fillMode, strokeWidth } = textState;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -275,7 +274,24 @@ export const TextTool: Tool = {
           ctx.lineTo(path[i][0] + offsetX, path[i][1] + offsetY);
         }
         ctx.closePath();
-        ctx.stroke();
+
+        if (fillMode === 'fill') {
+          // Filled mode: show semi-transparent fill
+          ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+          ctx.fill();
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = '#10b981';
+          ctx.stroke();
+        } else {
+          // Outline mode: show thick stroke at the stroke width
+          ctx.lineWidth = strokeWidth;
+          ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)';
+          ctx.stroke();
+          // Draw thin center line for clarity
+          ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = '#10b981';
+          ctx.stroke();
+        }
       }
     }
 
@@ -307,102 +323,106 @@ function showTextDialog(): void {
 
   const dialog = document.createElement('div');
   dialog.style.cssText = `
-    background: #1f2937;
-    border-radius: 8px;
-    padding: 24px;
-    width: 450px;
-    color: white;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    background: #f0f0f0;
+    border-radius: 4px;
+    padding: 0;
+    width: 420px;
+    color: #333;
+    border: 1px solid #b0b0b0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11px;
   `;
 
   dialog.innerHTML = `
-    <h2 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Text Properties</h2>
+    <div style="padding: 6px 10px; background: #d4d4d4; border-bottom: 1px solid #c0c0c0; font-weight: 600; font-size: 11px;">Text Properties</div>
 
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; margin-bottom: 6px; font-size: 14px;">Text:</label>
-      <input type="text" id="text-input" value="${textState.text}"
-        style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #4b5563; background: #374151; color: white; font-size: 14px;"
-        placeholder="Enter text to carve">
-    </div>
-
-    <!-- Live Preview Panel -->
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; margin-bottom: 6px; font-size: 14px;">Preview:</label>
-      <div id="text-preview-panel" style="
-        width: 100%;
-        height: 80px;
-        background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-        border-radius: 4px;
-        border: 1px solid #4b5563;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        position: relative;
-      ">
-        <div id="text-preview" style="
-          color: #fcd34d;
-          font-family: Arial;
-          font-size: 32px;
-          text-align: center;
-          padding: 8px 16px;
-          white-space: nowrap;
-          text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        ">Preview</div>
+    <div style="padding: 12px;">
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Text</label>
+        <input type="text" id="text-input" value="${textState.text}"
+          style="width: 100%; padding: 3px 6px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px; box-sizing: border-box;"
+          placeholder="Enter text to carve">
       </div>
-    </div>
 
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; margin-bottom: 6px; font-size: 14px;">Font:</label>
-      <select id="font-select" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #4b5563; background: #374151; color: white; font-size: 14px;">
-        ${fontCategories.map(cat => `
-          <optgroup label="${cat.label} - ${cat.description}">
-            ${fontLibrary.filter(f => f.category === cat.id).map(f => `
-              <option value="${f.id}" ${textState.fontId === f.id ? 'selected' : ''}${f.mazeRecommended ? ' style="font-weight: bold;"' : ''}>${f.name}${f.mazeRecommended ? ' ★' : ''}</option>
-            `).join('')}
-          </optgroup>
-        `).join('')}
-      </select>
-      <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">★ = Recommended for mazes (thick, bold shapes)</div>
-    </div>
-
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; margin-bottom: 6px; font-size: 14px;">Height (meters):</label>
-      <input type="number" id="font-size-input" value="${textState.fontSize}" min="0.1" step="0.1"
-        style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #4b5563; background: #374151; color: white; font-size: 14px;">
-    </div>
-
-    <div style="margin-bottom: 16px;">
-      <label style="display: block; margin-bottom: 6px; font-size: 14px;">Mode:</label>
-      <div style="display: flex; gap: 12px;">
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="radio" name="fill-mode" value="stroke" ${textState.fillMode === 'stroke' ? 'checked' : ''} style="margin-right: 6px;">
-          <span>Outline</span>
-        </label>
-        <label style="display: flex; align-items: center; cursor: pointer;">
-          <input type="radio" name="fill-mode" value="fill" ${textState.fillMode === 'fill' ? 'checked' : ''} style="margin-right: 6px;">
-          <span>Filled</span>
-        </label>
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Preview</label>
+        <div id="text-preview-panel" style="
+          width: 100%;
+          height: 64px;
+          background: linear-gradient(135deg, #3a6e3a 0%, #4a7e4a 100%);
+          border-radius: 2px;
+          border: 1px solid #b0b0b0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        ">
+          <div id="text-preview" style="
+            color: #fcd34d;
+            font-family: Arial;
+            font-size: 28px;
+            text-align: center;
+            padding: 6px 12px;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+          ">Preview</div>
+        </div>
       </div>
-    </div>
 
-    <div id="stroke-width-container" style="margin-bottom: 16px; ${textState.fillMode === 'fill' ? 'display: none;' : ''}">
-      <label style="display: block; margin-bottom: 6px; font-size: 14px;">Stroke Width (meters):</label>
-      <input type="number" id="stroke-width-input" value="${textState.strokeWidth}" min="0.05" step="0.05"
-        style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #4b5563; background: #374151; color: white; font-size: 14px;">
-    </div>
+      <div style="margin-bottom: 10px;">
+        <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Font</label>
+        <select id="font-select" style="width: 100%; padding: 3px 4px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px;">
+          ${fontCategories.map(cat => `
+            <optgroup label="${cat.label} - ${cat.description}">
+              ${fontLibrary.filter(f => f.category === cat.id).map(f => `
+                <option value="${f.id}" ${textState.fontId === f.id ? 'selected' : ''}${f.mazeRecommended ? ' style="font-weight: bold;"' : ''}>${f.name}${f.mazeRecommended ? ' \u2605' : ''}</option>
+              `).join('')}
+            </optgroup>
+          `).join('')}
+        </select>
+        <div style="font-size: 10px; color: #888; margin-top: 2px;">\u2605 = Recommended for mazes (thick, bold shapes)</div>
+      </div>
 
-    <p style="margin: 0 0 16px 0; font-size: 12px; color: #6b7280;">
-      Tip: After placing, use the Select tool (V) to rotate and scale.
-    </p>
+      <div style="display: flex; gap: 12px; margin-bottom: 10px;">
+        <div style="flex: 1;">
+          <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Height (meters)</label>
+          <input type="number" id="font-size-input" value="${textState.fontSize}" min="0.1" step="0.1"
+            style="width: 100%; padding: 3px 6px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right; box-sizing: border-box;">
+        </div>
+        <div style="flex: 1;">
+          <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Mode</label>
+          <div style="display: flex; gap: 8px; padding-top: 2px;">
+            <label style="display: flex; align-items: center; cursor: pointer; font-size: 11px;">
+              <input type="radio" name="fill-mode" value="stroke" ${textState.fillMode === 'stroke' ? 'checked' : ''} style="margin-right: 4px;">
+              Outline
+            </label>
+            <label style="display: flex; align-items: center; cursor: pointer; font-size: 11px;">
+              <input type="radio" name="fill-mode" value="fill" ${textState.fillMode === 'fill' ? 'checked' : ''} style="margin-right: 4px;">
+              Filled
+            </label>
+          </div>
+        </div>
+      </div>
 
-    <div style="display: flex; gap: 12px; justify-content: flex-end;">
-      <button id="cancel-btn" style="padding: 8px 16px; border-radius: 4px; border: 1px solid #4b5563; background: #374151; color: white; cursor: pointer; font-size: 14px;">
-        Cancel
-      </button>
-      <button id="ok-btn" style="padding: 8px 16px; border-radius: 4px; border: none; background: #3b82f6; color: white; cursor: pointer; font-size: 14px; font-weight: 500;">
-        OK
-      </button>
+      <div id="stroke-width-container" style="margin-bottom: 10px; ${textState.fillMode === 'fill' ? 'display: none;' : ''}">
+        <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Stroke Width (meters)</label>
+        <input type="number" id="stroke-width-input" value="${textState.strokeWidth}" min="0.05" step="0.05"
+          style="width: 100px; padding: 3px 6px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right;">
+      </div>
+
+      <p style="margin: 0 0 10px 0; font-size: 10px; color: #888;">
+        Tip: After placing, use the Select tool (V) to rotate and scale.
+      </p>
+
+      <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #c0c0c0; padding-top: 10px;">
+        <button id="cancel-btn" style="padding: 4px 12px; border-radius: 2px; border: 1px solid #b0b0b0; background: #ddd; color: #555; cursor: pointer; font-size: 11px;">
+          Cancel
+        </button>
+        <button id="ok-btn" style="padding: 4px 12px; border-radius: 2px; border: 1px solid #3a7bc8; background: #4a90d9; color: #fff; cursor: pointer; font-size: 11px; font-weight: 600;">
+          OK
+        </button>
+      </div>
     </div>
   `;
 
@@ -444,9 +464,9 @@ function showTextDialog(): void {
     }
 
     // Auto-scale text to fit preview panel
-    const panelWidth = 400;
+    const panelWidth = 380;
     const textLen = text.length;
-    const baseFontSize = Math.min(32, Math.max(16, panelWidth / (textLen * 0.7)));
+    const baseFontSize = Math.min(28, Math.max(14, panelWidth / (textLen * 0.7)));
     textPreview.style.fontSize = `${baseFontSize}px`;
   };
 
@@ -564,8 +584,7 @@ async function generateTextPreview(): Promise<void> {
         font,
         weight: fontWeight,
         fontSize,
-        fillMode,
-        strokeWidth: fillMode === 'stroke' ? strokeWidth : undefined,
+        fillMode: 'fill', // Always request filled polygons — outline is handled at carve time
         position,
       }),
     });
@@ -603,7 +622,7 @@ async function generateTextPreview(): Promise<void> {
  */
 export async function textToolFinish(): Promise<void> {
   const textState = getTextState();
-  const { previewPaths, position, originalPosition } = textState;
+  const { previewPaths, position, originalPosition, fillMode, strokeWidth } = textState;
 
   if (!previewPaths || previewPaths.length === 0 || !position) {
     updateTextState({
@@ -620,6 +639,10 @@ export async function textToolFinish(): Promise<void> {
   // Calculate offset from original position (for drag-to-reposition)
   const offsetX = originalPosition ? position[0] - originalPosition[0] : 0;
   const offsetY = originalPosition ? position[1] - originalPosition[1] : 0;
+
+  // Fill mode: closed polygon, carve fills the interior
+  // Stroke mode: open path with width, carve outlines the edge
+  const isFilled = fillMode === 'fill';
 
   // Collect IDs of newly added elements for auto-selection
   const addedIds: string[] = [];
@@ -654,8 +677,8 @@ export async function textToolFinish(): Promise<void> {
       const id = addDesignElement({
         type: 'text',
         points: finalCoords,
-        width: 0,
-        closed: true,
+        width: isFilled ? 0 : strokeWidth,
+        closed: isFilled,
         rotation: 0, // Always 0, user can rotate with transform handles
       });
       addedIds.push(id);

@@ -311,22 +311,26 @@ function showClipArtDialog(): void {
 
   const dialog = document.createElement('div');
   dialog.style.cssText = `
-    background: #1f2937;
-    border-radius: 8px;
-    padding: 24px;
-    width: 550px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    padding: 0;
+    width: 500px;
     max-height: 80vh;
     overflow-y: auto;
-    color: white;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    color: #333;
+    border: 1px solid #b0b0b0;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11px;
   `;
 
   const categoryTabs = clipartCategories
     .map(
       (cat, i) => `
       <button class="category-tab" data-category="${cat.id}"
-        style="padding: 8px 16px; border: none; background: ${i === 0 ? '#3b82f6' : '#374151'};
-        color: white; cursor: pointer; border-radius: 4px; font-size: 13px;"
+        style="padding: 3px 10px; border: 1px solid ${i === 0 ? '#3a7bc8' : '#b0b0b0'};
+        background: ${i === 0 ? '#4a90d9' : '#ddd'}; color: ${i === 0 ? '#fff' : '#555'};
+        cursor: pointer; border-radius: 2px; font-size: 11px; font-weight: ${i === 0 ? '600' : '400'};"
         title="${cat.description}">
         ${cat.label}
       </button>
@@ -335,90 +339,89 @@ function showClipArtDialog(): void {
     .join('');
 
   dialog.innerHTML = `
-    <h2 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">Select ClipArt</h2>
+    <div style="padding: 6px 10px; background: #d4d4d4; border-bottom: 1px solid #c0c0c0; font-weight: 600; font-size: 11px;">Select ClipArt</div>
 
-    <!-- Category Tabs -->
-    <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-      ${categoryTabs}
-    </div>
+    <div style="padding: 12px;">
+      <div style="display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap;">
+        ${categoryTabs}
+      </div>
 
-    <!-- ClipArt Grid -->
-    <div id="clipart-grid" style="
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      margin-bottom: 16px;
-      min-height: 200px;
-    ">
-    </div>
+      <div id="clipart-grid" style="
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+        margin-bottom: 10px;
+        min-height: 160px;
+      ">
+      </div>
 
-    <!-- Selected Preview -->
-    <div style="margin-bottom: 16px; padding: 12px; background: #374151; border-radius: 4px;">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <div id="selected-preview" style="
-          width: 60px;
-          height: 60px;
-          background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-          border-radius: 4px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        ">
-          <span style="color: #6b7280; font-size: 12px;">None</span>
-        </div>
-        <div style="flex: 1;">
-          <div id="selected-name" style="font-weight: 500; margin-bottom: 8px;">No clipart selected</div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <label style="font-size: 13px; color: #9ca3af;">Size:</label>
-            <input type="number" id="scale-input" value="${clipArtState.scale}" min="1" max="100" step="1"
-              style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #4b5563;
-              background: #1f2937; color: white; font-size: 13px;">
-            <span style="color: #9ca3af; font-size: 12px;">m</span>
+      <div style="margin-bottom: 10px; padding: 8px; background: #e8e8e8; border: 1px solid #c0c0c0; border-radius: 2px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="selected-preview" style="
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #3a6e3a 0%, #4a7e4a 100%);
+            border-radius: 2px;
+            border: 1px solid #b0b0b0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+          ">
+            <span style="color: #999; font-size: 10px;">None</span>
           </div>
-          <p style="margin: 8px 0 0 0; font-size: 11px; color: #6b7280;">
-            Use Select tool (V) after placing to rotate/scale
-          </p>
+          <div style="flex: 1;">
+            <div id="selected-name" style="font-weight: 600; margin-bottom: 6px; font-size: 11px;">No clipart selected</div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <label style="font-size: 11px; color: #666;">Size:</label>
+              <input type="number" id="scale-input" value="${clipArtState.scale}" min="1" max="100" step="1"
+                style="width: 48px; padding: 2px 4px; border-radius: 2px; border: 1px solid #b0b0b0;
+                background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right;">
+              <span style="color: #888; font-size: 10px;">m</span>
+            </div>
+            <p style="margin: 4px 0 0 0; font-size: 10px; color: #888;">
+              Use Select tool (V) after placing to rotate/scale
+            </p>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Carve Mode -->
-    <div style="margin-bottom: 16px; padding: 12px; background: #374151; border-radius: 4px;">
-      <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500;">Carve Mode:</label>
-      <div style="display: flex; gap: 16px; margin-bottom: 8px;">
-        <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
-          <input type="radio" name="carve-mode" value="filled" ${clipArtState.carveMode === 'filled' ? 'checked' : ''} style="margin-right: 6px;">
-          <span>Filled</span>
-          <span style="color: #9ca3af; font-size: 11px; margin-left: 4px;">(remove entire shape)</span>
-        </label>
-        <label style="display: flex; align-items: center; cursor: pointer; font-size: 13px;">
-          <input type="radio" name="carve-mode" value="outline" ${clipArtState.carveMode === 'outline' ? 'checked' : ''} style="margin-right: 6px;">
-          <span>Outline</span>
-          <span style="color: #9ca3af; font-size: 11px; margin-left: 4px;">(carve path along edge)</span>
-        </label>
-      </div>
-      <div id="outline-width-container" style="${clipArtState.carveMode === 'filled' ? 'display: none;' : ''}">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <label style="font-size: 13px; color: #9ca3af;">Path width:</label>
-          <input type="number" id="outline-width-input" value="${clipArtState.outlineWidth}" min="0.5" max="20" step="0.5"
-            style="width: 60px; padding: 4px 8px; border-radius: 4px; border: 1px solid #4b5563;
-            background: #1f2937; color: white; font-size: 13px;">
-          <span style="color: #9ca3af; font-size: 12px;">m</span>
+      <div style="margin-bottom: 10px; padding: 8px; background: #e8e8e8; border: 1px solid #c0c0c0; border-radius: 2px;">
+        <label style="display: block; margin-bottom: 6px; font-size: 11px; font-weight: 600;">Carve Mode</label>
+        <div style="display: flex; gap: 12px; margin-bottom: 6px;">
+          <label style="display: flex; align-items: center; cursor: pointer; font-size: 11px;">
+            <input type="radio" name="carve-mode" value="filled" ${clipArtState.carveMode === 'filled' ? 'checked' : ''} style="margin-right: 4px;">
+            Filled
+            <span style="color: #888; font-size: 10px; margin-left: 4px;">(remove entire shape)</span>
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer; font-size: 11px;">
+            <input type="radio" name="carve-mode" value="outline" ${clipArtState.carveMode === 'outline' ? 'checked' : ''} style="margin-right: 4px;">
+            Outline
+            <span style="color: #888; font-size: 10px; margin-left: 4px;">(carve path along edge)</span>
+          </label>
+        </div>
+        <div id="outline-width-container" style="${clipArtState.carveMode === 'filled' ? 'display: none;' : ''}">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label style="font-size: 11px; color: #666;">Path width:</label>
+            <input type="number" id="outline-width-input" value="${clipArtState.outlineWidth}" min="0.5" max="20" step="0.5"
+              style="width: 48px; padding: 2px 4px; border-radius: 2px; border: 1px solid #b0b0b0;
+              background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right;">
+            <span style="color: #888; font-size: 10px;">m</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div style="display: flex; gap: 12px; justify-content: flex-end;">
-      <button id="cancel-btn" style="padding: 8px 16px; border-radius: 4px; border: 1px solid #4b5563;
-        background: #374151; color: white; cursor: pointer; font-size: 14px;">
-        Cancel
-      </button>
-      <button id="ok-btn" style="padding: 8px 16px; border-radius: 4px; border: none;
-        background: #3b82f6; color: white; cursor: pointer; font-size: 14px; font-weight: 500;"
-        disabled>
-        OK
-      </button>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #c0c0c0; padding-top: 10px;">
+        <button id="cancel-btn" style="padding: 4px 12px; border-radius: 2px; border: 1px solid #b0b0b0;
+          background: #ddd; color: #555; cursor: pointer; font-size: 11px;">
+          Cancel
+        </button>
+        <button id="ok-btn" style="padding: 4px 12px; border-radius: 2px; border: 1px solid #3a7bc8;
+          background: #4a90d9; color: #fff; cursor: pointer; font-size: 11px; font-weight: 600;"
+          disabled>
+          OK
+        </button>
+      </div>
     </div>
   `;
 
@@ -466,22 +469,24 @@ function showClipArtDialog(): void {
       .map(
         (item) => `
         <div class="clipart-item" data-id="${item.id}" style="
-          padding: 12px;
-          background: ${selectedClipArt?.id === item.id ? '#3b82f6' : '#374151'};
-          border-radius: 4px;
+          padding: 8px;
+          background: ${selectedClipArt?.id === item.id ? '#4a90d9' : '#fff'};
+          border: 1px solid ${selectedClipArt?.id === item.id ? '#3a7bc8' : '#c0c0c0'};
+          border-radius: 2px;
           cursor: pointer;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
-          transition: background 0.15s;
+          gap: 4px;
+          transition: background 0.1s;
           position: relative;
+          color: ${selectedClipArt?.id === item.id ? '#fff' : '#333'};
         ">
-          ${item.mazeRecommended ? `<span style="position: absolute; top: 4px; right: 4px; font-size: 10px; color: #fbbf24;" title="Recommended for mazes">★</span>` : ''}
-          <svg viewBox="0 0 100 100" style="width: 50px; height: 50px;">
-            <path d="${item.pathData}" fill="${item.previewColor}" stroke="#000" stroke-width="2"/>
+          ${item.mazeRecommended ? `<span style="position: absolute; top: 2px; right: 3px; font-size: 9px; color: ${selectedClipArt?.id === item.id ? '#fde68a' : '#d97706'};" title="Recommended for mazes">\u2605</span>` : ''}
+          <svg viewBox="0 0 100 100" style="width: 40px; height: 40px;">
+            <path d="${item.pathData}" fill="${item.previewColor}" stroke="#333" stroke-width="2"/>
           </svg>
-          <span style="font-size: 11px; text-align: center;">${item.name}</span>
+          <span style="font-size: 10px; text-align: center;">${item.name}</span>
         </div>
       `
       )
@@ -495,7 +500,10 @@ function showClipArtDialog(): void {
 
         // Update selection styles
         document.querySelectorAll<HTMLDivElement>('.clipart-item').forEach((item) => {
-          item.style.background = item.dataset.id === id ? '#3b82f6' : '#374151';
+          const isSelected = item.dataset.id === id;
+          item.style.background = isSelected ? '#4a90d9' : '#fff';
+          item.style.borderColor = isSelected ? '#3a7bc8' : '#c0c0c0';
+          item.style.color = isSelected ? '#fff' : '#333';
         });
 
         // Update preview
@@ -513,12 +521,12 @@ function showClipArtDialog(): void {
       // Hover effect
       el.addEventListener('mouseenter', () => {
         if (el.dataset.id !== selectedClipArt?.id) {
-          el.style.background = '#4b5563';
+          el.style.background = '#e0e8f0';
         }
       });
       el.addEventListener('mouseleave', () => {
         if (el.dataset.id !== selectedClipArt?.id) {
-          el.style.background = '#374151';
+          el.style.background = '#fff';
         }
       });
     });
@@ -541,8 +549,16 @@ function showClipArtDialog(): void {
   // Category tab handlers
   categoryTabBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
-      categoryTabBtns.forEach((b) => (b.style.background = '#374151'));
-      btn.style.background = '#3b82f6';
+      categoryTabBtns.forEach((b) => {
+        b.style.background = '#ddd';
+        b.style.borderColor = '#b0b0b0';
+        b.style.color = '#555';
+        b.style.fontWeight = '400';
+      });
+      btn.style.background = '#4a90d9';
+      btn.style.borderColor = '#3a7bc8';
+      btn.style.color = '#fff';
+      btn.style.fontWeight = '600';
       renderGrid(btn.dataset.category || 'shapes');
     });
   });
