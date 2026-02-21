@@ -10,23 +10,10 @@ import { useUiStore } from '../stores/uiStore';
 import { useDesignStore } from '../stores/designStore';
 import { fmtShort } from '../utils/fmt';
 
-const DEFAULT_RESTORE_WIDTH = 4.0; // Default restore brush width in meters
-const MIN_RESTORE_WIDTH = 1.0;
-const MAX_RESTORE_WIDTH = 20.0;
 const MIN_POINT_DISTANCE_PX = 5; // Minimum screen-pixel distance between path points
 
-// Module-level brush width state (same pattern as other tool states)
-let restoreBrushWidth = DEFAULT_RESTORE_WIDTH;
-
-export function getRestoreBrushWidth(): number {
-  return restoreBrushWidth;
-}
-
-export function setRestoreBrushWidth(width: number): void {
-  restoreBrushWidth = Math.max(MIN_RESTORE_WIDTH, Math.min(MAX_RESTORE_WIDTH, width));
-}
-
 export function adjustRestoreBrushWidth(delta: number): void {
+  const { restoreBrushWidth, setRestoreBrushWidth } = useUiStore.getState();
   setRestoreBrushWidth(restoreBrushWidth + delta);
 }
 
@@ -80,7 +67,7 @@ export const RestoreTool: Tool = {
   },
 
   renderOverlay: (ctx: CanvasRenderingContext2D, camera: Camera) => {
-    const { isDrawing, currentPath, selectedTool, mouseWorldPos } = useUiStore.getState();
+    const { isDrawing, currentPath, selectedTool, mouseWorldPos, restoreBrushWidth } = useUiStore.getState();
 
     const widthWorld = restoreBrushWidth;
 
@@ -170,7 +157,7 @@ export const RestoreTool: Tool = {
  * Finish restore: call backend /uncarve and update maze state
  */
 async function finishRestore(): Promise<void> {
-  const { currentPath, endDrawing } = useUiStore.getState();
+  const { currentPath, endDrawing, restoreBrushWidth } = useUiStore.getState();
 
   // Capture path and clear drawing state immediately to prevent trailing tail
   const pathCopy = [...currentPath] as [number, number][];

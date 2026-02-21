@@ -13,7 +13,6 @@ import { useDesignStore } from '../../stores/designStore';
 import { useConstraintStore } from '../../stores/constraintStore';
 import { useProjectStore } from '../../stores/projectStore';
 import { useUiStore } from '../../stores/uiStore';
-import { getRestoreBrushWidth, setRestoreBrushWidth } from '../../tools/RestoreTool';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { fmtShort, fmtArea, fmtUnit, fmtFromMeters, fmtToMeters } from '../../utils/fmt';
 import { SettingsDialog } from '../SettingsDialog/SettingsDialog';
@@ -47,7 +46,7 @@ export function PanelTray() {
   const { designElements, selectedElementIds, maze, field, planterConfig, setPlanterConfig, planterRowGrid, setPlanterRowGrid, showPlanterRows, setShowPlanterRows, setMaze, aerialUnderlay, setAerialUnderlay } = useDesignStore();
   const { pathWidthMin, wallWidthMin, edgeBuffer, cornerRadius, updateConstraint, resetToDefaults } = useConstraintStore();
   const { isDirty } = useProjectStore();
-  const { setTool, selectedTool, showSatellite, setShowSatellite, showCarvedOverlay, setShowCarvedOverlay, showCarvedBorder, setShowCarvedBorder } = useUiStore();
+  const { setTool, selectedTool, showSatellite, setShowSatellite, showCarvedOverlay, setShowCarvedOverlay, showCarvedBorder, setShowCarvedBorder, restoreBrushWidth, setRestoreBrushWidth } = useUiStore();
   const camera = useUiStore((s) => s.camera);
   const [applyingGrid, setApplyingGrid] = useState(false);
   const [fetchingSatellite, setFetchingSatellite] = useState(false);
@@ -109,7 +108,7 @@ export function PanelTray() {
             <input
               type="number"
               className="constraint-input"
-              value={parseFloat(fmtFromMeters(getRestoreBrushWidth()).toFixed(1))}
+              value={parseFloat(fmtFromMeters(restoreBrushWidth).toFixed(1))}
               min={1}
               max={65}
               step={0.5}
