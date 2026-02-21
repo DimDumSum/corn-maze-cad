@@ -134,12 +134,19 @@ function App() {
     setError(null);
 
     try {
-      const algo = algorithm || 'backtracker';
+      const algo = algorithm || 'standing';
 
-      // Use planter config for direction and headland inset
+      // Use planter config for direction
       const { planterConfig } = useDesignStore.getState();
       const rowSpacingM = planterConfig.spacingInches * 0.0254;
-      const headlandInset = planterConfig.headlands * planterConfig.rows * rowSpacingM;
+
+      // For standing rows (load-only), no headland inset — the entire
+      // field is carvable including headlands.  For maze algorithms,
+      // keep the headland inset so the auto-generated pattern stays
+      // inside the interior.
+      const headlandInset = algo === 'standing'
+        ? 0
+        : planterConfig.headlands * planterConfig.rows * rowSpacingM;
 
       // Snap maze cell size to a whole number of planter rows so walls
       // align exactly with corn rows (the planter grid IS the maze grid).
@@ -391,7 +398,7 @@ function App() {
       }
 
       // Draw headland rows (concentric rings following the field boundary)
-      ctx.strokeStyle = 'rgba(180, 120, 40, 0.25)';
+      ctx.strokeStyle = 'rgba(120, 80, 20, 0.7)';
       ctx.lineWidth = 0.5 / camera.scale;
 
       for (const ring of planterRowGrid.headlandLines) {
@@ -409,7 +416,7 @@ function App() {
       // Draw interior rows only when no maze is present — when a maze
       // exists the maze walls replace interior rows (standing corn = walls).
       if (!maze?.walls) {
-        ctx.strokeStyle = 'rgba(46, 125, 50, 0.25)';
+        ctx.strokeStyle = 'rgba(30, 90, 30, 0.7)';
         ctx.lineWidth = 0.5 / camera.scale;
 
         for (const line of planterRowGrid.interiorLines) {
@@ -446,7 +453,7 @@ function App() {
       ctx.beginPath();
       if (showPlanterRows && planterRowGrid) {
         // Corn-row style — walls = standing corn
-        ctx.strokeStyle = 'rgba(46, 125, 50, 0.6)';
+        ctx.strokeStyle = 'rgba(30, 90, 30, 0.85)';
         ctx.lineWidth = 0.5 / camera.scale;
       } else {
         ctx.strokeStyle = '#8B6914';
