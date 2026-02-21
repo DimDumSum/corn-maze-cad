@@ -267,17 +267,6 @@ export function PanelTray() {
           >
             {applyingGrid ? 'Computing...' : 'Apply'}
           </button>
-          {showPlanterRows && (
-            <button
-              className="panel-reset-btn"
-              onClick={() => {
-                setShowPlanterRows(false);
-                setPlanterRowGrid(null);
-              }}
-            >
-              Hide
-            </button>
-          )}
         </div>
 
         {showPlanterRows && planterRowGrid && (

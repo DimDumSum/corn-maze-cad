@@ -34,6 +34,7 @@ class AppState:
             cls._instance.current_crs: Optional[str] = None
             cls._instance.centroid_offset: Optional[tuple] = None
             cls._instance.carved_edges: Optional[BaseGeometry] = None
+            cls._instance.carved_areas: Optional[BaseGeometry] = None  # Union of carve eraser polygons
             cls._instance.layers: List[Dict] = []
             cls._instance.entrances: List[Tuple[float, float]] = []
             cls._instance.exits: List[Tuple[float, float]] = []
@@ -49,6 +50,7 @@ class AppState:
         self.current_walls = None
         self.headland_walls = None
         self.carved_edges = None
+        self.carved_areas = None
 
     def set_walls(self, walls: BaseGeometry):
         """Set the current maze walls."""
@@ -90,6 +92,18 @@ class AppState:
         else:
             self.carved_edges = unary_union([self.carved_edges, new_edges])
 
+    def add_carved_area(self, eraser: BaseGeometry):
+        """Accumulate a carve eraser polygon so carvings persist across regeneration."""
+        from shapely.ops import unary_union
+        if self.carved_areas is None:
+            self.carved_areas = eraser
+        else:
+            self.carved_areas = unary_union([self.carved_areas, eraser])
+
+    def get_carved_areas(self) -> Optional[BaseGeometry]:
+        """Get the accumulated carve eraser polygons."""
+        return self.carved_areas
+
     # --- Layer management ---
 
     def set_layers(self, layers: List[Dict]):
@@ -126,6 +140,7 @@ class AppState:
         self.current_crs = None
         self.centroid_offset = None
         self.carved_edges = None
+        self.carved_areas = None
         self.layers = []
         self.entrances = []
         self.exits = []
