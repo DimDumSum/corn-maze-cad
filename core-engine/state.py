@@ -30,6 +30,7 @@ class AppState:
             cls._instance = super(AppState, cls).__new__(cls)
             cls._instance.current_field: Optional[BaseGeometry] = None
             cls._instance.current_walls: Optional[BaseGeometry] = None
+            cls._instance.headland_walls: Optional[BaseGeometry] = None
             cls._instance.current_crs: Optional[str] = None
             cls._instance.centroid_offset: Optional[tuple] = None
             cls._instance.carved_edges: Optional[BaseGeometry] = None
@@ -46,6 +47,7 @@ class AppState:
         self.centroid_offset = centroid_offset or (0.0, 0.0)
         # Reset walls and carved edges when field changes
         self.current_walls = None
+        self.headland_walls = None
         self.carved_edges = None
 
     def set_walls(self, walls: BaseGeometry):
@@ -59,6 +61,14 @@ class AppState:
     def get_walls(self) -> Optional[BaseGeometry]:
         """Get the current maze walls."""
         return self.current_walls
+
+    def set_headland_walls(self, walls: BaseGeometry):
+        """Set the current headland walls (concentric ring rows)."""
+        self.headland_walls = walls
+
+    def get_headland_walls(self) -> Optional[BaseGeometry]:
+        """Get the current headland walls."""
+        return self.headland_walls
 
     def get_crs(self) -> Optional[str]:
         """Get the current coordinate reference system."""
@@ -112,6 +122,7 @@ class AppState:
         """Clear all state."""
         self.current_field = None
         self.current_walls = None
+        self.headland_walls = None
         self.current_crs = None
         self.centroid_offset = None
         self.carved_edges = None

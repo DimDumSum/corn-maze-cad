@@ -347,18 +347,19 @@ function App() {
         ctx.setLineDash([]);
       }
 
-      // Draw headland rows (concentric rings following the field boundary)
+      // Draw headland rows — use carved headland walls from maze if available,
+      // otherwise fall back to the uncarved planterRowGrid headland lines
+      const headlandSource = maze?.headlandWalls || planterRowGrid.headlandLines;
       ctx.strokeStyle = 'rgba(120, 80, 20, 0.7)';
       ctx.lineWidth = 0.5 / camera.scale;
 
-      for (const ring of planterRowGrid.headlandLines) {
-        if (ring.length >= 3) {
+      for (const ring of headlandSource) {
+        if (ring.length >= 2) {
           ctx.beginPath();
           ctx.moveTo(ring[0][0], ring[0][1]);
           for (let i = 1; i < ring.length; i++) {
             ctx.lineTo(ring[i][0], ring[i][1]);
           }
-          ctx.closePath();
           ctx.stroke();
         }
       }

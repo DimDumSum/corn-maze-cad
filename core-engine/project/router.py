@@ -72,6 +72,10 @@ def save_project(req: SaveRequest):
     if walls and not walls.is_empty:
         project["_backend_walls"] = flatten_geometry(walls)
 
+    headland_walls = app_state.get_headland_walls()
+    if headland_walls and not headland_walls.is_empty:
+        project["_backend_headland_walls"] = flatten_geometry(headland_walls)
+
     crs = app_state.get_crs()
     if crs:
         project["_backend_crs"] = crs
@@ -107,6 +111,15 @@ def load_project(filename: str):
                 lines.append(LineString([(p[0], p[1]) for p in seg]))
         if lines:
             app_state.set_walls(MultiLineString(lines))
+
+    if "_backend_headland_walls" in project:
+        from shapely.geometry import MultiLineString, LineString
+        h_lines = []
+        for seg in project["_backend_headland_walls"]:
+            if len(seg) >= 2:
+                h_lines.append(LineString([(p[0], p[1]) for p in seg]))
+        if h_lines:
+            app_state.set_headland_walls(MultiLineString(h_lines))
 
     if "_backend_crs" in project:
         app_state.current_crs = project["_backend_crs"]
@@ -184,6 +197,10 @@ def autosave(req: SaveRequest):
     if walls and not walls.is_empty:
         project["_backend_walls"] = flatten_geometry(walls)
 
+    headland_walls = app_state.get_headland_walls()
+    if headland_walls and not headland_walls.is_empty:
+        project["_backend_headland_walls"] = flatten_geometry(headland_walls)
+
     crs = app_state.get_crs()
     if crs:
         project["_backend_crs"] = crs
@@ -236,6 +253,15 @@ def recover_autosave():
                 lines.append(LineString([(p[0], p[1]) for p in seg]))
         if lines:
             app_state.set_walls(MultiLineString(lines))
+
+    if "_backend_headland_walls" in project:
+        from shapely.geometry import MultiLineString, LineString
+        h_lines = []
+        for seg in project["_backend_headland_walls"]:
+            if len(seg) >= 2:
+                h_lines.append(LineString([(p[0], p[1]) for p in seg]))
+        if h_lines:
+            app_state.set_headland_walls(MultiLineString(h_lines))
 
     if "_backend_crs" in project:
         app_state.current_crs = project["_backend_crs"]

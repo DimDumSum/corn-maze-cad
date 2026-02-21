@@ -65,8 +65,13 @@ def generate_maze(
 
         app_state.set_walls(walls)
 
+        # Include headland walls if they exist (set during planter grid computation)
+        headland_walls = app_state.get_headland_walls()
+        headland_walls_flat = flatten_geometry(headland_walls) if headland_walls else []
+
         return {
             "walls": flatten_geometry(walls),
+            "headlandWalls": headland_walls_flat,
             "algorithm": algorithm,
         }
 
