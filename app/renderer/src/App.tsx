@@ -382,12 +382,28 @@ function App() {
       }
       if (_cachedSatelliteImg && _cachedSatelliteImg.complete && _cachedSatelliteImg.naturalWidth > 0) {
         const { minx, miny, maxx, maxy } = aerialUnderlay.bounds;
+
+        // Draw satellite image using explicit screen coordinates to avoid
+        // drawImage ambiguity with the Y-flipped canvas transform.
+        // World→screen: sx = cam.x + wx*scale, sy = cam.y - wy*scale
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset to identity (screen coords)
+
+        const screenLeft   = camera.x + minx * camera.scale;
+        const screenRight  = camera.x + maxx * camera.scale;
+        const screenTop    = camera.y - maxy * camera.scale; // north = top of screen
+        const screenBottom = camera.y - miny * camera.scale; // south = bottom of screen
+
         ctx.globalAlpha = aerialUnderlay.opacity;
-        // Canvas Y-axis is flipped (ctx.scale(s, -s)), so drawImage's top-left
-        // pixel must be placed at maxy (north) with negative height extending
-        // to miny (south) — otherwise the image renders upside-down.
-        ctx.drawImage(_cachedSatelliteImg, minx, maxy, maxx - minx, miny - maxy);
+        ctx.drawImage(
+          _cachedSatelliteImg,
+          screenLeft,
+          screenTop,
+          screenRight - screenLeft,
+          screenBottom - screenTop,
+        );
         ctx.globalAlpha = 1;
+        ctx.restore(); // Restores the world-space transform for subsequent layers
       }
     }
 
