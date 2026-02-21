@@ -36,6 +36,8 @@ import {
   textToolFinish,
   textToolCancel,
 } from '../tools/TextTool';
+import { finalizeSolutionPath, clearSolutionPath } from '../tools/SolutionPathTool';
+import { finalizeDeadEnd, clearDeadEnd } from '../tools/DeadEndTool';
 import {
   clipArtToolFinish,
   clipArtToolCancel,
@@ -143,6 +145,20 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
           return;
         }
 
+        // Cancel solution path tool
+        if (selectedTool === 'solution_path') {
+          e.preventDefault();
+          clearSolutionPath();
+          return;
+        }
+
+        // Cancel dead end tool
+        if (selectedTool === 'dead_end') {
+          e.preventDefault();
+          clearDeadEnd();
+          return;
+        }
+
         // Cancel flip tool
         if (selectedTool === 'flip') {
           e.preventDefault();
@@ -188,6 +204,16 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         if (selectedTool === 'clipart') {
           e.preventDefault();
           clipArtToolFinish();
+          return;
+        }
+        if (selectedTool === 'solution_path') {
+          e.preventDefault();
+          finalizeSolutionPath();
+          return;
+        }
+        if (selectedTool === 'dead_end') {
+          e.preventDefault();
+          finalizeDeadEnd();
           return;
         }
         if (selectedTool === 'flip') {
