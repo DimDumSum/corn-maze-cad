@@ -134,14 +134,18 @@ function App() {
     setError(null);
 
     try {
-      // Use pathWidthMin as the maze spacing (grid line distance)
-      const spacing = constraints.pathWidthMin || 10.0;
       const algo = algorithm || 'backtracker';
 
       // Use planter config for direction and headland inset
       const { planterConfig } = useDesignStore.getState();
       const rowSpacingM = planterConfig.spacingInches * 0.0254;
       const headlandInset = planterConfig.headlands * planterConfig.rows * rowSpacingM;
+
+      // Snap maze cell size to a whole number of planter rows so walls
+      // align exactly with corn rows (the planter grid IS the maze grid).
+      const desiredWidth = constraints.pathWidthMin || 3.0;
+      const rowsPerCell = Math.max(1, Math.round(desiredWidth / rowSpacingM));
+      const spacing = rowsPerCell * rowSpacingM;
 
       const result = await api.generateMaze(
         spacing, algo, undefined,
@@ -401,18 +405,21 @@ function App() {
         }
       }
 
-      // Draw interior rows (straight parallel lines at planting direction)
-      ctx.strokeStyle = 'rgba(46, 125, 50, 0.25)';
-      ctx.lineWidth = 0.5 / camera.scale;
+      // Draw interior rows only when no maze is present — when a maze
+      // exists the maze walls replace interior rows (standing corn = walls).
+      if (!maze?.walls) {
+        ctx.strokeStyle = 'rgba(46, 125, 50, 0.25)';
+        ctx.lineWidth = 0.5 / camera.scale;
 
-      for (const line of planterRowGrid.interiorLines) {
-        if (line.length >= 2) {
-          ctx.beginPath();
-          ctx.moveTo(line[0][0], line[0][1]);
-          for (let i = 1; i < line.length; i++) {
-            ctx.lineTo(line[i][0], line[i][1]);
+        for (const line of planterRowGrid.interiorLines) {
+          if (line.length >= 2) {
+            ctx.beginPath();
+            ctx.moveTo(line[0][0], line[0][1]);
+            for (let i = 1; i < line.length; i++) {
+              ctx.lineTo(line[i][0], line[i][1]);
+            }
+            ctx.stroke();
           }
-          ctx.stroke();
         }
       }
     }
@@ -429,12 +436,21 @@ function App() {
       }
     }
 
-    // Layer 2: Maze Walls (dark brown/amber for light bg)
-    // Carved paths appear as light gaps (absence of walls)
+    // Layer 2: Maze Walls
+    // When planter rows are visible the walls render as corn rows (thin
+    // green lines) so the planter grid IS the maze grid.  Paths appear as
+    // gaps where walls were removed.  Without planter rows the walls
+    // render as the original thick brown lines.
     if (maze?.walls) {
       ctx.beginPath();
-      ctx.strokeStyle = '#8B6914';
-      ctx.lineWidth = 2 / camera.scale;
+      if (showPlanterRows && planterRowGrid) {
+        // Corn-row style — walls = standing corn
+        ctx.strokeStyle = 'rgba(46, 125, 50, 0.6)';
+        ctx.lineWidth = 0.5 / camera.scale;
+      } else {
+        ctx.strokeStyle = '#8B6914';
+        ctx.lineWidth = 2 / camera.scale;
+      }
 
       maze.walls.forEach((line: [number, number][]) => {
         if (line.length >= 2) {
