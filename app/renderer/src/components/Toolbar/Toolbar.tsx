@@ -18,7 +18,6 @@ import {
   ImagePlus,
   Move,
   FlipHorizontal,
-  Grid3x3,
   Download,
   Undo2,
   Redo2,
@@ -34,7 +33,7 @@ import {
   Map,
   type LucideIcon,
 } from 'lucide-react';
-import type { MazeAlgorithm, MazeMetrics } from '../../api/client';
+import type { MazeMetrics } from '../../api/client';
 import * as api from '../../api/client';
 import { useUiStore } from '../../stores/uiStore';
 import { useDesignStore } from '../../stores/designStore';
@@ -93,13 +92,12 @@ export type ExportFormat = 'kml' | 'png' | 'shapefile' | 'gpx' | 'dxf' | 'printa
 interface ToolbarProps {
   onImportField?: () => void;
   onImportFromSatellite?: () => void;
-  onGenerateMaze: (algorithm?: MazeAlgorithm) => void;
   onExport: (format: ExportFormat) => void;
   onSave?: () => void;
   onLoad?: () => void;
 }
 
-export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSave, onLoad }: ToolbarProps) {
+export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool } = useUiStore();
   const {
     designElements,
@@ -133,13 +131,9 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
   // Export dropdown state
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  // Maze algorithm dropdown state
-  const [showAlgoMenu, setShowAlgoMenu] = useState(false);
-
-  const anyMenuOpen = showAlgoMenu || showExportMenu;
+  const anyMenuOpen = showExportMenu;
 
   const closeAllMenus = () => {
-    setShowAlgoMenu(false);
     setShowExportMenu(false);
   };
 
@@ -396,28 +390,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
           </button>
         )}
         <ActionButton Icon={ImagePlus} label="Import Image" onClick={() => setShowImageImportDialog(true)} />
-        <div style={{ position: 'relative' }}>
-          <button
-            className="toolbar-dropdown-button"
-            onClick={() => { setShowAlgoMenu(!showAlgoMenu); setShowExportMenu(false); }}
-            title="Generate Maze"
-            aria-label="Generate Maze"
-          >
-            <Grid3x3 size={16} />
-            <span>Generate</span>
-            <span className="dropdown-arrow">&#9662;</span>
-          </button>
-          {showAlgoMenu && (
-            <div className="export-dropdown">
-              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('standing'); setShowAlgoMenu(false); }}>
-                Load Rows (Manual Carve)
-              </button>
-              <button className="export-dropdown-item" onClick={() => { onGenerateMaze('grid'); setShowAlgoMenu(false); }}>
-                Simple Grid
-              </button>
-            </div>
-          )}
-        </div>
         <button
           className={`carve-button ${designElements.length > 0 ? 'has-elements' : ''} ${violations.length > 0 ? 'has-violations' : ''}`}
           onClick={handleCarve}
