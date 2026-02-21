@@ -100,7 +100,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSave, onLoad }: ToolbarProps) {
-  const { selectedTool, setTool, showGrid, snapToGrid, toggleGrid, toggleSnap } = useUiStore();
+  const { selectedTool, setTool } = useUiStore();
   const {
     designElements,
     isCarving,
@@ -482,20 +482,6 @@ export function Toolbar({ onImportFromSatellite, onGenerateMaze, onExport, onSav
 
         <ActionButton Icon={Undo2} label="Undo" onClick={undo} disabled={!canUndo()} />
         <ActionButton Icon={Redo2} label="Redo" onClick={redo} disabled={!canRedo()} />
-      </div>
-
-      <div className="toolbar-separator" />
-
-      {/* View Section */}
-      <div className="toolbar-section view">
-        <label className="toolbar-checkbox">
-          <input type="checkbox" checked={showGrid} onChange={toggleGrid} />
-          <span>Grid</span>
-        </label>
-        <label className="toolbar-checkbox">
-          <input type="checkbox" checked={snapToGrid} onChange={toggleSnap} />
-          <span>Snap</span>
-        </label>
       </div>
 
       {/* Validation Dialog */}
