@@ -30,6 +30,6 @@ export default defineConfig({
   // Optimizations
   optimizeDeps: {
     // Pre-bundle these for faster dev startup
-    include: ['react', 'react-dom'],
+    include: ['react', 'react-dom', 'leaflet'],
   },
 })
