@@ -9,8 +9,25 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useDesignStore } from '../stores/designStore';
 
-const RESTORE_WIDTH = 4.0; // Default restore brush width in meters
+const DEFAULT_RESTORE_WIDTH = 4.0; // Default restore brush width in meters
+const MIN_RESTORE_WIDTH = 1.0;
+const MAX_RESTORE_WIDTH = 20.0;
 const MIN_POINT_DISTANCE_PX = 5; // Minimum screen-pixel distance between path points
+
+// Module-level brush width state (same pattern as other tool states)
+let restoreBrushWidth = DEFAULT_RESTORE_WIDTH;
+
+export function getRestoreBrushWidth(): number {
+  return restoreBrushWidth;
+}
+
+export function setRestoreBrushWidth(width: number): void {
+  restoreBrushWidth = Math.max(MIN_RESTORE_WIDTH, Math.min(MAX_RESTORE_WIDTH, width));
+}
+
+export function adjustRestoreBrushWidth(delta: number): void {
+  setRestoreBrushWidth(restoreBrushWidth + delta);
+}
 
 /**
  * Check if a new point is far enough from the last point (in screen space)
@@ -29,7 +46,7 @@ function shouldAddPoint(
 export const RestoreTool: Tool = {
   name: 'restore',
   cursor: 'crosshair',
-  hint: 'Click and drag to paint restore area. Release to apply.',
+  hint: 'Click and drag to paint restore area. [ / ] to adjust brush size.',
 
   onMouseDown: (_e: MouseEvent, worldPos: [number, number]) => {
     const { startDrawing } = useUiStore.getState();
@@ -62,16 +79,39 @@ export const RestoreTool: Tool = {
   },
 
   renderOverlay: (ctx: CanvasRenderingContext2D, camera: Camera) => {
-    const { isDrawing, currentPath } = useUiStore.getState();
+    const { isDrawing, currentPath, selectedTool, mouseWorldPos } = useUiStore.getState();
+
+    const widthWorld = restoreBrushWidth;
+
+    // Show brush size badge when restore tool is active (even when not drawing)
+    if (selectedTool === 'restore' && !isDrawing) {
+      ctx.save();
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = 'rgba(34, 197, 94, 0.85)';
+      ctx.fillText(`Brush: ${widthWorld.toFixed(1)}m`, 10, 10);
+
+      // Show brush circle cursor preview at mouse position
+      if (mouseWorldPos) {
+        ctx.translate(camera.x, camera.y);
+        ctx.scale(camera.scale, -camera.scale);
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.5)';
+        ctx.lineWidth = 1.5 / camera.scale;
+        ctx.beginPath();
+        ctx.arc(mouseWorldPos[0], mouseWorldPos[1], widthWorld / 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+      return;
+    }
 
     if (!isDrawing || currentPath.length < 2) return;
 
     ctx.save();
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.scale, -camera.scale);
-
-    // Draw the restore path as a wide green semi-transparent brush
-    const widthWorld = RESTORE_WIDTH;
 
     // Draw the buffered region preview
     ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
@@ -118,7 +158,7 @@ export const RestoreTool: Tool = {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = 'rgba(34, 197, 94, 0.9)';
-    ctx.fillText('RESTORE', 0, -widthWorld / 2 - 4 / camera.scale);
+    ctx.fillText(`RESTORE (${widthWorld.toFixed(1)}m)`, 0, -widthWorld / 2 - 4 / camera.scale);
     ctx.restore();
 
     ctx.restore();
@@ -131,12 +171,15 @@ export const RestoreTool: Tool = {
 async function finishRestore(): Promise<void> {
   const { currentPath, endDrawing } = useUiStore.getState();
 
-  if (currentPath.length < 2) {
-    endDrawing();
+  // Capture path and clear drawing state immediately to prevent trailing tail
+  const pathCopy = [...currentPath] as [number, number][];
+  endDrawing();
+
+  if (pathCopy.length < 2) {
     return;
   }
 
-  const { maze, pushSnapshot } = useDesignStore.getState();
+  const { pushSnapshot } = useDesignStore.getState();
 
   // Push undo snapshot before modifying
   pushSnapshot();
@@ -146,8 +189,8 @@ async function finishRestore(): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        points: currentPath,
-        width: RESTORE_WIDTH,
+        points: pathCopy,
+        width: restoreBrushWidth,
       }),
     });
 
@@ -167,6 +210,4 @@ async function finishRestore(): Promise<void> {
   } catch (error) {
     console.error('[RestoreTool] Failed to uncarve:', error);
   }
-
-  endDrawing();
 }
