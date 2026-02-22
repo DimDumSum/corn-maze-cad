@@ -22,6 +22,8 @@ import {
   Download,
   Undo2,
   Redo2,
+  RotateCcw,
+  RotateCw,
   Scissors,
   AlertTriangle,
   BarChart3,
@@ -100,7 +102,7 @@ interface ToolbarProps {
 }
 
 export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
-  const { selectedTool, setTool } = useUiStore();
+  const { selectedTool, setTool, camera, rotateCanvas } = useUiStore();
   const {
     designElements,
     isCarving,
@@ -434,6 +436,21 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
 
         <ActionButton Icon={Undo2} label="Undo" onClick={undo} disabled={!canUndo()} />
         <ActionButton Icon={Redo2} label="Redo" onClick={redo} disabled={!canRedo()} />
+
+        <div className="toolbar-separator" />
+
+        <ActionButton Icon={RotateCcw} label="Rotate Canvas Left (Shift+{)" onClick={() => rotateCanvas(-Math.PI / 12)} />
+        <ActionButton Icon={RotateCw} label="Rotate Canvas Right (Shift+})" onClick={() => rotateCanvas(Math.PI / 12)} />
+        {camera.rotation !== 0 && (
+          <button
+            className="toolbar-button rotation-reset"
+            onClick={() => rotateCanvas(-camera.rotation)}
+            title="Reset rotation (Ctrl+0)"
+            aria-label="Reset rotation"
+          >
+            <span className="rotation-label">{Math.round(camera.rotation * 180 / Math.PI)}°</span>
+          </button>
+        )}
       </div>
 
       {/* Validation Dialog */}
