@@ -235,3 +235,16 @@
   background: #4a90d9;
   color: #fff;
 }
+
+/* Rotation reset button */
+.rotation-reset {
+  width: auto !important;
+  padding: 0 6px !important;
+}
+
+.rotation-label {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  color: #4a90d9;
+}
