@@ -16,25 +16,38 @@ import { useUiStore } from '../../stores/uiStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { fmtShort, fmtArea, fmtUnit, fmtFromMeters, fmtToMeters } from '../../utils/fmt';
 import { SettingsDialog } from '../SettingsDialog/SettingsDialog';
+import { Tooltip } from '../Tooltip';
+import { DimensionInput } from '../DimensionInput';
 import type { UnitSystem } from '../../utils/units';
 import * as api from '../../api/client';
 import './PanelTray.css';
 
 interface PanelSectionProps {
   title: string;
+  tooltip?: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }
 
-function PanelSection({ title, defaultOpen = true, children }: PanelSectionProps) {
+function PanelSection({ title, tooltip, defaultOpen = true, children }: PanelSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  const header = (
+    <div className="panel-header" onClick={() => setIsOpen(!isOpen)}>
+      <ChevronDown size={12} className={`chevron ${!isOpen ? 'collapsed' : ''}`} />
+      <span className="panel-title">{title}</span>
+    </div>
+  );
 
   return (
     <div className="panel-section">
-      <div className="panel-header" onClick={() => setIsOpen(!isOpen)}>
-        <ChevronDown size={12} className={`chevron ${!isOpen ? 'collapsed' : ''}`} />
-        <span className="panel-title">{title}</span>
-      </div>
+      {tooltip ? (
+        <Tooltip tip={title} desc={tooltip} side="left">
+          {header}
+        </Tooltip>
+      ) : (
+        header
+      )}
       <div className={`panel-body ${!isOpen ? 'collapsed' : ''}`}>
         {children}
       </div>
@@ -60,10 +73,12 @@ export function PanelTray() {
   // Calculate field area
   const fieldArea = field ? calculateFieldArea(field.geometry) : 0;
 
+  const unit = fmtUnit();
+
   return (
     <div className="panel-tray">
       {/* Entity Info */}
-      <PanelSection title="Entity Info">
+      <PanelSection title="Entity Info" tooltip="Properties of the currently selected element.">
         {selectedElements.length === 0 ? (
           <div className="element-info-empty">No selection</div>
         ) : selectedElements.length === 1 ? (
@@ -76,24 +91,19 @@ export function PanelTray() {
               <span className="prop-label">Points</span>
               <span className="prop-value">{selectedElements[0].points.length}</span>
             </div>
-            <div className="constraint-row">
-              <label>Width</label>
-              <input
-                type="number"
-                className="constraint-input"
-                value={parseFloat(fmtFromMeters(selectedElements[0].width).toFixed(1))}
-                min={0}
-                max={65}
-                step={0.5}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  if (!isNaN(val) && val >= 0) {
-                    updateDesignElement(selectedElements[0].id, { width: fmtToMeters(val) });
-                  }
-                }}
-              />
-              <span className="constraint-unit">{fmtUnit()}</span>
-            </div>
+            <DimensionInput
+              label="Width"
+              value={parseFloat(fmtFromMeters(selectedElements[0].width).toFixed(1))}
+              min={0}
+              max={65}
+              step={0.5}
+              unit={unit}
+              onChange={(val) => {
+                if (val >= 0) {
+                  updateDesignElement(selectedElements[0].id, { width: fmtToMeters(val) });
+                }
+              }}
+            />
             {selectedElements[0].rotation !== undefined && selectedElements[0].rotation !== 0 && (
               <div className="prop-row">
                 <span className="prop-label">Rotation</span>
@@ -117,149 +127,151 @@ export function PanelTray() {
 
       {/* Restore Brush (shown when restore tool is active) */}
       {selectedTool === 'restore' && (
-        <PanelSection title="Restore Brush">
-          <div className="constraint-row">
-            <label>Brush Width</label>
-            <input
-              type="number"
-              className="constraint-input"
-              value={parseFloat(fmtFromMeters(restoreBrushWidth).toFixed(1))}
-              min={1}
-              max={65}
-              step={0.5}
-              onChange={(e) => {
-                setRestoreBrushWidth(fmtToMeters(parseFloat(e.target.value) || 1));
-              }}
-            />
-            <span className="constraint-unit">{fmtUnit()}</span>
-          </div>
-          <div className="prop-row" style={{ opacity: 0.6, fontSize: '11px' }}>
+        <PanelSection title="Restore Brush" tooltip="Adjust the brush size for restoring carved areas back to standing corn.">
+          <DimensionInput
+            label="Brush Width"
+            value={parseFloat(fmtFromMeters(restoreBrushWidth).toFixed(1))}
+            min={1}
+            max={65}
+            step={0.5}
+            unit={unit}
+            onChange={(val) => setRestoreBrushWidth(fmtToMeters(val || 1))}
+          />
+          <div className="prop-row" style={{ opacity: 0.6, fontSize: 'var(--font-size-sm)' }}>
             <span>[ / ] keys to adjust</span>
           </div>
         </PanelSection>
       )}
 
       {/* Constraints */}
-      <PanelSection title="Constraints">
-        <div className="constraint-row">
-          <label>Path Width</label>
-          <input
-            type="number"
-            className="constraint-input"
-            value={parseFloat(fmtFromMeters(pathWidthMin).toFixed(1))}
-            min={1}
-            max={65}
-            step={0.5}
-            onChange={(e) => updateConstraint('pathWidthMin', fmtToMeters(parseFloat(e.target.value) || 1))}
-          />
-          <span className="constraint-unit">{fmtUnit()}</span>
-        </div>
-        <div className="constraint-row">
-          <label>Wall Width</label>
-          <input
-            type="number"
-            className="constraint-input"
-            value={parseFloat(fmtFromMeters(wallWidthMin).toFixed(1))}
-            min={0.5}
-            max={33}
-            step={0.5}
-            onChange={(e) => updateConstraint('wallWidthMin', fmtToMeters(parseFloat(e.target.value) || 0.5))}
-          />
-          <span className="constraint-unit">{fmtUnit()}</span>
-        </div>
-        <div className="constraint-row">
-          <label>Edge Buffer</label>
-          <input
-            type="number"
-            className="constraint-input"
-            value={parseFloat(fmtFromMeters(edgeBuffer).toFixed(1))}
-            min={0}
-            max={65}
-            step={0.5}
-            onChange={(e) => updateConstraint('edgeBuffer', fmtToMeters(parseFloat(e.target.value) || 0))}
-          />
-          <span className="constraint-unit">{fmtUnit()}</span>
-        </div>
-        <div className="constraint-row">
-          <label>Corner Radius</label>
-          <input
-            type="number"
-            className="constraint-input"
-            value={parseFloat(fmtFromMeters(cornerRadius).toFixed(1))}
-            min={0}
-            max={33}
-            step={0.5}
-            onChange={(e) => updateConstraint('cornerRadius', fmtToMeters(parseFloat(e.target.value) || 0))}
-          />
-          <span className="constraint-unit">{fmtUnit()}</span>
-        </div>
+      <PanelSection title="Constraints" tooltip="Minimum dimensions the maze generator and validator enforce.">
+        <Tooltip tip="Path Width" desc="Minimum width of walkable paths through the maze. Wider paths are easier to navigate." side="left">
+          <div style={{ width: '100%' }}>
+            <DimensionInput
+              label="Path Width"
+              value={parseFloat(fmtFromMeters(pathWidthMin).toFixed(1))}
+              min={1}
+              max={65}
+              step={0.5}
+              unit={unit}
+              onChange={(val) => updateConstraint('pathWidthMin', fmtToMeters(val || 1))}
+            />
+          </div>
+        </Tooltip>
+        <Tooltip tip="Wall Width" desc="Minimum number of standing corn rows that form a wall between paths." side="left">
+          <div style={{ width: '100%' }}>
+            <DimensionInput
+              label="Wall Width"
+              value={parseFloat(fmtFromMeters(wallWidthMin).toFixed(1))}
+              min={0.5}
+              max={33}
+              step={0.5}
+              unit={unit}
+              onChange={(val) => updateConstraint('wallWidthMin', fmtToMeters(val || 0.5))}
+            />
+          </div>
+        </Tooltip>
+        <Tooltip tip="Edge Buffer" desc="Minimum clearance between designs and the field boundary." side="left">
+          <div style={{ width: '100%' }}>
+            <DimensionInput
+              label="Edge Buffer"
+              value={parseFloat(fmtFromMeters(edgeBuffer).toFixed(1))}
+              min={0}
+              max={65}
+              step={0.5}
+              unit={unit}
+              onChange={(val) => updateConstraint('edgeBuffer', fmtToMeters(val || 0))}
+            />
+          </div>
+        </Tooltip>
+        <Tooltip tip="Corner Radius" desc="Minimum turning radius at path junctions. Larger values make smoother turns." side="left">
+          <div style={{ width: '100%' }}>
+            <DimensionInput
+              label="Corner Radius"
+              value={parseFloat(fmtFromMeters(cornerRadius).toFixed(1))}
+              min={0}
+              max={33}
+              step={0.5}
+              unit={unit}
+              onChange={(val) => updateConstraint('cornerRadius', fmtToMeters(val || 0))}
+            />
+          </div>
+        </Tooltip>
         <button className="panel-reset-btn" onClick={resetToDefaults}>
           Reset Defaults
         </button>
       </PanelSection>
 
       {/* Planter Specs */}
-      <PanelSection title="Planter Specs" defaultOpen={true}>
-        <div className="constraint-row">
-          <label>Rows</label>
-          <select
-            className="constraint-input"
-            value={planterConfig.rows}
-            onChange={(e) => setPlanterConfig({ rows: Number(e.target.value) })}
-            style={{ width: '60px' }}
-          >
-            {[4, 6, 8, 12, 16, 18].map(n => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        </div>
-        <div className="constraint-row">
-          <label>Spacing</label>
-          <select
-            className="constraint-input"
-            value={planterConfig.spacingInches}
-            onChange={(e) => setPlanterConfig({ spacingInches: Number(e.target.value) })}
-            style={{ width: '60px' }}
-          >
-            {[24, 30, 36].map(n => (
-              <option key={n} value={n}>{n}"</option>
-            ))}
-          </select>
-        </div>
-        <div className="constraint-row">
-          <label>Direction</label>
-          <input
-            type="number"
-            className="constraint-input"
-            value={planterConfig.directionDeg}
-            onChange={(e) => setPlanterConfig({ directionDeg: ((Number(e.target.value) % 360) + 360) % 360 })}
-            min={0} max={359} step={1}
-            style={{ width: '48px' }}
-          />
-          <span className="constraint-unit">&deg;</span>
-          <button
-            className="panel-reset-btn"
-            onClick={() => setTool('planting_direction')}
-            title="Click & drag on field to set direction"
-            style={{ padding: '2px 4px', display: 'flex', alignItems: 'center' }}
-          >
-            <Navigation size={12} />
-          </button>
-        </div>
-        <div className="constraint-row">
-          <label>Headlands</label>
-          <input
-            type="number"
-            className="constraint-input"
-            value={planterConfig.headlands}
-            onChange={(e) => setPlanterConfig({ headlands: Math.max(0, Number(e.target.value)) })}
-            min={0} max={10} step={1}
-            style={{ width: '48px' }}
-          />
-          <span className="constraint-unit">passes</span>
-        </div>
+      <PanelSection title="Planter Specs" tooltip="Configure your planter to align maze walls with actual corn rows.">
+        <Tooltip tip="Rows" desc="Number of rows your planter sows in a single pass." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Rows</label>
+            <select
+              className="constraint-input"
+              value={planterConfig.rows}
+              onChange={(e) => setPlanterConfig({ rows: Number(e.target.value) })}
+              style={{ width: '60px' }}
+            >
+              {[4, 6, 8, 12, 16, 18].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
+        </Tooltip>
+        <Tooltip tip="Spacing" desc="Distance between adjacent corn rows, set by your planter." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Spacing</label>
+            <select
+              className="constraint-input"
+              value={planterConfig.spacingInches}
+              onChange={(e) => setPlanterConfig({ spacingInches: Number(e.target.value) })}
+              style={{ width: '60px' }}
+            >
+              {[24, 30, 36].map(n => (
+                <option key={n} value={n}>{n}"</option>
+              ))}
+            </select>
+          </div>
+        </Tooltip>
+        <Tooltip tip="Direction" desc="Compass heading of the planting rows (0 = North). Drag the compass icon to pick on the field." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Direction</label>
+            <input
+              type="number"
+              className="constraint-input"
+              value={planterConfig.directionDeg}
+              onChange={(e) => setPlanterConfig({ directionDeg: ((Number(e.target.value) % 360) + 360) % 360 })}
+              min={0} max={359} step={1}
+              style={{ width: '48px' }}
+            />
+            <span className="constraint-unit">&deg;</span>
+            <button
+              className="panel-reset-btn"
+              onClick={() => setTool('planting_direction')}
+              title="Click & drag on field to set direction"
+              style={{ padding: '2px 4px', display: 'flex', alignItems: 'center' }}
+            >
+              <Navigation size={12} />
+            </button>
+          </div>
+        </Tooltip>
+        <Tooltip tip="Headlands" desc="Number of border passes around the field edge before the interior maze." side="left">
+          <div style={{ width: '100%' }}>
+            <DimensionInput
+              label="Headlands"
+              value={planterConfig.headlands}
+              min={0}
+              max={10}
+              step={1}
+              decimals={0}
+              unit="passes"
+              onChange={(val) => setPlanterConfig({ headlands: Math.max(0, val) })}
+            />
+          </div>
+        </Tooltip>
 
-        <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
           <button
             className="panel-apply-btn"
             disabled={!field || applyingGrid}
@@ -322,7 +334,7 @@ export function PanelTray() {
         </div>
 
         {showPlanterRows && planterRowGrid && (
-          <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '3px', borderTop: '1px solid #c0c0c0', paddingTop: '6px' }}>
+          <div style={{ marginTop: 'var(--space-3)', display: 'flex', flexDirection: 'column', gap: '3px', borderTop: '1px solid var(--border-color-light)', paddingTop: 'var(--space-3)' }}>
             <div className="prop-row">
               <span className="prop-label">Headland rows</span>
               <span className="prop-value">{planterRowGrid.headlandRowCount.toLocaleString()}</span>
@@ -344,38 +356,40 @@ export function PanelTray() {
       </PanelSection>
 
       {/* View Overlays */}
-      <PanelSection title="View" defaultOpen={true}>
-        <div className="constraint-row">
-          <label>Satellite</label>
-          <input
-            type="checkbox"
-            checked={showSatellite}
-            onChange={async (e) => {
-              const checked = e.target.checked;
-              if (checked && !aerialUnderlay && field) {
-                setFetchingSatellite(true);
-                try {
-                  const result = await api.fetchSatelliteImage(18);
-                  if (!result.error && result.imageData && result.bounds) {
-                    setAerialUnderlay({
-                      imageData: result.imageData,
-                      bounds: result.bounds,
-                      opacity: 0.6,
-                    });
+      <PanelSection title="View" tooltip="Toggle visual overlays on the canvas.">
+        <Tooltip tip="Satellite" desc="Show satellite imagery beneath the maze design." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Satellite</label>
+            <input
+              type="checkbox"
+              checked={showSatellite}
+              onChange={async (e) => {
+                const checked = e.target.checked;
+                if (checked && !aerialUnderlay && field) {
+                  setFetchingSatellite(true);
+                  try {
+                    const result = await api.fetchSatelliteImage(18);
+                    if (!result.error && result.imageData && result.bounds) {
+                      setAerialUnderlay({
+                        imageData: result.imageData,
+                        bounds: result.bounds,
+                        opacity: 0.6,
+                      });
+                    }
+                  } catch (err) {
+                    if (import.meta.env.DEV) {
+                      console.error('[PanelTray] Satellite fetch failed:', err);
+                    }
                   }
-                } catch (err) {
-                  if (import.meta.env.DEV) {
-                    console.error('[PanelTray] Satellite fetch failed:', err);
-                  }
+                  setFetchingSatellite(false);
                 }
-                setFetchingSatellite(false);
-              }
-              setShowSatellite(checked);
-            }}
-            disabled={!field || fetchingSatellite}
-          />
-          {fetchingSatellite && <span className="constraint-unit" style={{ fontSize: '10px' }}>Loading...</span>}
-        </div>
+                setShowSatellite(checked);
+              }}
+              disabled={!field || fetchingSatellite}
+            />
+            {fetchingSatellite && <span className="constraint-unit" style={{ fontSize: 'var(--font-size-xs)' }}>Loading...</span>}
+          </div>
+        </Tooltip>
         {showSatellite && aerialUnderlay && (
           <div className="constraint-row">
             <label>Opacity</label>
@@ -396,28 +410,32 @@ export function PanelTray() {
             <span className="constraint-unit">{Math.round(aerialUnderlay.opacity * 100)}%</span>
           </div>
         )}
-        <div className="constraint-row">
-          <label>Carve Fill</label>
-          <input
-            type="checkbox"
-            checked={showCarvedOverlay}
-            onChange={(e) => setShowCarvedOverlay(e.target.checked)}
-            disabled={!maze?.carvedAreas}
-          />
-        </div>
-        <div className="constraint-row">
-          <label>Carve Border</label>
-          <input
-            type="checkbox"
-            checked={showCarvedBorder}
-            onChange={(e) => setShowCarvedBorder(e.target.checked)}
-            disabled={!maze?.carvedAreas}
-          />
-        </div>
+        <Tooltip tip="Carve Fill" desc="Show shaded fill on areas that have been carved (mowed paths)." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Carve Fill</label>
+            <input
+              type="checkbox"
+              checked={showCarvedOverlay}
+              onChange={(e) => setShowCarvedOverlay(e.target.checked)}
+              disabled={!maze?.carvedAreas}
+            />
+          </div>
+        </Tooltip>
+        <Tooltip tip="Carve Border" desc="Show outlines around carved areas for clarity." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Carve Border</label>
+            <input
+              type="checkbox"
+              checked={showCarvedBorder}
+              onChange={(e) => setShowCarvedBorder(e.target.checked)}
+              disabled={!maze?.carvedAreas}
+            />
+          </div>
+        </Tooltip>
       </PanelSection>
 
       {/* Project Info */}
-      <PanelSection title="Project">
+      <PanelSection title="Project" tooltip="Overview of the current project status.">
         <div className="prop-row">
           <span className="prop-label">Status</span>
           <span className="prop-value">{isDirty ? 'Modified' : 'Saved'}</span>
@@ -447,23 +465,25 @@ export function PanelTray() {
       </PanelSection>
 
       {/* Settings */}
-      <PanelSection title="Settings" defaultOpen={false}>
-        <div className="constraint-row">
-          <label>Units</label>
-          <select
-            className="constraint-input"
-            value={unitSystem}
-            onChange={(e) => setUnitSystem(e.target.value as UnitSystem)}
-            style={{ width: '80px' }}
-          >
-            <option value="metric">Metric</option>
-            <option value="imperial">Imperial</option>
-          </select>
-        </div>
+      <PanelSection title="Settings" tooltip="Change units, keyboard shortcuts, and other preferences." defaultOpen={false}>
+        <Tooltip tip="Units" desc="Switch between metric (meters) and imperial (feet)." side="left">
+          <div className="constraint-row" style={{ width: '100%' }}>
+            <label>Units</label>
+            <select
+              className="constraint-input"
+              value={unitSystem}
+              onChange={(e) => setUnitSystem(e.target.value as UnitSystem)}
+              style={{ width: '80px' }}
+            >
+              <option value="metric">Metric</option>
+              <option value="imperial">Imperial</option>
+            </select>
+          </div>
+        </Tooltip>
         <button
           className="panel-apply-btn"
           onClick={() => setShowSettingsDialog(true)}
-          style={{ marginTop: '4px' }}
+          style={{ marginTop: 'var(--space-2)' }}
         >
           Customize Controls
         </button>

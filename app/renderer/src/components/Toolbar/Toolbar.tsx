@@ -43,6 +43,7 @@ import { useDesignStore } from '../../stores/designStore';
 import { useConstraintStore } from '../../stores/constraintStore';
 import { ValidationDialog } from '../ValidationDialog/ValidationDialog';
 import { ImageImportDialog } from '../ImageImportDialog';
+import { Tooltip } from '../Tooltip';
 import { fmtLen, fmtArea } from '../../utils/fmt';
 import type { ToolName } from '../../../../shared/constants';
 import './Toolbar.css';
@@ -50,44 +51,49 @@ import './Toolbar.css';
 interface ToolButtonProps {
   Icon: LucideIcon;
   label: string;
+  desc: string;
   shortcut: string;
   isActive: boolean;
   onClick: () => void;
   disabled?: boolean;
 }
 
-function ToolButton({ Icon, label, shortcut, isActive, onClick, disabled = false }: ToolButtonProps) {
+function ToolButton({ Icon, label, desc, shortcut, isActive, onClick, disabled = false }: ToolButtonProps) {
   return (
-    <button
-      className={`toolbar-button ${isActive ? 'active' : ''}`}
-      onClick={onClick}
-      title={`${label} (${shortcut})`}
-      aria-label={label}
-      disabled={disabled}
-    >
-      <Icon size={18} />
-    </button>
+    <Tooltip tip={label} desc={desc} shortcut={shortcut}>
+      <button
+        className={`toolbar-button ${isActive ? 'active' : ''}`}
+        onClick={onClick}
+        aria-label={label}
+        disabled={disabled}
+      >
+        <Icon size={18} />
+      </button>
+    </Tooltip>
   );
 }
 
 interface ActionButtonProps {
   Icon: LucideIcon;
   label: string;
+  desc: string;
+  shortcut?: string;
   onClick: () => void;
   disabled?: boolean;
 }
 
-function ActionButton({ Icon, label, onClick, disabled = false }: ActionButtonProps) {
+function ActionButton({ Icon, label, desc, shortcut, onClick, disabled = false }: ActionButtonProps) {
   return (
-    <button
-      className="toolbar-button"
-      onClick={onClick}
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-    >
-      <Icon size={18} />
-    </button>
+    <Tooltip tip={label} desc={desc} shortcut={shortcut}>
+      <button
+        className="toolbar-button"
+        onClick={onClick}
+        aria-label={label}
+        disabled={disabled}
+      >
+        <Icon size={18} />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -100,6 +106,29 @@ interface ToolbarProps {
   onSave?: () => void;
   onLoad?: () => void;
 }
+
+/** Descriptions shown in tooltip info bubbles for each drawing tool */
+const TOOL_DESCS: Record<string, string> = {
+  select: 'Click to select and move elements. Drag to box-select.',
+  pan: 'Click and drag to pan the canvas view.',
+  draw: 'Freehand draw a path on the maze.',
+  line: 'Click two points to draw a straight line.',
+  rectangle: 'Click and drag to draw a rectangle.',
+  circle: 'Click center, then drag to set radius.',
+  arc: 'Click three points to define an arc.',
+  text: 'Click to place a text label on the maze.',
+  clipart: 'Browse and place clip-art images.',
+  eraser: 'Click or drag over paths to erase them.',
+  restore: 'Paint over carved areas to restore standing corn rows.',
+  move: 'Click an element then drag to reposition it.',
+  flip: 'Click an element to mirror it horizontally.',
+  measure: 'Click two points to measure distance between them.',
+  entrance: 'Click the field edge to place the maze entrance.',
+  exit: 'Click the field edge to place the maze exit.',
+  emergency_exit: 'Place an emergency exit for safety compliance.',
+  solution_path: 'Draw the intended solution route through the maze.',
+  dead_end: 'Mark a branch as a dead end for analysis.',
+};
 
 export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool, camera, rotateCanvas } = useUiStore();
@@ -346,6 +375,7 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
             key={tool.name}
             Icon={tool.Icon}
             label={tool.label}
+            desc={TOOL_DESCS[tool.name] ?? ''}
             shortcut={tool.shortcut}
             isActive={selectedTool === tool.name}
             onClick={() => setTool(tool.name)}
@@ -364,42 +394,54 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
       {/* Action Section */}
       <div className="toolbar-section actions">
         {onImportFromSatellite && (
-          <button
-            className="toolbar-dropdown-button"
-            onClick={onImportFromSatellite}
-            title="Draw field boundary on satellite image"
-            aria-label="Import Field from Satellite"
-          >
-            <Map size={16} />
-            <span>Draw Boundary</span>
-          </button>
+          <Tooltip tip="Draw Boundary" desc="Draw your field boundary on a satellite image to define the maze area.">
+            <button
+              className="toolbar-dropdown-button"
+              onClick={onImportFromSatellite}
+              aria-label="Import Field from Satellite"
+            >
+              <Map size={16} />
+              <span>Draw Boundary</span>
+            </button>
+          </Tooltip>
         )}
-        <ActionButton Icon={ImagePlus} label="Import Image" onClick={() => setShowImageImportDialog(true)} />
-        <button
-          className={`carve-button ${designElements.length > 0 ? 'has-elements' : ''} ${violations.length > 0 ? 'has-violations' : ''}`}
-          onClick={handleCarve}
-          disabled={designElements.length === 0 || isCarving || !maze}
-          title={!maze ? 'Generate a maze first' : violations.length > 0 ? `${violations.length} violations - click to review` : `Carve all designs (Enter)`}
-          aria-label="Carve designs"
+        <ActionButton
+          Icon={ImagePlus}
+          label="Import Image"
+          desc="Load a raster image (logo, sketch) to trace or place on the maze."
+          onClick={() => setShowImageImportDialog(true)}
+        />
+        <Tooltip
+          tip="Carve Designs"
+          desc={!maze ? 'Generate a maze first before carving.' : violations.length > 0 ? `${violations.length} violations found — click to review.` : 'Apply all drawn designs to the maze.'}
+          shortcut="Enter"
         >
-          {violations.length > 0 ? <AlertTriangle size={16} /> : <Scissors size={16} />}
-          {designElements.length > 0 && (
-            <span className={`count ${violations.length > 0 ? 'violation-count' : ''}`}>
-              {violations.length > 0 ? violations.length : designElements.length}
-            </span>
-          )}
-        </button>
-        <div style={{ position: 'relative' }}>
           <button
-            className="toolbar-dropdown-button"
-            onClick={() => { setShowExportMenu(!showExportMenu); }}
-            title="Export"
-            aria-label="Export"
+            className={`carve-button ${designElements.length > 0 ? 'has-elements' : ''} ${violations.length > 0 ? 'has-violations' : ''}`}
+            onClick={handleCarve}
+            disabled={designElements.length === 0 || isCarving || !maze}
+            aria-label="Carve designs"
           >
-            <Download size={16} />
-            <span>Export</span>
-            <span className="dropdown-arrow">&#9662;</span>
+            {violations.length > 0 ? <AlertTriangle size={16} /> : <Scissors size={16} />}
+            {designElements.length > 0 && (
+              <span className={`count ${violations.length > 0 ? 'violation-count' : ''}`}>
+                {violations.length > 0 ? violations.length : designElements.length}
+              </span>
+            )}
           </button>
+        </Tooltip>
+        <div style={{ position: 'relative' }}>
+          <Tooltip tip="Export" desc="Download the maze in various formats for GPS, print, or CAD software.">
+            <button
+              className="toolbar-dropdown-button"
+              onClick={() => { setShowExportMenu(!showExportMenu); }}
+              aria-label="Export"
+            >
+              <Download size={16} />
+              <span>Export</span>
+              <span className="dropdown-arrow">&#9662;</span>
+            </button>
+          </Tooltip>
           {showExportMenu && (
             <div className="export-dropdown">
               <button className="export-dropdown-item" onClick={() => { onExport('kml'); setShowExportMenu(false); }}>
@@ -429,27 +471,28 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
 
         <div className="toolbar-separator" />
 
-        <ActionButton Icon={BarChart3} label="Maze Stats" onClick={handleShowStats} disabled={!maze} />
-        {onSave && <ActionButton Icon={Save} label="Save Project (Ctrl+S)" onClick={onSave} />}
+        <ActionButton Icon={BarChart3} label="Maze Stats" desc="View maze difficulty, dead ends, junctions, and field area." onClick={handleShowStats} disabled={!maze} />
+        {onSave && <ActionButton Icon={Save} label="Save Project" desc="Save all changes to disk." shortcut="Ctrl+S" onClick={onSave} />}
 
         <div className="toolbar-separator" />
 
-        <ActionButton Icon={Undo2} label="Undo" onClick={undo} disabled={!canUndo()} />
-        <ActionButton Icon={Redo2} label="Redo" onClick={redo} disabled={!canRedo()} />
+        <ActionButton Icon={Undo2} label="Undo" desc="Undo the last action." shortcut="Ctrl+Z" onClick={undo} disabled={!canUndo()} />
+        <ActionButton Icon={Redo2} label="Redo" desc="Redo the last undone action." shortcut="Ctrl+Y" onClick={redo} disabled={!canRedo()} />
 
         <div className="toolbar-separator" />
 
-        <ActionButton Icon={RotateCcw} label="Rotate Canvas Left (Shift+{)" onClick={() => rotateCanvas(-Math.PI / 12)} />
-        <ActionButton Icon={RotateCw} label="Rotate Canvas Right (Shift+})" onClick={() => rotateCanvas(Math.PI / 12)} />
+        <ActionButton Icon={RotateCcw} label="Rotate Left" desc="Rotate the canvas view 15 degrees counter-clockwise." shortcut="Shift+{" onClick={() => rotateCanvas(-Math.PI / 12)} />
+        <ActionButton Icon={RotateCw} label="Rotate Right" desc="Rotate the canvas view 15 degrees clockwise." shortcut="Shift+}" onClick={() => rotateCanvas(Math.PI / 12)} />
         {camera.rotation !== 0 && (
-          <button
-            className="toolbar-button rotation-reset"
-            onClick={() => rotateCanvas(-camera.rotation)}
-            title="Reset rotation (Ctrl+0)"
-            aria-label="Reset rotation"
-          >
-            <span className="rotation-label">{Math.round(camera.rotation * 180 / Math.PI)}°</span>
-          </button>
+          <Tooltip tip="Reset Rotation" desc="Click to reset the canvas back to 0 degrees." shortcut="Ctrl+0">
+            <button
+              className="toolbar-button rotation-reset"
+              onClick={() => rotateCanvas(-camera.rotation)}
+              aria-label="Reset rotation"
+            >
+              <span className="rotation-label">{Math.round(camera.rotation * 180 / Math.PI)}&deg;</span>
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -475,25 +518,25 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
       {showStats && (
         <div className="maze-stats-panel" style={{
           position: 'fixed', top: '52px', right: '12px', zIndex: 1000,
-          background: '#f0f0f0', border: '1px solid #b0b0b0', borderRadius: '4px',
-          padding: '12px', minWidth: '220px', color: '#333', fontSize: '12px',
-          boxShadow: '0 3px 8px rgba(0,0,0,0.15)',
+          background: 'var(--surface-dialog)', border: '1px solid var(--border-color)', borderRadius: 'var(--border-radius-md)',
+          padding: 'var(--space-6)', minWidth: '220px', color: 'var(--text-primary)', fontSize: 'var(--font-size-md)',
+          boxShadow: 'var(--shadow-md)',
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <strong style={{ fontSize: '13px', color: '#222' }}>Maze Analysis</strong>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
+            <strong style={{ fontSize: 'var(--font-size-lg)', color: 'var(--color-gray-950)' }}>Maze Analysis</strong>
             <button onClick={() => setShowStats(false)} style={{
-              background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '14px'
+              background: 'none', border: 'none', color: 'var(--text-disabled)', cursor: 'pointer', fontSize: 'var(--font-size-xl)'
             }}>x</button>
           </div>
           {loadingMetrics ? (
-            <div style={{ color: '#888' }}>Analyzing...</div>
+            <div style={{ color: 'var(--text-disabled)' }}>Analyzing...</div>
           ) : mazeMetrics ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Difficulty</span>
+                <span style={{ color: 'var(--text-muted)' }}>Difficulty</span>
                 <span style={{
                   color: mazeMetrics.difficulty_score < 0.3 ? '#2e7d32'
-                    : mazeMetrics.difficulty_score < 0.7 ? '#cc8800' : '#cc3333',
+                    : mazeMetrics.difficulty_score < 0.7 ? 'var(--color-orange)' : 'var(--color-red)',
                   fontWeight: 'bold',
                 }}>
                   {(mazeMetrics.difficulty_score * 100).toFixed(0)}%
@@ -501,35 +544,33 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Dead Ends</span>
+                <span style={{ color: 'var(--text-muted)' }}>Dead Ends</span>
                 <span>{mazeMetrics.dead_end_count}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Junctions</span>
+                <span style={{ color: 'var(--text-muted)' }}>Junctions</span>
                 <span>{mazeMetrics.junction_count}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Wall Length</span>
+                <span style={{ color: 'var(--text-muted)' }}>Wall Length</span>
                 <span>{fmtLen(mazeMetrics.total_wall_length, 0)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Wall Segments</span>
+                <span style={{ color: 'var(--text-muted)' }}>Wall Segments</span>
                 <span>{mazeMetrics.path_count}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#666' }}>Field Area</span>
+                <span style={{ color: 'var(--text-muted)' }}>Field Area</span>
                 <span>{fmtArea(mazeMetrics.field_area_m2)}</span>
               </div>
-              <button onClick={fetchMetrics} style={{
-                marginTop: '6px', padding: '4px 10px', background: '#4a90d9',
-                color: '#fff', border: '1px solid #3a7bc8', borderRadius: '3px', cursor: 'pointer',
-                fontSize: '11px',
+              <button onClick={fetchMetrics} className="panel-apply-btn" style={{
+                marginTop: 'var(--space-3)', padding: 'var(--space-2) var(--space-5)',
               }}>
                 Refresh
               </button>
             </div>
           ) : (
-            <div style={{ color: '#888' }}>No data. Generate a maze first.</div>
+            <div style={{ color: 'var(--text-disabled)' }}>No data. Generate a maze first.</div>
           )}
         </div>
       )}
