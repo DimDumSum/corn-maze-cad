@@ -139,7 +139,7 @@ function loadFromStorage(): Partial<SettingsState> {
         }
       }
       return {
-        unitSystem: parsed.unitSystem || 'metric',
+        unitSystem: parsed.unitSystem || 'imperial',
         keybindings: { ...DEFAULT_KEYBINDINGS, ...(parsed.keybindings || {}) },
         mouseButtons,
       };
@@ -201,7 +201,7 @@ interface SettingsState {
 const stored = loadFromStorage();
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  unitSystem: stored.unitSystem || 'metric',
+  unitSystem: stored.unitSystem || 'imperial',
   keybindings: stored.keybindings || { ...DEFAULT_KEYBINDINGS },
   mouseButtons: stored.mouseButtons || { ...DEFAULT_MOUSE_BUTTONS },
 
