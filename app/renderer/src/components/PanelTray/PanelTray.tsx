@@ -52,6 +52,7 @@ export function PanelTray() {
   const [fetchingSatellite, setFetchingSatellite] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
   const { unitSystem, setUnitSystem } = useSettingsStore();
+  const { updateDesignElement } = useDesignStore();
 
   // Get selected elements
   const selectedElements = designElements.filter(el => selectedElementIds.has(el.id));
@@ -75,9 +76,23 @@ export function PanelTray() {
               <span className="prop-label">Points</span>
               <span className="prop-value">{selectedElements[0].points.length}</span>
             </div>
-            <div className="prop-row">
-              <span className="prop-label">Width</span>
-              <span className="prop-value">{fmtShort(selectedElements[0].width)}</span>
+            <div className="constraint-row">
+              <label>Width</label>
+              <input
+                type="number"
+                className="constraint-input"
+                value={parseFloat(fmtFromMeters(selectedElements[0].width).toFixed(1))}
+                min={0}
+                max={65}
+                step={0.5}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  if (!isNaN(val) && val >= 0) {
+                    updateDesignElement(selectedElements[0].id, { width: fmtToMeters(val) });
+                  }
+                }}
+              />
+              <span className="constraint-unit">{fmtUnit()}</span>
             </div>
             {selectedElements[0].rotation !== undefined && selectedElements[0].rotation !== 0 && (
               <div className="prop-row">
