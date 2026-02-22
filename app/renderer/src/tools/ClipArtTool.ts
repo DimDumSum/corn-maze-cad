@@ -21,6 +21,7 @@ import {
   type ClipArtItem,
   type ClipArtCategory,
 } from '../utils/clipartLibrary';
+import { fmtFromMeters, fmtToMeters, fmtUnit } from '../utils/fmt';
 
 // ClipArt tool state
 interface ClipArtToolState {
@@ -370,10 +371,10 @@ function showClipArtDialog(): void {
             <div id="selected-name" style="font-weight: 600; margin-bottom: 6px; font-size: 11px;">No clipart selected</div>
             <div style="display: flex; align-items: center; gap: 6px;">
               <label style="font-size: 11px; color: #666;">Size:</label>
-              <input type="number" id="scale-input" value="${clipArtState.scale}" min="1" max="100" step="1"
+              <input type="number" id="scale-input" value="${Math.round(fmtFromMeters(clipArtState.scale) * 10) / 10}" min="1" max="500" step="1"
                 style="width: 48px; padding: 2px 4px; border-radius: 2px; border: 1px solid #b0b0b0;
                 background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right;">
-              <span style="color: #888; font-size: 10px;">m</span>
+              <span style="color: #888; font-size: 10px;">${fmtUnit()}</span>
             </div>
             <p style="margin: 4px 0 0 0; font-size: 10px; color: #888;">
               Use Select tool (V) after placing to rotate/scale
@@ -399,10 +400,10 @@ function showClipArtDialog(): void {
         <div id="outline-width-container" style="${clipArtState.carveMode === 'filled' ? 'display: none;' : ''}">
           <div style="display: flex; align-items: center; gap: 6px;">
             <label style="font-size: 11px; color: #666;">Path width:</label>
-            <input type="number" id="outline-width-input" value="${clipArtState.outlineWidth}" min="0.5" max="20" step="0.5"
+            <input type="number" id="outline-width-input" value="${Math.round(fmtFromMeters(clipArtState.outlineWidth) * 10) / 10}" min="0.5" max="100" step="0.5"
               style="width: 48px; padding: 2px 4px; border-radius: 2px; border: 1px solid #b0b0b0;
               background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right;">
-            <span style="color: #888; font-size: 10px;">m</span>
+            <span style="color: #888; font-size: 10px;">${fmtUnit()}</span>
           </div>
         </div>
       </div>
@@ -580,10 +581,10 @@ function showClipArtDialog(): void {
       return;
     }
 
-    const scale = parseFloat(scaleInput.value);
+    const scale = fmtToMeters(parseFloat(scaleInput.value));
     const carveModeEl = document.querySelector<HTMLInputElement>('input[name="carve-mode"]:checked');
     const carveMode = (carveModeEl?.value as 'filled' | 'outline') || 'filled';
-    const outlineWidth = outlineWidthInput ? parseFloat(outlineWidthInput.value) || 4.0 : 4.0;
+    const outlineWidth = outlineWidthInput ? fmtToMeters(parseFloat(outlineWidthInput.value)) || 4.0 : 4.0;
 
     updateClipArtState({
       selectedClipArt,
