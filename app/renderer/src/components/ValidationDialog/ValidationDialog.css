@@ -1,4 +1,4 @@
-/* ValidationDialog Styles - SketchUp Light Theme */
+/* ValidationDialog Styles - design tokens */
 
 .validation-dialog-overlay {
   position: fixed;
@@ -6,7 +6,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--surface-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -20,13 +20,13 @@
 }
 
 .validation-dialog {
-  background: #f0f0f0;
-  border-radius: 8px;
+  background: var(--surface-dialog);
+  border-radius: var(--border-radius-xl);
   width: 480px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
-  border: 1px solid #b0b0b0;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
   animation: slideUp 0.2s ease-out;
 }
 
@@ -45,23 +45,23 @@
 .validation-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: #cc3333;
+  gap: var(--space-6);
+  padding: var(--space-8) var(--space-10);
+  background: var(--color-red);
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .validation-header .warning-icon {
-  color: #ffd700;
+  color: var(--color-yellow);
   flex-shrink: 0;
 }
 
 .validation-header h2 {
   flex: 1;
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-on-accent);
 }
 
 .validation-header .close-btn {
@@ -69,94 +69,93 @@
   border: none;
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  transition: all 0.15s;
+  padding: var(--space-2);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-normal);
 }
 
 .validation-header .close-btn:hover {
-  color: white;
+  color: var(--text-on-accent);
   background: rgba(255, 255, 255, 0.15);
 }
 
 /* Summary */
 .validation-summary {
   display: flex;
-  gap: 12px;
-  padding: 14px 20px;
-  background: #e8e8e8;
-  border-bottom: 1px solid #ccc;
+  gap: var(--space-6);
+  padding: var(--space-7) var(--space-10);
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--color-gray-400);
 }
 
 .summary-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 6px;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-7);
+  border-radius: var(--border-radius-lg);
   flex: 1;
 }
 
 .summary-item.wall-width {
-  background: rgba(204, 51, 51, 0.1);
-  border: 1px solid rgba(204, 51, 51, 0.3);
+  background: var(--color-red-bg);
+  border: 1px solid var(--color-red-border);
 }
 
 .summary-item.edge-buffer {
-  background: rgba(204, 102, 0, 0.1);
-  border: 1px solid rgba(204, 102, 0, 0.3);
+  background: var(--color-orange-bg);
+  border: 1px solid var(--color-orange-border);
 }
 
 .summary-item .count {
   font-size: 22px;
-  font-weight: 700;
-  color: #333;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
 }
 
 .summary-item .label {
-  font-size: 12px;
-  color: #666;
+  font-size: var(--font-size-md);
+  color: var(--text-muted);
 }
 
 /* Violation List */
 .violation-list {
-  padding: 14px 20px;
+  padding: var(--space-7) var(--space-10);
   max-height: 200px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-3);
 }
 
 .violation-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: #fff;
-  border-radius: 6px;
-  border-left: 3px solid;
-  border: 1px solid #ddd;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface-input);
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--color-gray-300);
   border-left: 3px solid;
 }
 
 .violation-item.wall_width {
-  border-left-color: #cc3333;
+  border-left-color: var(--color-red);
 }
 
 .violation-item.edge_buffer {
-  border-left-color: #cc6600;
+  border-left-color: var(--color-orange-warn);
 }
 
 .violation-icon {
-  font-size: 16px;
+  font-size: var(--font-size-2xl);
   width: 26px;
   height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f0f0;
-  border-radius: 4px;
+  background: var(--surface-dialog);
+  border-radius: var(--border-radius-md);
 }
 
 .violation-details {
@@ -164,70 +163,70 @@
 }
 
 .violation-message {
-  font-size: 12px;
-  color: #333;
-  margin-bottom: 2px;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
 }
 
 .violation-values {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .violation-values .actual {
-  color: #cc3333;
-  font-weight: 600;
+  color: var(--color-red);
+  font-weight: var(--font-weight-semibold);
 }
 
 .violation-values .separator {
-  color: #999;
+  color: var(--text-placeholder);
 }
 
 .violation-values .required {
-  color: #2e8b2e;
+  color: var(--color-green);
 }
 
 .more-violations {
   text-align: center;
-  color: #888;
-  font-size: 12px;
-  padding: 8px;
+  color: var(--text-disabled);
+  font-size: var(--font-size-md);
+  padding: var(--space-4);
 }
 
 /* Actions */
 .validation-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 16px 20px;
-  background: #e0e0e0;
-  border-top: 1px solid #ccc;
+  gap: var(--space-5);
+  padding: var(--space-8) var(--space-10);
+  background: var(--surface-dialog-footer);
+  border-top: 1px solid var(--color-gray-400);
 }
 
 .action-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 10px 14px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-7);
+  border-radius: var(--border-radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: all 0.1s;
+  transition: all var(--transition-fast);
   border: 1px solid;
 }
 
 .action-btn.auto-fix {
-  background: #2e8b2e;
-  border-color: #267326;
-  color: white;
+  background: var(--color-green);
+  border-color: var(--color-green-hover);
+  color: var(--text-on-accent);
 }
 
 .action-btn.auto-fix:hover:not(:disabled) {
-  background: #267326;
+  background: var(--color-green-hover);
 }
 
 .action-btn.auto-fix:disabled {
@@ -236,47 +235,47 @@
 }
 
 .action-btn.manual-edit {
-  background: #4a90d9;
-  border-color: #3a7bc8;
-  color: white;
+  background: var(--color-blue);
+  border-color: var(--color-blue-hover);
+  color: var(--text-on-accent);
 }
 
 .action-btn.manual-edit:hover {
-  background: #3a7bc8;
+  background: var(--color-blue-hover);
 }
 
 .action-btn.carve-anyway {
-  background: #cc8800;
-  border-color: #b07700;
-  color: white;
+  background: var(--color-orange);
+  border-color: var(--color-orange-hover);
+  color: var(--text-on-accent);
 }
 
 .action-btn.carve-anyway:hover {
-  background: #b07700;
+  background: var(--color-orange-hover);
 }
 
 .action-btn.cancel {
-  background: #e0e0e0;
-  color: #555;
-  border-color: #b0b0b0;
+  background: var(--surface-dialog-footer);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
 }
 
 .action-btn.cancel:hover {
   background: #d0d0d0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 /* Help text */
 .validation-help {
-  padding: 10px 20px 16px;
-  background: #e0e0e0;
-  border-top: 1px solid #ccc;
+  padding: var(--space-5) var(--space-10) var(--space-8);
+  background: var(--surface-dialog-footer);
+  border-top: 1px solid var(--color-gray-400);
 }
 
 .validation-help p {
-  margin: 0 0 4px 0;
-  font-size: 11px;
-  color: #777;
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-hint);
 }
 
 .validation-help p:last-child {
@@ -284,5 +283,5 @@
 }
 
 .validation-help strong {
-  color: #555;
+  color: var(--text-secondary);
 }
