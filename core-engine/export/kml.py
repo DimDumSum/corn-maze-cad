@@ -284,7 +284,7 @@ def _build_walls_folder(
     placemarks_xml = "\n".join(placemarks)
 
     folder = f"""    <Folder>
-      <name>Maze Walls</name>
+      <name>Walls</name>
       <open>0</open>
 {placemarks_xml}
     </Folder>"""
@@ -298,7 +298,7 @@ def _build_headland_folder(
     offset: Tuple[float, float],
     wall_buffer: float,
 ) -> Tuple[str, int]:
-    """Build the Headland Walls folder. Returns (xml, count)."""
+    """Build the Headland folder. Returns (xml, count)."""
     polygons = _walls_to_polygons(headland_walls, buffer_width=wall_buffer)
 
     placemarks = []
@@ -312,7 +312,7 @@ def _build_headland_folder(
     placemarks_xml = "\n".join(placemarks)
 
     folder = f"""    <Folder>
-      <name>Headland Walls</name>
+      <name>Headland</name>
       <open>0</open>
 {placemarks_xml}
     </Folder>"""
@@ -320,28 +320,65 @@ def _build_headland_folder(
     return folder, len(polygons)
 
 
-def _build_entrances_exits_folder(
+def _build_entrances_folder(
     entrances: List[Tuple[float, float]],
-    exits: List[Tuple[float, float]],
-    emergency_exits: List[Tuple[float, float]],
     crs: str,
     offset: Tuple[float, float],
 ) -> Tuple[str, int]:
-    """Build the Entrances & Exits folder. Returns (xml, point_count)."""
+    """Build the Entrances folder. Returns (xml, count)."""
     placemarks = []
-
     for i, (x, y) in enumerate(entrances or []):
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
             _point_to_kml_placemark(lon, lat, f"Entrance {i + 1}", style_url="#entrance")
         )
 
+    if not placemarks:
+        return "", 0
+
+    placemarks_xml = "\n".join(placemarks)
+    folder = f"""    <Folder>
+      <name>Entrances</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(placemarks)
+
+
+def _build_exits_folder(
+    exits: List[Tuple[float, float]],
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the Exits folder. Returns (xml, count)."""
+    placemarks = []
     for i, (x, y) in enumerate(exits or []):
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
             _point_to_kml_placemark(lon, lat, f"Exit {i + 1}", style_url="#exit")
         )
 
+    if not placemarks:
+        return "", 0
+
+    placemarks_xml = "\n".join(placemarks)
+    folder = f"""    <Folder>
+      <name>Exits</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(placemarks)
+
+
+def _build_emergency_exits_folder(
+    emergency_exits: List[Tuple[float, float]],
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the EmergencyExits folder. Returns (xml, count)."""
+    placemarks = []
     for i, (x, y) in enumerate(emergency_exits or []):
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
@@ -354,9 +391,8 @@ def _build_entrances_exits_folder(
         return "", 0
 
     placemarks_xml = "\n".join(placemarks)
-
     folder = f"""    <Folder>
-      <name>Entrances &amp; Exits</name>
+      <name>EmergencyExits</name>
       <open>1</open>
 {placemarks_xml}
     </Folder>"""
@@ -397,7 +433,7 @@ def _build_carved_areas_folder(
     placemarks_xml = "\n".join(placemarks)
 
     folder = f"""    <Folder>
-      <name>Carved Areas (Cutting Guide)</name>
+      <name>CarvedAreas</name>
       <open>1</open>
 {placemarks_xml}
     </Folder>"""
@@ -410,7 +446,7 @@ def _build_solution_folder(
     crs: str,
     offset: Tuple[float, float],
 ) -> str:
-    """Build the Solution Path folder."""
+    """Build the SolutionPath folder."""
     # Reproject every waypoint
     wgs84_coords = []
     for x, y in solution_path:
@@ -424,7 +460,7 @@ def _build_solution_folder(
     )
 
     return f"""    <Folder>
-      <name>Solution Path</name>
+      <name>SolutionPath</name>
       <open>0</open>
       <visibility>0</visibility>
 {placemark}
@@ -518,17 +554,31 @@ def export_maze_kml(
         )
         folders.append(carved_xml)
 
-    # 5 — Entrances, exits, emergency exits
+    # 5 — Entrances
     point_count = 0
-    any_points = (entrances or exits or emergency_exits)
-    if any_points:
-        points_xml, point_count = _build_entrances_exits_folder(
-            entrances, exits, emergency_exits, crs, centroid_offset,
-        )
-        if points_xml:
-            folders.append(points_xml)
+    if entrances:
+        ent_xml, ent_count = _build_entrances_folder(entrances, crs, centroid_offset)
+        if ent_xml:
+            folders.append(ent_xml)
+            point_count += ent_count
 
-    # 6 — Solution path
+    # 6 — Exits
+    if exits:
+        exit_xml, exit_count = _build_exits_folder(exits, crs, centroid_offset)
+        if exit_xml:
+            folders.append(exit_xml)
+            point_count += exit_count
+
+    # 7 — Emergency exits
+    if emergency_exits:
+        emex_xml, emex_count = _build_emergency_exits_folder(
+            emergency_exits, crs, centroid_offset,
+        )
+        if emex_xml:
+            folders.append(emex_xml)
+            point_count += emex_count
+
+    # 8 — Solution path
     has_solution = False
     if solution_path and len(solution_path) >= 2:
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
