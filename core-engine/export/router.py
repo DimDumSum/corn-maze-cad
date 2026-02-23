@@ -56,6 +56,7 @@ def export_kml_endpoint(
     The file contains styled Folder layers for:
     - Boundary polygon
     - Maze wall polygons (buffered)
+    - Cutting path centerlines (unbuffered LineStrings for GPS guidance)
     - Headland wall polygons (if present)
     - Carved area polygons (cutting guide)
     - Entrance / exit / emergency-exit point placemarks
@@ -66,6 +67,7 @@ def export_kml_endpoint(
             "success": bool,
             "path": str,
             "wall_count": int,
+            "centerline_count": int,
             "headland_count": int,
             "carved_area_count": int,
             "point_count": int,

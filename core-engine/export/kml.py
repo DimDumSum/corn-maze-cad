@@ -4,6 +4,7 @@ KML export functionality for MazeGPS compatibility.
 Exports maze designs as a single, comprehensive KML file containing:
 - Outer boundary polygon (styled)
 - Maze wall polygons (styled, buffered from line geometry)
+- Cutting path centerlines (unbuffered LineStrings for GPS guidance)
 - Headland wall polygons (styled, separate folder)
 - Carved area polygons (cutting guide for field operators)
 - Entrance/exit/emergency-exit point placemarks (styled icons)
@@ -189,6 +190,36 @@ def _walls_to_polygons(walls: BaseGeometry, buffer_width: float = 1.0) -> List[P
     return polygons
 
 
+def _walls_to_linestrings(walls: BaseGeometry) -> List[LineString]:
+    """
+    Extract individual LineString geometries from wall geometry.
+
+    Args:
+        walls: Wall geometry (LineString, MultiLineString, or GeometryCollection)
+
+    Returns:
+        List of LineString geometries representing wall centerlines
+    """
+    lines: List[LineString] = []
+
+    if walls is None or walls.is_empty:
+        return lines
+
+    if isinstance(walls, LineString):
+        lines.append(walls)
+    elif isinstance(walls, MultiLineString):
+        lines.extend(list(walls.geoms))
+    else:
+        # GeometryCollection - extract linestrings
+        for geom in getattr(walls, 'geoms', []):
+            if isinstance(geom, LineString):
+                lines.append(geom)
+            elif isinstance(geom, MultiLineString):
+                lines.extend(list(geom.geoms))
+
+    return lines
+
+
 # ---------------------------------------------------------------------------
 # KML style definitions
 # ---------------------------------------------------------------------------
@@ -234,6 +265,9 @@ def _build_styles() -> str:
     <Style id="carved">
       <LineStyle><color>ff134a8b</color><width>2</width></LineStyle>
       <PolyStyle><color>88134a8b</color></PolyStyle>
+    </Style>
+    <Style id="centerline">
+      <LineStyle><color>ff00bfff</color><width>2</width></LineStyle>
     </Style>
     <Style id="solution">
       <LineStyle><color>ff3232dc</color><width>4</width></LineStyle>
@@ -290,6 +324,34 @@ def _build_walls_folder(
     </Folder>"""
 
     return folder, len(wall_polygons)
+
+
+def _build_centerlines_folder(
+    walls: BaseGeometry,
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the Centerlines folder (unbuffered wall path LineStrings). Returns (xml, count)."""
+    linestrings = _walls_to_linestrings(walls)
+
+    placemarks = []
+    for i, line in enumerate(linestrings):
+        uncentered = _uncenter_geometry(line, offset)
+        wgs84_line = _reproject_to_wgs84(uncentered, crs)
+        coords = list(wgs84_line.coords)
+        placemarks.append(
+            _linestring_to_kml_placemark(coords, f"Centerline {i + 1}", style_url="#centerline")
+        )
+
+    placemarks_xml = "\n".join(placemarks)
+
+    folder = f"""    <Folder>
+      <name>Centerlines</name>
+      <open>0</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(linestrings)
 
 
 def _build_headland_folder(
@@ -512,6 +574,7 @@ def export_maze_kml(
             "success": True,
             "path": str,
             "wall_count": int,
+            "centerline_count": int,
             "headland_count": int,
             "carved_area_count": int,
             "point_count": int,
@@ -538,7 +601,13 @@ def export_maze_kml(
         walls_xml, wall_count = _build_walls_folder(walls, crs, centroid_offset, wall_buffer)
         folders.append(walls_xml)
 
-    # 3 — Headland walls
+    # 3 — Centerlines (unbuffered wall paths for GPS guidance)
+    centerline_count = 0
+    if walls and not walls.is_empty:
+        cl_xml, centerline_count = _build_centerlines_folder(walls, crs, centroid_offset)
+        folders.append(cl_xml)
+
+    # 4 — Headland walls
     headland_count = 0
     if headland_walls and not headland_walls.is_empty:
         headland_xml, headland_count = _build_headland_folder(
@@ -546,7 +615,7 @@ def export_maze_kml(
         )
         folders.append(headland_xml)
 
-    # 4 — Carved areas (cutting guide)
+    # 5 — Carved areas (cutting guide)
     carved_area_count = 0
     if carved_areas and not carved_areas.is_empty:
         carved_xml, carved_area_count = _build_carved_areas_folder(
@@ -554,7 +623,7 @@ def export_maze_kml(
         )
         folders.append(carved_xml)
 
-    # 5 — Entrances
+    # 6 — Entrances
     point_count = 0
     if entrances:
         ent_xml, ent_count = _build_entrances_folder(entrances, crs, centroid_offset)
@@ -562,14 +631,14 @@ def export_maze_kml(
             folders.append(ent_xml)
             point_count += ent_count
 
-    # 6 — Exits
+    # 7 — Exits
     if exits:
         exit_xml, exit_count = _build_exits_folder(exits, crs, centroid_offset)
         if exit_xml:
             folders.append(exit_xml)
             point_count += exit_count
 
-    # 7 — Emergency exits
+    # 8 — Emergency exits
     if emergency_exits:
         emex_xml, emex_count = _build_emergency_exits_folder(
             emergency_exits, crs, centroid_offset,
@@ -578,7 +647,7 @@ def export_maze_kml(
             folders.append(emex_xml)
             point_count += emex_count
 
-    # 8 — Solution path
+    # 9 — Solution path
     has_solution = False
     if solution_path and len(solution_path) >= 2:
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
@@ -606,6 +675,7 @@ def export_maze_kml(
         "success": True,
         "path": str(output_path),
         "wall_count": wall_count,
+        "centerline_count": centerline_count,
         "headland_count": headland_count,
         "carved_area_count": carved_area_count,
         "point_count": point_count,
