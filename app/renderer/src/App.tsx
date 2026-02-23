@@ -156,8 +156,7 @@ function App() {
         case 'kml': {
           const result = await api.exportKml();
           if (result.error) { setError(result.error); return; }
-          const paths = [result.boundary_path, result.walls_path].filter(Boolean).join('\n');
-          alert(`KML exported:\n${paths}`);
+          alert(`KML exported:\n${result.path}`);
           break;
         }
         case 'png': {

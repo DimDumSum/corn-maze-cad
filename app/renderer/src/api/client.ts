@@ -16,9 +16,11 @@ export type ExportResponse = { success: boolean; path?: string; error?: string }
 
 export interface KmlExportResponse {
   success: boolean;
-  boundary_path?: string;
-  walls_path?: string;
+  path?: string;
   wall_count?: number;
+  headland_count?: number;
+  point_count?: number;
+  has_solution?: boolean;
   error?: string;
 }
 
@@ -233,13 +235,19 @@ export async function exportShapefile(): Promise<ExportResponse> {
 }
 
 /**
- * Export KML files (boundary + walls) for MazeGPS
+ * Export single KML file with all maze features (boundary, walls, headlands,
+ * entrances/exits, and optional solution path)
  */
 export async function exportKml(
   name: string = 'maze',
   wallBuffer: number = 1.0,
+  includeSolution: boolean = false,
 ): Promise<KmlExportResponse> {
-  const params = new URLSearchParams({ name, wall_buffer: String(wallBuffer) });
+  const params = new URLSearchParams({
+    name,
+    wall_buffer: String(wallBuffer),
+    include_solution: String(includeSolution),
+  });
   const response = await fetch(`${API_BASE_URL}/export/kml?${params}`);
   return response.json();
 }
