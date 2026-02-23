@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from state import app_state
 from .shapefile import export_walls_to_shapefile
-from .kml import export_boundary_kml, export_walls_kml
+from .kml import export_maze_kml, export_boundary_kml, export_walls_kml
 from .png import export_georeferenced_png
 from .gpx import export_boundary_gpx, export_walls_gpx, export_cutting_guide_gpx
 from .dxf import export_maze_dxf
@@ -46,20 +46,28 @@ def export_shapefile_endpoint():
 
 @router.get("/kml")
 def export_kml_endpoint(
-    name: str = Query("maze", description="Base name for output files"),
+    name: str = Query("maze", description="Base name for output file"),
     wall_buffer: float = Query(1.0, description="Buffer width (meters) to convert wall lines to polygons"),
+    include_solution: bool = Query(False, description="Compute and include solution path"),
 ):
     """
-    Export maze as two KML files for MazeGPS:
-    - {name}_outer.kml — field boundary polygon
-    - {name}_walls.kml — maze wall polygons
+    Export the complete maze design as a single KML file.
+
+    The file contains styled Folder layers for:
+    - Boundary polygon
+    - Maze wall polygons (buffered)
+    - Headland wall polygons (if present)
+    - Entrance / exit / emergency-exit point placemarks
+    - Solution path linestring (optional)
 
     Returns:
         {
             "success": bool,
-            "boundary_path": str,
-            "walls_path": str,
-            "wall_count": int
+            "path": str,
+            "wall_count": int,
+            "headland_count": int,
+            "point_count": int,
+            "has_solution": bool
         }
     """
     field = app_state.get_field()
@@ -80,27 +88,30 @@ def export_kml_endpoint(
         )
 
     try:
-        # Export boundary KML
-        boundary_result = export_boundary_kml(
-            field, crs, offset, base_name=f"{name}_outer"
+        # Compute solution path if requested
+        solution_path = None
+        if include_solution:
+            entrances = app_state.get_entrances()
+            exits = app_state.get_exits()
+            if entrances and exits and walls and not walls.is_empty:
+                from analysis.pathfinding import find_path
+                solution_path = find_path(walls, entrances[0], exits[0], field)
+
+        result = export_maze_kml(
+            field=field,
+            crs=crs,
+            centroid_offset=offset,
+            walls=walls,
+            headland_walls=app_state.get_headland_walls(),
+            entrances=app_state.get_entrances(),
+            exits=app_state.get_exits(),
+            emergency_exits=app_state.get_emergency_exits(),
+            solution_path=solution_path,
+            wall_buffer=wall_buffer,
+            base_name=name,
         )
 
-        walls_result = {"path": None, "wall_count": 0}
-
-        # Export walls KML (only if maze exists)
-        if walls and not walls.is_empty:
-            walls_result = export_walls_kml(
-                walls, crs, offset,
-                wall_buffer=wall_buffer,
-                base_name=f"{name}_walls",
-            )
-
-        return {
-            "success": True,
-            "boundary_path": boundary_result["path"],
-            "walls_path": walls_result.get("path"),
-            "wall_count": walls_result.get("wall_count", 0),
-        }
+        return result
 
     except Exception as e:
         raise HTTPException(

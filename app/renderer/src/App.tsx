@@ -154,10 +154,11 @@ function App() {
     try {
       switch (format) {
         case 'kml': {
-          const result = await api.exportKml();
+          const { difficultyPhases } = useDesignStore.getState();
+          const hasSolution = difficultyPhases.some(p => p.path.length > 0);
+          const result = await api.exportKml('maze', 1.0, hasSolution);
           if (result.error) { setError(result.error); return; }
-          const paths = [result.boundary_path, result.walls_path].filter(Boolean).join('\n');
-          alert(`KML exported:\n${paths}`);
+          alert(`KML exported:\n${result.path}`);
           break;
         }
         case 'png': {
