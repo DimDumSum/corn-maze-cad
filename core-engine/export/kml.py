@@ -5,6 +5,7 @@ Exports maze designs as a single, comprehensive KML file containing:
 - Outer boundary polygon (styled)
 - Maze wall polygons (styled, buffered from line geometry)
 - Headland wall polygons (styled, separate folder)
+- Carved area polygons (cutting guide for field operators)
 - Entrance/exit/emergency-exit point placemarks (styled icons)
 - Solution path linestring (styled, optional)
 
@@ -230,6 +231,10 @@ def _build_styles() -> str:
       </IconStyle>
       <LabelStyle><color>ff00a5ff</color><scale>0.9</scale></LabelStyle>
     </Style>
+    <Style id="carved">
+      <LineStyle><color>ff134a8b</color><width>2</width></LineStyle>
+      <PolyStyle><color>88134a8b</color></PolyStyle>
+    </Style>
     <Style id="solution">
       <LineStyle><color>ff3232dc</color><width>4</width></LineStyle>
     </Style>"""
@@ -359,6 +364,47 @@ def _build_entrances_exits_folder(
     return folder, len(placemarks)
 
 
+def _build_carved_areas_folder(
+    carved_areas: BaseGeometry,
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the Carved Areas folder (cutting guide polygons). Returns (xml, count)."""
+    polygons: List[Polygon] = []
+
+    if isinstance(carved_areas, Polygon):
+        polygons.append(carved_areas)
+    elif isinstance(carved_areas, MultiPolygon):
+        polygons.extend(list(carved_areas.geoms))
+    else:
+        # GeometryCollection — extract polygons
+        for geom in getattr(carved_areas, 'geoms', []):
+            if isinstance(geom, Polygon):
+                polygons.append(geom)
+            elif isinstance(geom, MultiPolygon):
+                polygons.extend(list(geom.geoms))
+
+    placemarks = []
+    for i, poly in enumerate(polygons):
+        uncentered = _uncenter_geometry(poly, offset)
+        wgs84_poly = _reproject_to_wgs84(uncentered, crs)
+        placemarks.append(
+            _polygon_to_kml_placemark(
+                wgs84_poly, f"Cut Area {i + 1}", style_url="#carved",
+            )
+        )
+
+    placemarks_xml = "\n".join(placemarks)
+
+    folder = f"""    <Folder>
+      <name>Carved Areas (Cutting Guide)</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(polygons)
+
+
 def _build_solution_folder(
     solution_path: List[Tuple[float, float]],
     crs: str,
@@ -399,6 +445,7 @@ def export_maze_kml(
     exits: Optional[List[Tuple[float, float]]] = None,
     emergency_exits: Optional[List[Tuple[float, float]]] = None,
     solution_path: Optional[List[Tuple[float, float]]] = None,
+    carved_areas: Optional[BaseGeometry] = None,
     wall_buffer: float = 1.0,
     base_name: str = "maze",
     output_dir: Path = None,
@@ -419,6 +466,7 @@ def export_maze_kml(
         exits: Exit coordinates (centered)
         emergency_exits: Emergency exit coordinates (centered)
         solution_path: Solution path waypoints (centered)
+        carved_areas: Carved area geometry (cutting guide polygons)
         wall_buffer: Buffer width (meters) to convert lines to polygons
         base_name: Output filename stem
         output_dir: Output directory (default: Downloads)
@@ -429,6 +477,7 @@ def export_maze_kml(
             "path": str,
             "wall_count": int,
             "headland_count": int,
+            "carved_area_count": int,
             "point_count": int,
             "has_solution": bool,
         }
@@ -461,7 +510,15 @@ def export_maze_kml(
         )
         folders.append(headland_xml)
 
-    # 4 — Entrances, exits, emergency exits
+    # 4 — Carved areas (cutting guide)
+    carved_area_count = 0
+    if carved_areas and not carved_areas.is_empty:
+        carved_xml, carved_area_count = _build_carved_areas_folder(
+            carved_areas, crs, centroid_offset,
+        )
+        folders.append(carved_xml)
+
+    # 5 — Entrances, exits, emergency exits
     point_count = 0
     any_points = (entrances or exits or emergency_exits)
     if any_points:
@@ -471,7 +528,7 @@ def export_maze_kml(
         if points_xml:
             folders.append(points_xml)
 
-    # 5 — Solution path
+    # 6 — Solution path
     has_solution = False
     if solution_path and len(solution_path) >= 2:
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
@@ -500,6 +557,7 @@ def export_maze_kml(
         "path": str(output_path),
         "wall_count": wall_count,
         "headland_count": headland_count,
+        "carved_area_count": carved_area_count,
         "point_count": point_count,
         "has_solution": has_solution,
     }

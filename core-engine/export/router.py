@@ -57,6 +57,7 @@ def export_kml_endpoint(
     - Boundary polygon
     - Maze wall polygons (buffered)
     - Headland wall polygons (if present)
+    - Carved area polygons (cutting guide)
     - Entrance / exit / emergency-exit point placemarks
     - Solution path linestring (optional)
 
@@ -66,6 +67,7 @@ def export_kml_endpoint(
             "path": str,
             "wall_count": int,
             "headland_count": int,
+            "carved_area_count": int,
             "point_count": int,
             "has_solution": bool
         }
@@ -107,6 +109,7 @@ def export_kml_endpoint(
             exits=app_state.get_exits(),
             emergency_exits=app_state.get_emergency_exits(),
             solution_path=solution_path,
+            carved_areas=app_state.get_carved_areas(),
             wall_buffer=wall_buffer,
             base_name=name,
         )

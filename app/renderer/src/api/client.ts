@@ -19,6 +19,7 @@ export interface KmlExportResponse {
   path?: string;
   wall_count?: number;
   headland_count?: number;
+  carved_area_count?: number;
   point_count?: number;
   has_solution?: boolean;
   error?: string;
@@ -236,7 +237,7 @@ export async function exportShapefile(): Promise<ExportResponse> {
 
 /**
  * Export single KML file with all maze features (boundary, walls, headlands,
- * entrances/exits, and optional solution path)
+ * carved areas, entrances/exits, and optional solution path)
  */
 export async function exportKml(
   name: string = 'maze',
