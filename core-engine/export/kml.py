@@ -121,13 +121,21 @@ def _point_to_kml_placemark(
     name: str,
     style_url: str = "",
     description: str = "",
+    point_type: str = "",
 ) -> str:
     """Create a KML Placemark for a point location."""
     style_ref = f"\n      <styleUrl>{escape(style_url)}</styleUrl>" if style_url else ""
     desc_xml = f"\n      <description>{escape(description)}</description>" if description else ""
+    ext_data = ""
+    if point_type:
+        ext_data = (
+            f"\n      <ExtendedData>"
+            f'<Data name="type"><value>{escape(point_type)}</value></Data>'
+            f"</ExtendedData>"
+        )
 
     return f"""      <Placemark>
-        <name>{escape(name)}</name>{style_ref}{desc_xml}
+        <name>{escape(name)}</name>{style_ref}{desc_xml}{ext_data}
         <Point>
           <coordinates>{lon:.7f},{lat:.7f},0</coordinates>
         </Point>
@@ -489,7 +497,10 @@ def _build_entrances_folder(
     for i, (x, y) in enumerate(entrances or []):
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
-            _point_to_kml_placemark(lon, lat, f"Entrance {i + 1}", style_url="#entrance")
+            _point_to_kml_placemark(
+                lon, lat, f"Entrance {i + 1}",
+                style_url="#entrance", point_type="entrance",
+            )
         )
 
     if not placemarks:
@@ -515,7 +526,10 @@ def _build_exits_folder(
     for i, (x, y) in enumerate(exits or []):
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
-            _point_to_kml_placemark(lon, lat, f"Exit {i + 1}", style_url="#exit")
+            _point_to_kml_placemark(
+                lon, lat, f"Exit {i + 1}",
+                style_url="#exit", point_type="exit",
+            )
         )
 
     if not placemarks:
@@ -542,7 +556,8 @@ def _build_emergency_exits_folder(
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
             _point_to_kml_placemark(
-                lon, lat, f"Emergency Exit {i + 1}", style_url="#emergency_exit",
+                lon, lat, f"Emergency Exit {i + 1}",
+                style_url="#emergency_exit", point_type="emergency_exit",
             )
         )
 
