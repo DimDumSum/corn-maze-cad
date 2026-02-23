@@ -545,6 +545,7 @@ def export_maze_kml(
     solution_path: Optional[List[Tuple[float, float]]] = None,
     carved_areas: Optional[BaseGeometry] = None,
     wall_buffer: float = 1.0,
+    path_width: Optional[float] = None,
     base_name: str = "maze",
     output_dir: Path = None,
 ) -> Dict:
@@ -566,6 +567,7 @@ def export_maze_kml(
         solution_path: Solution path waypoints (centered)
         carved_areas: Carved area geometry (cutting guide polygons)
         wall_buffer: Buffer width (meters) to convert lines to polygons
+        path_width: Navigable path width (meters), included in metadata
         base_name: Output filename stem
         output_dir: Output directory (default: Downloads)
 
@@ -657,11 +659,27 @@ def export_maze_kml(
     styles = _build_styles()
     folders_xml = "\n".join(folders)
 
+    # Build ExtendedData metadata block
+    ext_data_items = [
+        ("wall_buffer", str(wall_buffer)),
+        ("design_crs", crs),
+        ("software", "CornMazeCAD 2.0"),
+    ]
+    if path_width is not None:
+        ext_data_items.insert(1, ("path_width", str(path_width)))
+    ext_data_xml = "\n".join(
+        f'      <Data name="{k}"><value>{escape(v)}</value></Data>'
+        for k, v in ext_data_items
+    )
+
     kml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>{escape(base_name)}</name>
     <description>Corn maze design exported by CornMazeCAD</description>
+    <ExtendedData>
+{ext_data_xml}
+    </ExtendedData>
 {styles}
 {folders_xml}
   </Document>

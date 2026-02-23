@@ -48,6 +48,7 @@ def export_shapefile_endpoint():
 def export_kml_endpoint(
     name: str = Query("maze", description="Base name for output file"),
     wall_buffer: float = Query(1.0, description="Buffer width (meters) to convert wall lines to polygons"),
+    path_width: float = Query(None, description="Navigable path width (meters) for metadata"),
     include_solution: bool = Query(False, description="Compute and include solution path"),
 ):
     """
@@ -113,6 +114,7 @@ def export_kml_endpoint(
             solution_path=solution_path,
             carved_areas=app_state.get_carved_areas(),
             wall_buffer=wall_buffer,
+            path_width=path_width,
             base_name=name,
         )
 
