@@ -1,21 +1,19 @@
 /**
- * Tooltip — rich info hover bubble that replaces native title attributes.
+ * Tooltip — compact hover label that replaces native title attributes.
  *
  * Usage:
- *   <Tooltip tip="Select tool" desc="Click to select and move elements" shortcut="V">
+ *   <Tooltip tip="Select tool" shortcut="V">
  *     <button>...</button>
  *   </Tooltip>
  */
 
-import { useState, useRef, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import './Tooltip.css';
 
 interface TooltipProps {
   /** Bold heading line */
   tip: string;
-  /** Optional longer description */
-  desc?: string;
   /** Optional keyboard shortcut badge */
   shortcut?: string;
   /** Preferred placement */
@@ -24,11 +22,17 @@ interface TooltipProps {
   children: ReactNode;
 }
 
-export function Tooltip({ tip, desc, shortcut, side = 'bottom', children }: TooltipProps) {
+export function Tooltip({ tip, shortcut, side = 'bottom', children }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapRef = useRef<HTMLSpanElement>(null);
+
+  const hide = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setVisible(false);
+  }, []);
 
   const show = useCallback(() => {
     timerRef.current = setTimeout(() => {
@@ -58,14 +62,22 @@ export function Tooltip({ tip, desc, shortcut, side = 'bottom', children }: Tool
       }
       setPos({ x, y });
       setVisible(true);
-    }, 400);
+    }, 800);
   }, [side]);
 
-  const hide = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-    setVisible(false);
-  }, []);
+  // Dismiss on any click/scroll/keypress anywhere in the document
+  useEffect(() => {
+    if (!visible) return;
+    const dismiss = () => hide();
+    window.addEventListener('pointerdown', dismiss, true);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('keydown', dismiss, true);
+    return () => {
+      window.removeEventListener('pointerdown', dismiss, true);
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('keydown', dismiss, true);
+    };
+  }, [visible, hide]);
 
   const transformOrigin = {
     top: 'center bottom',
@@ -88,6 +100,7 @@ export function Tooltip({ tip, desc, shortcut, side = 'bottom', children }: Tool
         className="tooltip-trigger"
         onMouseEnter={show}
         onMouseLeave={hide}
+        onPointerDown={hide}
         onFocus={show}
         onBlur={hide}
       >
@@ -106,11 +119,8 @@ export function Tooltip({ tip, desc, shortcut, side = 'bottom', children }: Tool
             }}
             role="tooltip"
           >
-            <div className="tooltip-header">
-              <span className="tooltip-title">{tip}</span>
-              {shortcut && <kbd className="tooltip-kbd">{shortcut}</kbd>}
-            </div>
-            {desc && <p className="tooltip-desc">{desc}</p>}
+            <span className="tooltip-title">{tip}</span>
+            {shortcut && <kbd className="tooltip-kbd">{shortcut}</kbd>}
           </div>,
           document.body,
         )}

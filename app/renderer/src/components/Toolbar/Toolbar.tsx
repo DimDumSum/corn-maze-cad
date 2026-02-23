@@ -51,16 +51,15 @@ import './Toolbar.css';
 interface ToolButtonProps {
   Icon: LucideIcon;
   label: string;
-  desc: string;
   shortcut: string;
   isActive: boolean;
   onClick: () => void;
   disabled?: boolean;
 }
 
-function ToolButton({ Icon, label, desc, shortcut, isActive, onClick, disabled = false }: ToolButtonProps) {
+function ToolButton({ Icon, label, shortcut, isActive, onClick, disabled = false }: ToolButtonProps) {
   return (
-    <Tooltip tip={label} desc={desc} shortcut={shortcut}>
+    <Tooltip tip={label} shortcut={shortcut}>
       <button
         className={`toolbar-button ${isActive ? 'active' : ''}`}
         onClick={onClick}
@@ -76,15 +75,14 @@ function ToolButton({ Icon, label, desc, shortcut, isActive, onClick, disabled =
 interface ActionButtonProps {
   Icon: LucideIcon;
   label: string;
-  desc: string;
   shortcut?: string;
   onClick: () => void;
   disabled?: boolean;
 }
 
-function ActionButton({ Icon, label, desc, shortcut, onClick, disabled = false }: ActionButtonProps) {
+function ActionButton({ Icon, label, shortcut, onClick, disabled = false }: ActionButtonProps) {
   return (
-    <Tooltip tip={label} desc={desc} shortcut={shortcut}>
+    <Tooltip tip={label} shortcut={shortcut}>
       <button
         className="toolbar-button"
         onClick={onClick}
@@ -107,28 +105,6 @@ interface ToolbarProps {
   onLoad?: () => void;
 }
 
-/** Descriptions shown in tooltip info bubbles for each drawing tool */
-const TOOL_DESCS: Record<string, string> = {
-  select: 'Click to select and move elements. Drag to box-select.',
-  pan: 'Click and drag to pan the canvas view.',
-  draw: 'Freehand draw a path on the maze.',
-  line: 'Click two points to draw a straight line.',
-  rectangle: 'Click and drag to draw a rectangle.',
-  circle: 'Click center, then drag to set radius.',
-  arc: 'Click three points to define an arc.',
-  text: 'Click to place a text label on the maze.',
-  clipart: 'Browse and place clip-art images.',
-  eraser: 'Click or drag over paths to erase them.',
-  restore: 'Paint over carved areas to restore standing corn rows.',
-  move: 'Click an element then drag to reposition it.',
-  flip: 'Click an element to mirror it horizontally.',
-  measure: 'Click two points to measure distance between them.',
-  entrance: 'Click the field edge to place the maze entrance.',
-  exit: 'Click the field edge to place the maze exit.',
-  emergency_exit: 'Place an emergency exit for safety compliance.',
-  solution_path: 'Draw the intended solution route through the maze.',
-  dead_end: 'Mark a branch as a dead end for analysis.',
-};
 
 export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool, camera, rotateCanvas } = useUiStore();
@@ -375,7 +351,6 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
             key={tool.name}
             Icon={tool.Icon}
             label={tool.label}
-            desc={TOOL_DESCS[tool.name] ?? ''}
             shortcut={tool.shortcut}
             isActive={selectedTool === tool.name}
             onClick={() => setTool(tool.name)}
@@ -394,7 +369,7 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
       {/* Action Section */}
       <div className="toolbar-section actions">
         {onImportField && (
-          <Tooltip tip="Import Field" desc="Load a field boundary from a KML, KMZ, Shapefile, GeoJSON, or CSV file.">
+          <Tooltip tip="Import Field">
             <button
               className="toolbar-dropdown-button"
               onClick={onImportField}
@@ -406,7 +381,7 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
           </Tooltip>
         )}
         {onImportFromSatellite && (
-          <Tooltip tip="Draw Boundary" desc="Draw your field boundary on a satellite image to define the maze area.">
+          <Tooltip tip="Draw Boundary">
             <button
               className="toolbar-dropdown-button"
               onClick={onImportFromSatellite}
@@ -420,14 +395,9 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
         <ActionButton
           Icon={ImagePlus}
           label="Import Image"
-          desc="Load a raster image (logo, sketch) to trace or place on the maze."
           onClick={() => setShowImageImportDialog(true)}
         />
-        <Tooltip
-          tip="Carve Designs"
-          desc={!maze ? 'Generate a maze first before carving.' : violations.length > 0 ? `${violations.length} violations found — click to review.` : 'Apply all drawn designs to the maze.'}
-          shortcut="Enter"
-        >
+        <Tooltip tip="Carve Designs" shortcut="Enter">
           <button
             className={`carve-button ${designElements.length > 0 ? 'has-elements' : ''} ${violations.length > 0 ? 'has-violations' : ''}`}
             onClick={handleCarve}
@@ -443,7 +413,7 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
           </button>
         </Tooltip>
         <div style={{ position: 'relative' }}>
-          <Tooltip tip="Export" desc="Download the maze in various formats for GPS, print, or CAD software.">
+          <Tooltip tip="Export">
             <button
               className="toolbar-dropdown-button"
               onClick={() => { setShowExportMenu(!showExportMenu); }}
@@ -483,20 +453,20 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
 
         <div className="toolbar-separator" />
 
-        <ActionButton Icon={BarChart3} label="Maze Stats" desc="View maze difficulty, dead ends, junctions, and field area." onClick={handleShowStats} disabled={!maze} />
-        {onSave && <ActionButton Icon={Save} label="Save Project" desc="Save all changes to disk." shortcut="Ctrl+S" onClick={onSave} />}
+        <ActionButton Icon={BarChart3} label="Maze Stats" onClick={handleShowStats} disabled={!maze} />
+        {onSave && <ActionButton Icon={Save} label="Save Project" shortcut="Ctrl+S" onClick={onSave} />}
 
         <div className="toolbar-separator" />
 
-        <ActionButton Icon={Undo2} label="Undo" desc="Undo the last action." shortcut="Ctrl+Z" onClick={undo} disabled={!canUndo()} />
-        <ActionButton Icon={Redo2} label="Redo" desc="Redo the last undone action." shortcut="Ctrl+Y" onClick={redo} disabled={!canRedo()} />
+        <ActionButton Icon={Undo2} label="Undo" shortcut="Ctrl+Z" onClick={undo} disabled={!canUndo()} />
+        <ActionButton Icon={Redo2} label="Redo" shortcut="Ctrl+Y" onClick={redo} disabled={!canRedo()} />
 
         <div className="toolbar-separator" />
 
-        <ActionButton Icon={RotateCcw} label="Rotate Left" desc="Rotate the canvas view 15 degrees counter-clockwise." shortcut="Shift+{" onClick={() => rotateCanvas(-Math.PI / 12)} />
-        <ActionButton Icon={RotateCw} label="Rotate Right" desc="Rotate the canvas view 15 degrees clockwise." shortcut="Shift+}" onClick={() => rotateCanvas(Math.PI / 12)} />
+        <ActionButton Icon={RotateCcw} label="Rotate Left" shortcut="Shift+{" onClick={() => rotateCanvas(-Math.PI / 12)} />
+        <ActionButton Icon={RotateCw} label="Rotate Right" shortcut="Shift+}" onClick={() => rotateCanvas(Math.PI / 12)} />
         {camera.rotation !== 0 && (
-          <Tooltip tip="Reset Rotation" desc="Click to reset the canvas back to 0 degrees." shortcut="Ctrl+0">
+          <Tooltip tip="Reset Rotation" shortcut="Ctrl+0">
             <button
               className="toolbar-button rotation-reset"
               onClick={() => rotateCanvas(-camera.rotation)}
