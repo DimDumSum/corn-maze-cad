@@ -70,34 +70,45 @@ function App() {
 
   // === API HANDLERS ===
   const handleImportField = async () => {
-    setLoading(true);
-    setError(null);
+    // Open a file picker for GIS boundary files
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.kml,.kmz,.shp,.geojson,.json,.csv';
 
-    try {
-      // Use demo mode for now - in production, would use file dialog
-      const result = await api.importFieldDemo();
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
 
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
+      setLoading(true);
+      setError(null);
 
-      setField(result);
+      try {
+        const result = await api.importFieldFromFile(file);
 
-      // Zoom to fit the field
-      if (result.geometry) {
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const bounds = calculateBounds(result.geometry);
-          const newCamera = zoomToFit(bounds, canvas.width, canvas.height);
-          setCamera(newCamera);
+        if (result.error) {
+          setError(result.error);
+          return;
         }
+
+        setField(result);
+
+        // Zoom to fit the field
+        if (result.geometry) {
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const bounds = calculateBounds(result.geometry);
+            const newCamera = zoomToFit(bounds, canvas.width, canvas.height);
+            setCamera(newCamera);
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to import field');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import field');
-    } finally {
-      setLoading(false);
-    }
+    };
+
+    input.click();
   };
 
   const handleSatelliteBoundaryConfirm = async (coordinates: [number, number][]) => {

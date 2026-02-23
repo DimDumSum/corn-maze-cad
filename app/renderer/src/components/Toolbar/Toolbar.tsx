@@ -130,7 +130,7 @@ const TOOL_DESCS: Record<string, string> = {
   dead_end: 'Mark a branch as a dead end for analysis.',
 };
 
-export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
+export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool, camera, rotateCanvas } = useUiStore();
   const {
     designElements,
@@ -393,6 +393,18 @@ export function Toolbar({ onImportFromSatellite, onExport, onSave, onLoad }: Too
 
       {/* Action Section */}
       <div className="toolbar-section actions">
+        {onImportField && (
+          <Tooltip tip="Import Field" desc="Load a field boundary from a KML, KMZ, Shapefile, GeoJSON, or CSV file.">
+            <button
+              className="toolbar-dropdown-button"
+              onClick={onImportField}
+              aria-label="Import Field"
+            >
+              <Download size={16} style={{ transform: 'rotate(180deg)' }} />
+              <span>Import Field</span>
+            </button>
+          </Tooltip>
+        )}
         {onImportFromSatellite && (
           <Tooltip tip="Draw Boundary" desc="Draw your field boundary on a satellite image to define the maze area.">
             <button
