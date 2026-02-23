@@ -48,28 +48,33 @@ def export_shapefile_endpoint():
 def export_kml_endpoint(
     name: str = Query("maze", description="Base name for output file"),
     wall_buffer: float = Query(1.0, description="Buffer width (meters) to convert wall lines to polygons"),
+    path_width: float = Query(None, description="Navigable path width (meters) for metadata"),
     include_solution: bool = Query(False, description="Compute and include solution path"),
 ):
     """
-    Export the complete maze design as a single KML file.
+    Export the complete maze design as a KMZ file (ZIP with doc.kml + template.png).
 
     The file contains styled Folder layers for:
     - Boundary polygon
     - Maze wall polygons (buffered)
+    - Cutting path centerlines (unbuffered LineStrings for GPS guidance)
     - Headland wall polygons (if present)
     - Carved area polygons (cutting guide)
     - Entrance / exit / emergency-exit point placemarks
     - Solution path linestring (optional)
+    - Design overlay image (GroundOverlay)
 
     Returns:
         {
             "success": bool,
             "path": str,
             "wall_count": int,
+            "centerline_count": int,
             "headland_count": int,
             "carved_area_count": int,
             "point_count": int,
-            "has_solution": bool
+            "has_solution": bool,
+            "has_overlay": bool
         }
     """
     field = app_state.get_field()
@@ -111,6 +116,7 @@ def export_kml_endpoint(
             solution_path=solution_path,
             carved_areas=app_state.get_carved_areas(),
             wall_buffer=wall_buffer,
+            path_width=path_width,
             base_name=name,
         )
 

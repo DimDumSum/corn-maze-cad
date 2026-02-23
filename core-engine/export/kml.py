@@ -1,24 +1,30 @@
 """
-KML export functionality for MazeGPS compatibility.
+KML/KMZ export functionality for MazeGPS compatibility.
 
-Exports maze designs as a single, comprehensive KML file containing:
+Exports maze designs as a single KMZ file (ZIP containing doc.kml +
+files/template.png) with the following layers:
 - Outer boundary polygon (styled)
 - Maze wall polygons (styled, buffered from line geometry)
+- Cutting path centerlines (unbuffered LineStrings for GPS guidance)
 - Headland wall polygons (styled, separate folder)
 - Carved area polygons (cutting guide for field operators)
 - Entrance/exit/emergency-exit point placemarks (styled icons)
 - Solution path linestring (styled, optional)
+- Design overlay image (GroundOverlay with georeferenced PNG)
 
 All features are organized in <Folder> elements with KML styles
 for visual differentiation in Google Earth, MazeGPS, and other viewers.
 """
 
+import io
+import zipfile
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from xml.sax.saxutils import escape
 
 import pyproj
+from PIL import Image, ImageDraw
 from shapely.geometry import Polygon, MultiPolygon, MultiLineString, LineString, Point
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
@@ -115,13 +121,21 @@ def _point_to_kml_placemark(
     name: str,
     style_url: str = "",
     description: str = "",
+    point_type: str = "",
 ) -> str:
     """Create a KML Placemark for a point location."""
     style_ref = f"\n      <styleUrl>{escape(style_url)}</styleUrl>" if style_url else ""
     desc_xml = f"\n      <description>{escape(description)}</description>" if description else ""
+    ext_data = ""
+    if point_type:
+        ext_data = (
+            f"\n      <ExtendedData>"
+            f'<Data name="type"><value>{escape(point_type)}</value></Data>'
+            f"</ExtendedData>"
+        )
 
     return f"""      <Placemark>
-        <name>{escape(name)}</name>{style_ref}{desc_xml}
+        <name>{escape(name)}</name>{style_ref}{desc_xml}{ext_data}
         <Point>
           <coordinates>{lon:.7f},{lat:.7f},0</coordinates>
         </Point>
@@ -189,6 +203,128 @@ def _walls_to_polygons(walls: BaseGeometry, buffer_width: float = 1.0) -> List[P
     return polygons
 
 
+def _walls_to_linestrings(walls: BaseGeometry) -> List[LineString]:
+    """
+    Extract individual LineString geometries from wall geometry.
+
+    Args:
+        walls: Wall geometry (LineString, MultiLineString, or GeometryCollection)
+
+    Returns:
+        List of LineString geometries representing wall centerlines
+    """
+    lines: List[LineString] = []
+
+    if walls is None or walls.is_empty:
+        return lines
+
+    if isinstance(walls, LineString):
+        lines.append(walls)
+    elif isinstance(walls, MultiLineString):
+        lines.extend(list(walls.geoms))
+    else:
+        # GeometryCollection - extract linestrings
+        for geom in getattr(walls, 'geoms', []):
+            if isinstance(geom, LineString):
+                lines.append(geom)
+            elif isinstance(geom, MultiLineString):
+                lines.extend(list(geom.geoms))
+
+    return lines
+
+
+# ---------------------------------------------------------------------------
+# Design image rendering (for GroundOverlay / KMZ)
+# ---------------------------------------------------------------------------
+
+def _draw_geometry_lines(
+    draw: ImageDraw.Draw,
+    geom: BaseGeometry,
+    world_to_pixel,
+    fill=(34, 85, 34),
+    width: int = 2,
+) -> None:
+    """Recursively draw line geometry onto a PIL ImageDraw."""
+    if geom is None or geom.is_empty:
+        return
+    if geom.geom_type == 'LineString':
+        pixels = [world_to_pixel(x, y) for x, y in geom.coords]
+        if len(pixels) >= 2:
+            draw.line(pixels, fill=fill, width=width)
+    elif geom.geom_type in ('MultiLineString', 'GeometryCollection'):
+        for part in geom.geoms:
+            _draw_geometry_lines(draw, part, world_to_pixel, fill=fill, width=width)
+
+
+def _render_design_png(
+    field: BaseGeometry,
+    walls: Optional[BaseGeometry],
+    width_px: int = 800,
+) -> bytes:
+    """Render the maze design as a PNG image (in centered coordinates).
+
+    White = paths to cut, dark green = standing corn.
+
+    Returns:
+        Raw PNG bytes.
+    """
+    minx, miny, maxx, maxy = field.bounds
+    field_w = maxx - minx
+    field_h = maxy - miny
+
+    if field_w <= 0 or field_h <= 0:
+        return b""
+
+    aspect = field_h / field_w
+    height_px = max(int(width_px * aspect), 1)
+
+    px_per_m_x = width_px / field_w
+    px_per_m_y = height_px / field_h
+
+    def world_to_pixel(x: float, y: float) -> Tuple[int, int]:
+        px = int((x - minx) * px_per_m_x)
+        py = int((maxy - y) * px_per_m_y)
+        return (px, py)
+
+    img = Image.new('RGBA', (width_px, height_px), color=(0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Fill field area with white (paths = cut corn)
+    field_pixels = [world_to_pixel(x, y) for x, y in field.exterior.coords]
+    draw.polygon(field_pixels, fill=(255, 255, 255, 255))
+
+    # Draw wall lines as green (standing corn) on top
+    if walls is not None and not walls.is_empty:
+        _draw_geometry_lines(draw, walls, world_to_pixel, fill=(34, 85, 34, 255), width=3)
+
+    # Draw field outline
+    draw.polygon(field_pixels, outline=(0, 0, 0, 255), fill=None)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _build_ground_overlay(
+    north: float, south: float, east: float, west: float,
+) -> str:
+    """Build a GroundOverlay element referencing files/template.png."""
+    return f"""    <Folder>
+      <name>DesignOverlay</name>
+      <open>0</open>
+      <GroundOverlay>
+        <name>Maze Template</name>
+        <Icon><href>files/template.png</href></Icon>
+        <LatLonBox>
+          <north>{north:.7f}</north>
+          <south>{south:.7f}</south>
+          <east>{east:.7f}</east>
+          <west>{west:.7f}</west>
+        </LatLonBox>
+      </GroundOverlay>
+    </Folder>"""
+
+
 # ---------------------------------------------------------------------------
 # KML style definitions
 # ---------------------------------------------------------------------------
@@ -234,6 +370,9 @@ def _build_styles() -> str:
     <Style id="carved">
       <LineStyle><color>ff134a8b</color><width>2</width></LineStyle>
       <PolyStyle><color>88134a8b</color></PolyStyle>
+    </Style>
+    <Style id="centerline">
+      <LineStyle><color>ff00bfff</color><width>2</width></LineStyle>
     </Style>
     <Style id="solution">
       <LineStyle><color>ff3232dc</color><width>4</width></LineStyle>
@@ -284,12 +423,40 @@ def _build_walls_folder(
     placemarks_xml = "\n".join(placemarks)
 
     folder = f"""    <Folder>
-      <name>Maze Walls</name>
+      <name>Walls</name>
       <open>0</open>
 {placemarks_xml}
     </Folder>"""
 
     return folder, len(wall_polygons)
+
+
+def _build_centerlines_folder(
+    walls: BaseGeometry,
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the Centerlines folder (unbuffered wall path LineStrings). Returns (xml, count)."""
+    linestrings = _walls_to_linestrings(walls)
+
+    placemarks = []
+    for i, line in enumerate(linestrings):
+        uncentered = _uncenter_geometry(line, offset)
+        wgs84_line = _reproject_to_wgs84(uncentered, crs)
+        coords = list(wgs84_line.coords)
+        placemarks.append(
+            _linestring_to_kml_placemark(coords, f"Centerline {i + 1}", style_url="#centerline")
+        )
+
+    placemarks_xml = "\n".join(placemarks)
+
+    folder = f"""    <Folder>
+      <name>Centerlines</name>
+      <open>0</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(linestrings)
 
 
 def _build_headland_folder(
@@ -298,7 +465,7 @@ def _build_headland_folder(
     offset: Tuple[float, float],
     wall_buffer: float,
 ) -> Tuple[str, int]:
-    """Build the Headland Walls folder. Returns (xml, count)."""
+    """Build the Headland folder. Returns (xml, count)."""
     polygons = _walls_to_polygons(headland_walls, buffer_width=wall_buffer)
 
     placemarks = []
@@ -312,7 +479,7 @@ def _build_headland_folder(
     placemarks_xml = "\n".join(placemarks)
 
     folder = f"""    <Folder>
-      <name>Headland Walls</name>
+      <name>Headland</name>
       <open>0</open>
 {placemarks_xml}
     </Folder>"""
@@ -320,33 +487,19 @@ def _build_headland_folder(
     return folder, len(polygons)
 
 
-def _build_entrances_exits_folder(
+def _build_entrances_folder(
     entrances: List[Tuple[float, float]],
-    exits: List[Tuple[float, float]],
-    emergency_exits: List[Tuple[float, float]],
     crs: str,
     offset: Tuple[float, float],
 ) -> Tuple[str, int]:
-    """Build the Entrances & Exits folder. Returns (xml, point_count)."""
+    """Build the Entrances folder. Returns (xml, count)."""
     placemarks = []
-
     for i, (x, y) in enumerate(entrances or []):
         lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
         placemarks.append(
-            _point_to_kml_placemark(lon, lat, f"Entrance {i + 1}", style_url="#entrance")
-        )
-
-    for i, (x, y) in enumerate(exits or []):
-        lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
-        placemarks.append(
-            _point_to_kml_placemark(lon, lat, f"Exit {i + 1}", style_url="#exit")
-        )
-
-    for i, (x, y) in enumerate(emergency_exits or []):
-        lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
-        placemarks.append(
             _point_to_kml_placemark(
-                lon, lat, f"Emergency Exit {i + 1}", style_url="#emergency_exit",
+                lon, lat, f"Entrance {i + 1}",
+                style_url="#entrance", point_type="entrance",
             )
         )
 
@@ -354,9 +507,66 @@ def _build_entrances_exits_folder(
         return "", 0
 
     placemarks_xml = "\n".join(placemarks)
-
     folder = f"""    <Folder>
-      <name>Entrances &amp; Exits</name>
+      <name>Entrances</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(placemarks)
+
+
+def _build_exits_folder(
+    exits: List[Tuple[float, float]],
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the Exits folder. Returns (xml, count)."""
+    placemarks = []
+    for i, (x, y) in enumerate(exits or []):
+        lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
+        placemarks.append(
+            _point_to_kml_placemark(
+                lon, lat, f"Exit {i + 1}",
+                style_url="#exit", point_type="exit",
+            )
+        )
+
+    if not placemarks:
+        return "", 0
+
+    placemarks_xml = "\n".join(placemarks)
+    folder = f"""    <Folder>
+      <name>Exits</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(placemarks)
+
+
+def _build_emergency_exits_folder(
+    emergency_exits: List[Tuple[float, float]],
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the EmergencyExits folder. Returns (xml, count)."""
+    placemarks = []
+    for i, (x, y) in enumerate(emergency_exits or []):
+        lon, lat = _reproject_point_to_wgs84(x, y, offset, crs)
+        placemarks.append(
+            _point_to_kml_placemark(
+                lon, lat, f"Emergency Exit {i + 1}",
+                style_url="#emergency_exit", point_type="emergency_exit",
+            )
+        )
+
+    if not placemarks:
+        return "", 0
+
+    placemarks_xml = "\n".join(placemarks)
+    folder = f"""    <Folder>
+      <name>EmergencyExits</name>
       <open>1</open>
 {placemarks_xml}
     </Folder>"""
@@ -397,7 +607,7 @@ def _build_carved_areas_folder(
     placemarks_xml = "\n".join(placemarks)
 
     folder = f"""    <Folder>
-      <name>Carved Areas (Cutting Guide)</name>
+      <name>CarvedAreas</name>
       <open>1</open>
 {placemarks_xml}
     </Folder>"""
@@ -410,7 +620,7 @@ def _build_solution_folder(
     crs: str,
     offset: Tuple[float, float],
 ) -> str:
-    """Build the Solution Path folder."""
+    """Build the SolutionPath folder."""
     # Reproject every waypoint
     wgs84_coords = []
     for x, y in solution_path:
@@ -424,7 +634,7 @@ def _build_solution_folder(
     )
 
     return f"""    <Folder>
-      <name>Solution Path</name>
+      <name>SolutionPath</name>
       <open>0</open>
       <visibility>0</visibility>
 {placemark}
@@ -447,6 +657,7 @@ def export_maze_kml(
     solution_path: Optional[List[Tuple[float, float]]] = None,
     carved_areas: Optional[BaseGeometry] = None,
     wall_buffer: float = 1.0,
+    path_width: Optional[float] = None,
     base_name: str = "maze",
     output_dir: Path = None,
 ) -> Dict:
@@ -468,6 +679,7 @@ def export_maze_kml(
         solution_path: Solution path waypoints (centered)
         carved_areas: Carved area geometry (cutting guide polygons)
         wall_buffer: Buffer width (meters) to convert lines to polygons
+        path_width: Navigable path width (meters), included in metadata
         base_name: Output filename stem
         output_dir: Output directory (default: Downloads)
 
@@ -476,19 +688,21 @@ def export_maze_kml(
             "success": True,
             "path": str,
             "wall_count": int,
+            "centerline_count": int,
             "headland_count": int,
             "carved_area_count": int,
             "point_count": int,
             "has_solution": bool,
+            "has_overlay": bool,
         }
     """
     if output_dir is None:
         output_dir = get_downloads_folder()
 
-    output_path = output_dir / f"{base_name}.kml"
+    output_path = output_dir / f"{base_name}.kmz"
     if output_path.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = output_dir / f"{base_name}_{timestamp}.kml"
+        output_path = output_dir / f"{base_name}_{timestamp}.kmz"
 
     # Collect folders
     folders: List[str] = []
@@ -502,7 +716,13 @@ def export_maze_kml(
         walls_xml, wall_count = _build_walls_folder(walls, crs, centroid_offset, wall_buffer)
         folders.append(walls_xml)
 
-    # 3 — Headland walls
+    # 3 — Centerlines (unbuffered wall paths for GPS guidance)
+    centerline_count = 0
+    if walls and not walls.is_empty:
+        cl_xml, centerline_count = _build_centerlines_folder(walls, crs, centroid_offset)
+        folders.append(cl_xml)
+
+    # 4 — Headland walls
     headland_count = 0
     if headland_walls and not headland_walls.is_empty:
         headland_xml, headland_count = _build_headland_folder(
@@ -510,7 +730,7 @@ def export_maze_kml(
         )
         folders.append(headland_xml)
 
-    # 4 — Carved areas (cutting guide)
+    # 5 — Carved areas (cutting guide)
     carved_area_count = 0
     if carved_areas and not carved_areas.is_empty:
         carved_xml, carved_area_count = _build_carved_areas_folder(
@@ -518,48 +738,94 @@ def export_maze_kml(
         )
         folders.append(carved_xml)
 
-    # 5 — Entrances, exits, emergency exits
+    # 6 — Entrances
     point_count = 0
-    any_points = (entrances or exits or emergency_exits)
-    if any_points:
-        points_xml, point_count = _build_entrances_exits_folder(
-            entrances, exits, emergency_exits, crs, centroid_offset,
-        )
-        if points_xml:
-            folders.append(points_xml)
+    if entrances:
+        ent_xml, ent_count = _build_entrances_folder(entrances, crs, centroid_offset)
+        if ent_xml:
+            folders.append(ent_xml)
+            point_count += ent_count
 
-    # 6 — Solution path
+    # 7 — Exits
+    if exits:
+        exit_xml, exit_count = _build_exits_folder(exits, crs, centroid_offset)
+        if exit_xml:
+            folders.append(exit_xml)
+            point_count += exit_count
+
+    # 8 — Emergency exits
+    if emergency_exits:
+        emex_xml, emex_count = _build_emergency_exits_folder(
+            emergency_exits, crs, centroid_offset,
+        )
+        if emex_xml:
+            folders.append(emex_xml)
+            point_count += emex_count
+
+    # 9 — Solution path
     has_solution = False
     if solution_path and len(solution_path) >= 2:
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
         has_solution = True
 
+    # 10 — Design overlay image (GroundOverlay for KMZ)
+    template_png_bytes = _render_design_png(field, walls)
+    has_overlay = bool(template_png_bytes)
+    if has_overlay:
+        # Compute WGS84 bounding box for the GroundOverlay
+        minx, miny, maxx, maxy = field.bounds
+        cx, cy = centroid_offset
+        proj = pyproj.Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+        west, south = proj.transform(minx + cx, miny + cy)
+        east, north = proj.transform(maxx + cx, maxy + cy)
+        folders.append(_build_ground_overlay(north, south, east, west))
+
     # Assemble document
     styles = _build_styles()
     folders_xml = "\n".join(folders)
+
+    # Build ExtendedData metadata block
+    ext_data_items = [
+        ("wall_buffer", str(wall_buffer)),
+        ("design_crs", crs),
+        ("software", "CornMazeCAD 2.0"),
+    ]
+    if path_width is not None:
+        ext_data_items.insert(1, ("path_width", str(path_width)))
+    ext_data_xml = "\n".join(
+        f'      <Data name="{k}"><value>{escape(v)}</value></Data>'
+        for k, v in ext_data_items
+    )
 
     kml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
     <name>{escape(base_name)}</name>
     <description>Corn maze design exported by CornMazeCAD</description>
+    <ExtendedData>
+{ext_data_xml}
+    </ExtendedData>
 {styles}
 {folders_xml}
   </Document>
 </kml>
 """
 
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(kml_content)
+    with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("doc.kml", kml_content)
+        if has_overlay:
+            zf.writestr("files/template.png", template_png_bytes)
 
     return {
         "success": True,
         "path": str(output_path),
         "wall_count": wall_count,
+        "centerline_count": centerline_count,
         "headland_count": headland_count,
         "carved_area_count": carved_area_count,
         "point_count": point_count,
         "has_solution": has_solution,
+        "has_overlay": has_overlay,
     }
 
 
