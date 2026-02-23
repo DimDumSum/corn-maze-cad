@@ -1,7 +1,8 @@
 """
-KML export functionality for MazeGPS compatibility.
+KML/KMZ export functionality for MazeGPS compatibility.
 
-Exports maze designs as a single, comprehensive KML file containing:
+Exports maze designs as a single KMZ file (ZIP containing doc.kml +
+files/template.png) with the following layers:
 - Outer boundary polygon (styled)
 - Maze wall polygons (styled, buffered from line geometry)
 - Cutting path centerlines (unbuffered LineStrings for GPS guidance)
@@ -9,17 +10,21 @@ Exports maze designs as a single, comprehensive KML file containing:
 - Carved area polygons (cutting guide for field operators)
 - Entrance/exit/emergency-exit point placemarks (styled icons)
 - Solution path linestring (styled, optional)
+- Design overlay image (GroundOverlay with georeferenced PNG)
 
 All features are organized in <Folder> elements with KML styles
 for visual differentiation in Google Earth, MazeGPS, and other viewers.
 """
 
+import io
+import zipfile
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from xml.sax.saxutils import escape
 
 import pyproj
+from PIL import Image, ImageDraw
 from shapely.geometry import Polygon, MultiPolygon, MultiLineString, LineString, Point
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
@@ -218,6 +223,98 @@ def _walls_to_linestrings(walls: BaseGeometry) -> List[LineString]:
                 lines.extend(list(geom.geoms))
 
     return lines
+
+
+# ---------------------------------------------------------------------------
+# Design image rendering (for GroundOverlay / KMZ)
+# ---------------------------------------------------------------------------
+
+def _draw_geometry_lines(
+    draw: ImageDraw.Draw,
+    geom: BaseGeometry,
+    world_to_pixel,
+    fill=(34, 85, 34),
+    width: int = 2,
+) -> None:
+    """Recursively draw line geometry onto a PIL ImageDraw."""
+    if geom is None or geom.is_empty:
+        return
+    if geom.geom_type == 'LineString':
+        pixels = [world_to_pixel(x, y) for x, y in geom.coords]
+        if len(pixels) >= 2:
+            draw.line(pixels, fill=fill, width=width)
+    elif geom.geom_type in ('MultiLineString', 'GeometryCollection'):
+        for part in geom.geoms:
+            _draw_geometry_lines(draw, part, world_to_pixel, fill=fill, width=width)
+
+
+def _render_design_png(
+    field: BaseGeometry,
+    walls: Optional[BaseGeometry],
+    width_px: int = 800,
+) -> bytes:
+    """Render the maze design as a PNG image (in centered coordinates).
+
+    White = paths to cut, dark green = standing corn.
+
+    Returns:
+        Raw PNG bytes.
+    """
+    minx, miny, maxx, maxy = field.bounds
+    field_w = maxx - minx
+    field_h = maxy - miny
+
+    if field_w <= 0 or field_h <= 0:
+        return b""
+
+    aspect = field_h / field_w
+    height_px = max(int(width_px * aspect), 1)
+
+    px_per_m_x = width_px / field_w
+    px_per_m_y = height_px / field_h
+
+    def world_to_pixel(x: float, y: float) -> Tuple[int, int]:
+        px = int((x - minx) * px_per_m_x)
+        py = int((maxy - y) * px_per_m_y)
+        return (px, py)
+
+    img = Image.new('RGBA', (width_px, height_px), color=(0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    # Fill field area with white (paths = cut corn)
+    field_pixels = [world_to_pixel(x, y) for x, y in field.exterior.coords]
+    draw.polygon(field_pixels, fill=(255, 255, 255, 255))
+
+    # Draw wall lines as green (standing corn) on top
+    if walls is not None and not walls.is_empty:
+        _draw_geometry_lines(draw, walls, world_to_pixel, fill=(34, 85, 34, 255), width=3)
+
+    # Draw field outline
+    draw.polygon(field_pixels, outline=(0, 0, 0, 255), fill=None)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _build_ground_overlay(
+    north: float, south: float, east: float, west: float,
+) -> str:
+    """Build a GroundOverlay element referencing files/template.png."""
+    return f"""    <Folder>
+      <name>DesignOverlay</name>
+      <open>0</open>
+      <GroundOverlay>
+        <name>Maze Template</name>
+        <Icon><href>files/template.png</href></Icon>
+        <LatLonBox>
+          <north>{north:.7f}</north>
+          <south>{south:.7f}</south>
+          <east>{east:.7f}</east>
+          <west>{west:.7f}</west>
+        </LatLonBox>
+      </GroundOverlay>
+    </Folder>"""
 
 
 # ---------------------------------------------------------------------------
@@ -581,15 +678,16 @@ def export_maze_kml(
             "carved_area_count": int,
             "point_count": int,
             "has_solution": bool,
+            "has_overlay": bool,
         }
     """
     if output_dir is None:
         output_dir = get_downloads_folder()
 
-    output_path = output_dir / f"{base_name}.kml"
+    output_path = output_dir / f"{base_name}.kmz"
     if output_path.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = output_dir / f"{base_name}_{timestamp}.kml"
+        output_path = output_dir / f"{base_name}_{timestamp}.kmz"
 
     # Collect folders
     folders: List[str] = []
@@ -655,6 +753,18 @@ def export_maze_kml(
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
         has_solution = True
 
+    # 10 — Design overlay image (GroundOverlay for KMZ)
+    template_png_bytes = _render_design_png(field, walls)
+    has_overlay = bool(template_png_bytes)
+    if has_overlay:
+        # Compute WGS84 bounding box for the GroundOverlay
+        minx, miny, maxx, maxy = field.bounds
+        cx, cy = centroid_offset
+        proj = pyproj.Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+        west, south = proj.transform(minx + cx, miny + cy)
+        east, north = proj.transform(maxx + cx, maxy + cy)
+        folders.append(_build_ground_overlay(north, south, east, west))
+
     # Assemble document
     styles = _build_styles()
     folders_xml = "\n".join(folders)
@@ -686,8 +796,10 @@ def export_maze_kml(
 </kml>
 """
 
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(kml_content)
+    with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("doc.kml", kml_content)
+        if has_overlay:
+            zf.writestr("files/template.png", template_png_bytes)
 
     return {
         "success": True,
@@ -698,6 +810,7 @@ def export_maze_kml(
         "carved_area_count": carved_area_count,
         "point_count": point_count,
         "has_solution": has_solution,
+        "has_overlay": has_overlay,
     }
 
 

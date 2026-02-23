@@ -52,7 +52,7 @@ def export_kml_endpoint(
     include_solution: bool = Query(False, description="Compute and include solution path"),
 ):
     """
-    Export the complete maze design as a single KML file.
+    Export the complete maze design as a KMZ file (ZIP with doc.kml + template.png).
 
     The file contains styled Folder layers for:
     - Boundary polygon
@@ -62,6 +62,7 @@ def export_kml_endpoint(
     - Carved area polygons (cutting guide)
     - Entrance / exit / emergency-exit point placemarks
     - Solution path linestring (optional)
+    - Design overlay image (GroundOverlay)
 
     Returns:
         {
@@ -72,7 +73,8 @@ def export_kml_endpoint(
             "headland_count": int,
             "carved_area_count": int,
             "point_count": int,
-            "has_solution": bool
+            "has_solution": bool,
+            "has_overlay": bool
         }
     """
     field = app_state.get_field()
