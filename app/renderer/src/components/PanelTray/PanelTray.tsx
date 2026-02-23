@@ -42,7 +42,7 @@ function PanelSection({ title, tooltip, defaultOpen = true, children }: PanelSec
   return (
     <div className="panel-section">
       {tooltip ? (
-        <Tooltip tip={title} desc={tooltip} side="left">
+        <Tooltip tip={title} side="left">
           {header}
         </Tooltip>
       ) : (
@@ -145,7 +145,7 @@ export function PanelTray() {
 
       {/* Constraints */}
       <PanelSection title="Constraints" tooltip="Minimum dimensions the maze generator and validator enforce.">
-        <Tooltip tip="Path Width" desc="Minimum width of walkable paths through the maze. Wider paths are easier to navigate." side="left">
+        <Tooltip tip="Path Width" side="left">
           <div style={{ width: '100%' }}>
             <DimensionInput
               label="Path Width"
@@ -158,7 +158,7 @@ export function PanelTray() {
             />
           </div>
         </Tooltip>
-        <Tooltip tip="Wall Width" desc="Minimum number of standing corn rows that form a wall between paths." side="left">
+        <Tooltip tip="Wall Width" side="left">
           <div style={{ width: '100%' }}>
             <DimensionInput
               label="Wall Width"
@@ -171,7 +171,7 @@ export function PanelTray() {
             />
           </div>
         </Tooltip>
-        <Tooltip tip="Edge Buffer" desc="Minimum clearance between designs and the field boundary." side="left">
+        <Tooltip tip="Edge Buffer" side="left">
           <div style={{ width: '100%' }}>
             <DimensionInput
               label="Edge Buffer"
@@ -184,7 +184,7 @@ export function PanelTray() {
             />
           </div>
         </Tooltip>
-        <Tooltip tip="Corner Radius" desc="Minimum turning radius at path junctions. Larger values make smoother turns." side="left">
+        <Tooltip tip="Corner Radius" side="left">
           <div style={{ width: '100%' }}>
             <DimensionInput
               label="Corner Radius"
@@ -204,7 +204,7 @@ export function PanelTray() {
 
       {/* Planter Specs */}
       <PanelSection title="Planter Specs" tooltip="Configure your planter to align maze walls with actual corn rows.">
-        <Tooltip tip="Rows" desc="Number of rows your planter sows in a single pass." side="left">
+        <Tooltip tip="Rows" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Rows</label>
             <select
@@ -219,7 +219,7 @@ export function PanelTray() {
             </select>
           </div>
         </Tooltip>
-        <Tooltip tip="Spacing" desc="Distance between adjacent corn rows, set by your planter." side="left">
+        <Tooltip tip="Spacing" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Spacing</label>
             <select
@@ -234,7 +234,7 @@ export function PanelTray() {
             </select>
           </div>
         </Tooltip>
-        <Tooltip tip="Direction" desc="Compass heading of the planting rows (0 = North). Drag the compass icon to pick on the field." side="left">
+        <Tooltip tip="Direction" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Direction</label>
             <input
@@ -256,7 +256,7 @@ export function PanelTray() {
             </button>
           </div>
         </Tooltip>
-        <Tooltip tip="Headlands" desc="Number of border passes around the field edge before the interior maze." side="left">
+        <Tooltip tip="Headlands" side="left">
           <div style={{ width: '100%' }}>
             <DimensionInput
               label="Headlands"
@@ -357,7 +357,7 @@ export function PanelTray() {
 
       {/* View Overlays */}
       <PanelSection title="View" tooltip="Toggle visual overlays on the canvas.">
-        <Tooltip tip="Satellite" desc="Show satellite imagery beneath the maze design." side="left">
+        <Tooltip tip="Satellite" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Satellite</label>
             <input
@@ -410,7 +410,7 @@ export function PanelTray() {
             <span className="constraint-unit">{Math.round(aerialUnderlay.opacity * 100)}%</span>
           </div>
         )}
-        <Tooltip tip="Carve Fill" desc="Show shaded fill on areas that have been carved (mowed paths)." side="left">
+        <Tooltip tip="Carve Fill" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Carve Fill</label>
             <input
@@ -421,7 +421,7 @@ export function PanelTray() {
             />
           </div>
         </Tooltip>
-        <Tooltip tip="Carve Border" desc="Show outlines around carved areas for clarity." side="left">
+        <Tooltip tip="Carve Border" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Carve Border</label>
             <input
@@ -466,7 +466,7 @@ export function PanelTray() {
 
       {/* Settings */}
       <PanelSection title="Settings" tooltip="Change units, keyboard shortcuts, and other preferences." defaultOpen={false}>
-        <Tooltip tip="Units" desc="Switch between metric (meters) and imperial (feet)." side="left">
+        <Tooltip tip="Units" side="left">
           <div className="constraint-row" style={{ width: '100%' }}>
             <label>Units</label>
             <select
