@@ -147,9 +147,9 @@ def export_walls_gpx(
 
 def export_cutting_guide_gpx(
     field: BaseGeometry,
-    walls: BaseGeometry,
     crs: str,
     centroid_offset: Tuple[float, float],
+    carved_paths: List[Dict] = None,
     entrances: List[Tuple[float, float]] = None,
     exits: List[Tuple[float, float]] = None,
     base_name: str = "maze_cutting_guide",
@@ -157,7 +157,12 @@ def export_cutting_guide_gpx(
 ) -> Dict:
     """
     Export a complete cutting guide GPX with boundary route,
-    wall tracks, and entrance/exit waypoints.
+    cut-path tracks, and entrance/exit waypoints.
+
+    Each carved tractor pass becomes one <trk> element named
+    "Cut Path N" with a <cmt> carrying the cutting width in metres.
+    Corn-row wall centerlines are NOT included — they are a visual
+    design aid with no value to the GPS operator.
     """
     if output_dir is None:
         output_dir = get_downloads_folder()
@@ -188,23 +193,23 @@ def export_cutting_guide_gpx(
     wgs84_field = _reproject_to_wgs84(uncentered_field, crs)
     boundary_pts = _coords_to_gpx_routepoints(list(wgs84_field.exterior.coords))
 
-    # Wall tracks
+    # Cut-path tracks — one per carved tractor pass
     tracks = []
-    if walls and not walls.is_empty:
-        uncentered_walls = _uncenter_geometry(walls, centroid_offset)
-        wgs84_walls = _reproject_to_wgs84(uncentered_walls, crs)
-
-        def add_track(line_geom, idx):
-            coords = list(line_geom.coords)
-            tpts = _coords_to_gpx_trackpoints(coords)
-            tracks.append(f"  <trk>\n    <name>Cut {idx+1}</name>\n    <trkseg>\n{tpts}\n    </trkseg>\n  </trk>")
-
-        if wgs84_walls.geom_type == 'LineString':
-            add_track(wgs84_walls, 0)
-        elif wgs84_walls.geom_type in ('MultiLineString', 'GeometryCollection'):
-            for i, geom in enumerate(wgs84_walls.geoms):
-                if geom.geom_type == 'LineString':
-                    add_track(geom, i)
+    for i, cp in enumerate(carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2:
+            continue
+        path_line = LineString([(p[0], p[1]) for p in pts])
+        path_line = densify_curves(path_line)
+        uncentered = _uncenter_geometry(path_line, centroid_offset)
+        wgs84_line = _reproject_to_wgs84(uncentered, crs)
+        tpts = _coords_to_gpx_trackpoints(list(wgs84_line.coords))
+        cmt = f"width: {float(width):.2f} m" if width is not None else ""
+        cmt_xml = f"\n    <cmt>{escape(cmt)}</cmt>" if cmt else ""
+        tracks.append(
+            f"  <trk>\n    <name>Cut Path {i + 1}</name>{cmt_xml}\n    <trkseg>\n{tpts}\n    </trkseg>\n  </trk>"
+        )
 
     tracks_xml = "\n".join(tracks) if tracks else ""
 
@@ -232,5 +237,5 @@ def export_cutting_guide_gpx(
         "success": True,
         "path": str(output_path),
         "waypoint_count": len(waypoints),
-        "track_count": len(tracks),
+        "cut_path_count": len(tracks),
     }

@@ -54,16 +54,6 @@ CONTINUOUS
   0
 LAYER
   2
-WALLS
- 70
-0
- 62
-5
-  6
-CONTINUOUS
-  0
-LAYER
-  2
 ANNOTATIONS
  70
 0
@@ -209,7 +199,6 @@ def _point_to_dxf(x: float, y: float, layer: str, label: str = "") -> str:
 
 def export_maze_dxf(
     field: BaseGeometry,
-    walls: BaseGeometry = None,
     entrances: List[Tuple[float, float]] = None,
     exits: List[Tuple[float, float]] = None,
     emergency_exits: List[Tuple[float, float]] = None,
@@ -224,14 +213,16 @@ def export_maze_dxf(
 
     Layers:
     - BOUNDARY: Field boundary polygon
-    - WALLS: Maze wall line segments (corn row centerlines)
     - ANNOTATIONS: Entrance/exit/emergency exit points
     - PATHEDGES: Perimeter edges of carved paths (cut/stand boundary)
     - CENTERLINES: Carved path centerlines with path_width XDATA
+    - CutPathPolygons: Buffered polygon for each individual tractor pass
+
+    Corn-row wall centerlines are intentionally excluded — they are a
+    visual design aid with no meaning to the GPS operator.
 
     Args:
         field: Field boundary polygon (centered coordinates)
-        walls: Maze wall geometry (centered coordinates)
         entrances: List of entrance (x,y) points
         exits: List of exit (x,y) points
         emergency_exits: List of emergency exit (x,y) points
@@ -258,22 +249,6 @@ def export_maze_dxf(
     if field and not field.is_empty:
         coords = list(densify_curves(field).exterior.coords)
         content += _polyline_to_dxf(coords, "BOUNDARY", closed=True)
-
-    # Write maze walls
-    wall_count = 0
-    if walls and not walls.is_empty:
-        def write_line(line_geom):
-            nonlocal content, wall_count
-            coords = list(line_geom.coords)
-            content += _line_to_dxf(coords, "WALLS")
-            wall_count += 1
-
-        if walls.geom_type == 'LineString':
-            write_line(walls)
-        elif walls.geom_type in ('MultiLineString', 'GeometryCollection'):
-            for geom in walls.geoms:
-                if geom.geom_type == 'LineString':
-                    write_line(geom)
 
     # Write annotations
     if entrances:

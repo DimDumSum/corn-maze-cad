@@ -469,7 +469,6 @@ def _build_walls_folder(
 
 
 def _build_centerlines_folder(
-    walls: BaseGeometry,
     crs: str,
     offset: Tuple[float, float],
     carved_paths: Optional[List[Dict]] = None,
@@ -477,32 +476,18 @@ def _build_centerlines_folder(
 ) -> Tuple[str, int]:
     """Build the Centerlines folder.
 
-    Contains two groups:
-    - Wall row centerlines (corn row lines; annotated with *default_path_width* when given)
-    - Carved path centerlines (the GPS mowing lines), each with its individual
-      ``path_width`` in <ExtendedData> to support mixed-width mazes.
+    Contains only the carved-path GPS guidance lines.  Corn-row wall
+    centerlines are deliberately excluded — they are a visual design aid
+    and have no meaning to the GPS operator.
 
-    Returns (xml, total_count).
+    Each entry carries its individual ``path_width`` in <ExtendedData>.
+
+    Returns (xml, count).
     """
     from shapely.geometry import LineString as _LS
 
     placemarks = []
 
-    # --- Wall row centerlines ---
-    wall_ext = {"path_width": round(default_path_width, 4)} if default_path_width is not None else None
-    for i, line in enumerate(_walls_to_linestrings(walls)):
-        uncentered = _uncenter_geometry(line, offset)
-        wgs84_line = _reproject_to_wgs84(uncentered, crs)
-        placemarks.append(
-            _linestring_to_kml_placemark(
-                list(wgs84_line.coords),
-                f"Centerline {i + 1}",
-                style_url="#centerline",
-                extended_data=wall_ext,
-            )
-        )
-
-    # --- Carved path centerlines (individual cutting widths) ---
     for j, cp in enumerate(carved_paths or []):
         pts = cp.get("points", [])
         width = cp.get("width")
@@ -512,7 +497,8 @@ def _build_centerlines_folder(
         line = densify_curves(line)
         uncentered = _uncenter_geometry(line, offset)
         wgs84_line = _reproject_to_wgs84(uncentered, crs)
-        ext = {"path_width": round(float(width), 4)} if width is not None else None
+        pw = width if width is not None else default_path_width
+        ext = {"path_width": round(float(pw), 4)} if pw is not None else None
         placemarks.append(
             _linestring_to_kml_placemark(
                 list(wgs84_line.coords),
@@ -882,29 +868,17 @@ def export_maze_kml(
     # 1 — Boundary (always present)
     folders.append(_build_boundary_folder(field, crs, centroid_offset))
 
-    # 2 — Maze walls
-    wall_count = 0
-    if walls and not walls.is_empty:
-        walls_xml, wall_count = _build_walls_folder(walls, crs, centroid_offset, wall_buffer)
-        folders.append(walls_xml)
-
-    # 3 — Centerlines (unbuffered wall paths for GPS guidance)
+    # 2 — Cut-path centerlines (GPS guidance lines — one per tractor pass)
+    # Corn-row walls are intentionally excluded: they are a visual design aid
+    # with no meaning to the GPS operator.
     centerline_count = 0
-    if walls and not walls.is_empty:
+    if carved_paths:
         cl_xml, centerline_count = _build_centerlines_folder(
-            walls, crs, centroid_offset,
+            crs, centroid_offset,
             carved_paths=carved_paths,
             default_path_width=path_width,
         )
         folders.append(cl_xml)
-
-    # 4 — Headland walls
-    headland_count = 0
-    if headland_walls and not headland_walls.is_empty:
-        headland_xml, headland_count = _build_headland_folder(
-            headland_walls, crs, centroid_offset, wall_buffer,
-        )
-        folders.append(headland_xml)
 
     # 5 — Carved areas (cutting guide)
     carved_area_count = 0
@@ -1011,9 +985,7 @@ def export_maze_kml(
     return {
         "success": True,
         "path": str(output_path),
-        "wall_count": wall_count,
         "centerline_count": centerline_count,
-        "headland_count": headland_count,
         "carved_area_count": carved_area_count,
         "path_edge_count": path_edge_count,
         "cut_path_polygon_count": cut_path_polygon_count,
