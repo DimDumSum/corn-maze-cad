@@ -148,6 +148,47 @@ def load_project(filename: str):
     return {"success": True, "project": project}
 
 
+@router.post("/load-boundary")
+def load_boundary_from_project(filename: str):
+    """Load only the field boundary from a saved project file.
+
+    Restores the field geometry, CRS, and centroid offset to backend state
+    without touching any maze walls, design elements, or other project data.
+    Intended for reusing a previously-imported field across multiple designs.
+    """
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail={"error": "Invalid filename"})
+
+    filepath = PROJECTS_DIR / filename
+    if not str(filepath.resolve()).startswith(str(PROJECTS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail={"error": "Invalid filename"})
+
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail={"error": f"Project not found: {filename}"})
+
+    with open(filepath, 'r') as f:
+        project = json.load(f)
+
+    if not project.get("field"):
+        raise HTTPException(status_code=400, detail={"error": "Project contains no field boundary"})
+
+    # Restore backend CRS and offset
+    if "_backend_crs" in project:
+        app_state.current_crs = project["_backend_crs"]
+    if "_backend_offset" in project:
+        app_state.centroid_offset = tuple(project["_backend_offset"])
+
+    # Restore field geometry to backend state
+    field_data = project["field"]
+    if field_data.get("geometry") and "exterior" in field_data["geometry"]:
+        from shapely.geometry import Polygon
+        field_geom = Polygon(field_data["geometry"]["exterior"])
+        crs = field_data.get("crs", "EPSG:4326")
+        app_state.set_field(field_geom, crs, app_state.centroid_offset)
+
+    return {"success": True, "field": field_data}
+
+
 @router.get("/list")
 def list_projects():
     """List all saved projects."""

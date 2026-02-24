@@ -170,6 +170,11 @@ export async function listProjects(): Promise<{ projects: Array<{ filename: stri
   return response.json();
 }
 
+export async function loadBoundaryFromProject(filename: string): Promise<{ success: boolean; field?: any; error?: string }> {
+  const response = await fetch(`${API_BASE_URL}/project/load-boundary?filename=${encodeURIComponent(filename)}`, { method: 'POST' });
+  return response.json();
+}
+
 export async function deleteProject(filename: string): Promise<{ success: boolean }> {
   const response = await fetch(`${API_BASE_URL}/project/delete?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' });
   return response.json();
