@@ -564,7 +564,7 @@ def _build_cut_path_polygons_folder(
                 _polygon_to_kml_placemark(
                     wgs84_poly,
                     f"Cut Path Polygon {polygon_index}",
-                    style_url="#carvings",
+                    style_url="#carved",
                     extended_data=ext,
                 )
             )

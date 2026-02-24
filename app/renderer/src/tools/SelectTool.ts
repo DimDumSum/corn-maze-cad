@@ -29,7 +29,7 @@ import { API_BASE_URL } from '../api/client';
 // Track if we've pushed a snapshot for the current transform
 let transformSnapshotPushed = false;
 // Store original element data for rotation (need original points to rotate from)
-let originalElementsData: Map<string, { points: [number, number][]; center: [number, number] }> = new Map();
+let originalElementsData: Map<string, { points: [number, number][]; holes?: [number, number][][]; center: [number, number] }> = new Map();
 // Track current rotation angle for display
 let currentRotationAngle = 0;
 // Track current move distance for display
@@ -418,6 +418,7 @@ export const SelectTool: Tool = {
         for (const el of selectedElements) {
           originalElementsData.set(el.id, {
             points: el.points.map(p => [...p] as [number, number]),
+            holes: el.holes ? el.holes.map(ring => ring.map(p => [...p] as [number, number])) : undefined,
             center: [centerX, centerY],
           });
         }
@@ -465,6 +466,7 @@ export const SelectTool: Tool = {
           for (const el of selectedElements) {
             originalElementsData.set(el.id, {
               points: el.points.map(p => [...p] as [number, number]),
+              holes: el.holes ? el.holes.map(ring => ring.map(p => [...p] as [number, number])) : undefined,
               center: [(selectionBounds.minX + selectionBounds.maxX) / 2, (selectionBounds.minY + selectionBounds.maxY) / 2],
             });
           }
@@ -479,6 +481,7 @@ export const SelectTool: Tool = {
         originalElementsData.clear();
         originalElementsData.set(hitElement.id, {
           points: hitElement.points.map(p => [...p] as [number, number]),
+          holes: hitElement.holes ? hitElement.holes.map(ring => ring.map(p => [...p] as [number, number])) : undefined,
           center: [(newBounds.minX + newBounds.maxX) / 2, (newBounds.minY + newBounds.maxY) / 2],
         });
         startTransform('move', worldPos, newBounds);
@@ -597,6 +600,7 @@ export const SelectTool: Tool = {
             // Add the new element to originalElementsData so it moves with the drag
             originalElementsData.set(newId, {
               points: originalData.points.map(p => [...p] as [number, number]),
+              holes: originalData.holes ? originalData.holes.map(ring => ring.map(p => [...p] as [number, number])) : undefined,
               center: originalData.center,
             });
           }
@@ -622,7 +626,10 @@ export const SelectTool: Tool = {
           const originalData = originalElementsData.get(el.id);
           if (originalData) {
             const movedPoints: [number, number][] = originalData.points.map(([px, py]) => [px + dx, py + dy]);
-            updateElementNoHistory(el.id, { points: movedPoints });
+            const movedHoles = originalData.holes
+              ? originalData.holes.map(ring => ring.map(([px, py]) => [px + dx, py + dy] as [number, number]))
+              : undefined;
+            updateElementNoHistory(el.id, { points: movedPoints, holes: movedHoles });
           }
         }
       } else if (transformState.activeHandle === 'rotate') {
@@ -655,16 +662,17 @@ export const SelectTool: Tool = {
           const originalData = originalElementsData.get(el.id);
           if (originalData) {
             const [cx, cy] = originalData.center;
-            const rotatedPoints: [number, number][] = originalData.points.map(([px, py]) => {
+            const rotatePoint = ([px, py]: [number, number]): [number, number] => {
               const relX = px - cx;
               const relY = py - cy;
-              return [
-                cx + relX * cos - relY * sin,
-                cy + relX * sin + relY * cos,
-              ];
-            });
+              return [cx + relX * cos - relY * sin, cy + relX * sin + relY * cos];
+            };
+            const rotatedPoints: [number, number][] = originalData.points.map(rotatePoint);
+            const rotatedHoles = originalData.holes
+              ? originalData.holes.map(ring => ring.map(rotatePoint))
+              : undefined;
             // Update points and reset rotation property (since points are now rotated)
-            updateElementNoHistory(el.id, { points: rotatedPoints, rotation: 0 });
+            updateElementNoHistory(el.id, { points: rotatedPoints, holes: rotatedHoles, rotation: 0 });
           }
         }
       } else {
@@ -739,11 +747,15 @@ export const SelectTool: Tool = {
         for (const el of selectedElements) {
           const originalData = originalElementsData.get(el.id);
           if (originalData) {
-            const scaledPoints: [number, number][] = originalData.points.map(([px, py]) => [
+            const scalePoint = ([px, py]: [number, number]): [number, number] => [
               anchorX + (px - anchorX) * scaleX,
               anchorY + (py - anchorY) * scaleY,
-            ]);
-            updateElementNoHistory(el.id, { points: scaledPoints });
+            ];
+            const scaledPoints: [number, number][] = originalData.points.map(scalePoint);
+            const scaledHoles = originalData.holes
+              ? originalData.holes.map(ring => ring.map(scalePoint))
+              : undefined;
+            updateElementNoHistory(el.id, { points: scaledPoints, holes: scaledHoles });
           }
         }
       }
