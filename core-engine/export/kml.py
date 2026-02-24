@@ -148,14 +148,28 @@ def _linestring_to_kml_placemark(
     name: str,
     style_url: str = "",
     description: str = "",
+    extended_data: Optional[Dict] = None,
 ) -> str:
-    """Create a KML Placemark for a LineString."""
+    """Create a KML Placemark for a LineString.
+
+    Args:
+        extended_data: Optional dict of {name: value} pairs written as
+                       KML <ExtendedData><Data> elements (values coerced to str).
+    """
     coord_str = _coords_to_kml_string(coords)
     style_ref = f"\n      <styleUrl>{escape(style_url)}</styleUrl>" if style_url else ""
     desc_xml = f"\n      <description>{escape(description)}</description>" if description else ""
 
+    ext_xml = ""
+    if extended_data:
+        data_items = "\n".join(
+            f'        <Data name="{escape(k)}"><value>{escape(str(v))}</value></Data>'
+            for k, v in extended_data.items()
+        )
+        ext_xml = f"\n      <ExtendedData>\n{data_items}\n      </ExtendedData>"
+
     return f"""      <Placemark>
-        <name>{escape(name)}</name>{style_ref}{desc_xml}
+        <name>{escape(name)}</name>{style_ref}{desc_xml}{ext_xml}
         <LineString>
           <tessellate>1</tessellate>
           <coordinates>{coord_str}</coordinates>
@@ -439,17 +453,54 @@ def _build_centerlines_folder(
     walls: BaseGeometry,
     crs: str,
     offset: Tuple[float, float],
+    carved_paths: Optional[List[Dict]] = None,
+    default_path_width: Optional[float] = None,
 ) -> Tuple[str, int]:
-    """Build the Centerlines folder (unbuffered wall path LineStrings). Returns (xml, count)."""
-    linestrings = _walls_to_linestrings(walls)
+    """Build the Centerlines folder.
+
+    Contains two groups:
+    - Wall row centerlines (corn row lines; annotated with *default_path_width* when given)
+    - Carved path centerlines (the GPS mowing lines), each with its individual
+      ``path_width`` in <ExtendedData> to support mixed-width mazes.
+
+    Returns (xml, total_count).
+    """
+    from shapely.geometry import LineString as _LS
 
     placemarks = []
-    for i, line in enumerate(linestrings):
+
+    # --- Wall row centerlines ---
+    wall_ext = {"path_width": round(default_path_width, 4)} if default_path_width is not None else None
+    for i, line in enumerate(_walls_to_linestrings(walls)):
         uncentered = _uncenter_geometry(line, offset)
         wgs84_line = _reproject_to_wgs84(uncentered, crs)
-        coords = list(wgs84_line.coords)
         placemarks.append(
-            _linestring_to_kml_placemark(coords, f"Centerline {i + 1}", style_url="#centerline")
+            _linestring_to_kml_placemark(
+                list(wgs84_line.coords),
+                f"Centerline {i + 1}",
+                style_url="#centerline",
+                extended_data=wall_ext,
+            )
+        )
+
+    # --- Carved path centerlines (individual cutting widths) ---
+    for j, cp in enumerate(carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2:
+            continue
+        line = _LS([(p[0], p[1]) for p in pts])
+        line = densify_curves(line)
+        uncentered = _uncenter_geometry(line, offset)
+        wgs84_line = _reproject_to_wgs84(uncentered, crs)
+        ext = {"path_width": round(float(width), 4)} if width is not None else None
+        placemarks.append(
+            _linestring_to_kml_placemark(
+                list(wgs84_line.coords),
+                f"Cut Path {j + 1}",
+                style_url="#centerline",
+                extended_data=ext,
+            )
         )
 
     placemarks_xml = "\n".join(placemarks)
@@ -460,7 +511,7 @@ def _build_centerlines_folder(
 {placemarks_xml}
     </Folder>"""
 
-    return folder, len(linestrings)
+    return folder, len(placemarks)
 
 
 def _build_headland_folder(
@@ -694,6 +745,7 @@ def export_maze_kml(
     emergency_exits: Optional[List[Tuple[float, float]]] = None,
     solution_path: Optional[List[Tuple[float, float]]] = None,
     carved_areas: Optional[BaseGeometry] = None,
+    carved_paths: Optional[List[Dict]] = None,
     wall_buffer: float = 1.0,
     path_width: Optional[float] = None,
     base_name: str = "maze",
@@ -716,8 +768,9 @@ def export_maze_kml(
         emergency_exits: Emergency exit coordinates (centered)
         solution_path: Solution path waypoints (centered)
         carved_areas: Carved area geometry (cutting guide polygons)
+        carved_paths: List of {'points': [...], 'width': float} from carve operations
         wall_buffer: Buffer width (meters) to convert lines to polygons
-        path_width: Navigable path width (meters), included in metadata
+        path_width: Default path width (meters); per-path widths in carved_paths override
         base_name: Output filename stem
         output_dir: Output directory (default: Downloads)
 
@@ -757,7 +810,11 @@ def export_maze_kml(
     # 3 — Centerlines (unbuffered wall paths for GPS guidance)
     centerline_count = 0
     if walls and not walls.is_empty:
-        cl_xml, centerline_count = _build_centerlines_folder(walls, crs, centroid_offset)
+        cl_xml, centerline_count = _build_centerlines_folder(
+            walls, crs, centroid_offset,
+            carved_paths=carved_paths,
+            default_path_width=path_width,
+        )
         folders.append(cl_xml)
 
     # 4 — Headland walls
