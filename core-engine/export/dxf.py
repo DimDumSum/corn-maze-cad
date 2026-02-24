@@ -40,7 +40,7 @@ TABLE
   2
 LAYER
  70
-5
+6
   0
 LAYER
   2
@@ -89,6 +89,16 @@ CENTERLINES
 0
  62
 3
+  6
+CONTINUOUS
+  0
+LAYER
+  2
+CutPathPolygons
+ 70
+0
+ 62
+2
   6
 CONTINUOUS
   0
@@ -292,12 +302,41 @@ def export_maze_dxf(
         if len(pts) < 2:
             continue
         from shapely.geometry import LineString as _LS
-        from geometry.operations import densify_curves as _dc
+        from geometry.operations import densify_curves as _dc, smooth_buffer as _sb
         line = _dc(_LS([(p[0], p[1]) for p in pts]))
         coords = list(line.coords)
         pw = float(width) if width is not None else default_path_width
         content += _line_to_dxf(coords, "CENTERLINES", path_width=pw)
         centerline_count += 1
+
+    # Write individual cut path polygons on CutPathPolygons layer
+    # Each polygon is the exact buffered shape of one carving pass, so GPS
+    # apps can fill smooth vector shapes without a raster template image.
+    cut_path_polygon_count = 0
+    from shapely.geometry import LineString as _LS2, MultiPolygon as _MP2
+    from geometry.operations import densify_curves as _dc2, smooth_buffer as _sb2
+    for cp in (carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2 or not width:
+            continue
+        poly = _sb2(_LS2([(p[0], p[1]) for p in pts]), float(width) / 2.0, cap_style=1)
+        if poly is None or poly.is_empty:
+            continue
+        pw = float(width) if width is not None else default_path_width
+        sub_polys = list(poly.geoms) if isinstance(poly, _MP2) else [poly]
+        for sub in sub_polys:
+            if sub.is_empty:
+                continue
+            ring = list(_dc2(sub).exterior.coords)
+            content += _polyline_to_dxf(ring, "CutPathPolygons", closed=True)
+            if pw is not None:
+                content += (
+                    "1001\nCORNMAZECAD\n"
+                    "1000\npath_width\n"
+                    f"1040\n{pw:.4f}\n"
+                )
+            cut_path_polygon_count += 1
 
     content += _write_dxf_footer()
 
@@ -310,4 +349,5 @@ def export_maze_dxf(
         "wall_count": wall_count,
         "path_edge_count": path_edge_count,
         "centerline_count": centerline_count,
+        "cut_path_polygon_count": cut_path_polygon_count,
     }

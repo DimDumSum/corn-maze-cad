@@ -82,10 +82,12 @@ def _polygon_to_kml_placemark(
     name: str,
     style_url: str = "",
     description: str = "",
+    extended_data: Optional[Dict] = None,
 ) -> str:
     """Convert a Shapely Polygon to a KML Placemark XML string.
 
-    Supports exterior ring and interior rings (holes / donuts).
+    Supports exterior ring, interior rings (holes / donuts), and optional
+    <ExtendedData> key/value pairs.
     """
     exterior_coords = list(polygon.exterior.coords)
     coord_str = _coords_to_kml_string(exterior_coords)
@@ -104,8 +106,16 @@ def _polygon_to_kml_placemark(
     style_ref = f"\n      <styleUrl>{escape(style_url)}</styleUrl>" if style_url else ""
     desc_xml = f"\n      <description>{escape(description)}</description>" if description else ""
 
+    ext_xml = ""
+    if extended_data:
+        data_items = "\n".join(
+            f'        <Data name="{escape(k)}"><value>{escape(str(v))}</value></Data>'
+            for k, v in extended_data.items()
+        )
+        ext_xml = f"\n      <ExtendedData>\n{data_items}\n      </ExtendedData>"
+
     xml = f"""      <Placemark>
-        <name>{escape(name)}</name>{style_ref}{desc_xml}
+        <name>{escape(name)}</name>{style_ref}{desc_xml}{ext_xml}
         <Polygon>
           <outerBoundaryIs>
             <LinearRing>
@@ -514,6 +524,68 @@ def _build_centerlines_folder(
     return folder, len(placemarks)
 
 
+def _build_cut_path_polygons_folder(
+    carved_paths: List[Dict],
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the CutPathPolygons folder.
+
+    Each carved path centerline is re-buffered at its recorded width to
+    produce the exact closed polygon that was cut through the corn.  This
+    gives GPS rendering apps smooth vector-filled shapes without depending
+    on a raster template.
+
+    Returns (xml, polygon_count).
+    """
+    from shapely.geometry import MultiPolygon as _MP
+
+    placemarks = []
+    polygon_index = 1
+
+    for cp in carved_paths:
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2 or not width:
+            continue
+
+        line = LineString([(p[0], p[1]) for p in pts])
+        poly = smooth_buffer(line, float(width) / 2.0, cap_style=1)
+        if poly is None or poly.is_empty:
+            continue
+
+        ext = {"path_width": round(float(width), 4), "type": "cut_path_polygon"}
+
+        # Handle MultiPolygon (rare but possible for very curved/self-crossing paths)
+        sub_polys = list(poly.geoms) if isinstance(poly, _MP) else [poly]
+
+        for sub in sub_polys:
+            if sub.is_empty:
+                continue
+            dense = densify_curves(sub)
+            uncentered = _uncenter_geometry(dense, offset)
+            wgs84_poly = _reproject_to_wgs84(uncentered, crs)
+            placemarks.append(
+                _polygon_to_kml_placemark(
+                    wgs84_poly,
+                    f"Cut Path Polygon {polygon_index}",
+                    style_url="#carvings",
+                    extended_data=ext,
+                )
+            )
+            polygon_index += 1
+
+    placemarks_xml = "\n".join(placemarks)
+
+    folder = f"""    <Folder>
+      <name>CutPathPolygons</name>
+      <open>0</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(placemarks)
+
+
 def _build_headland_folder(
     headland_walls: BaseGeometry,
     crs: str,
@@ -841,7 +913,15 @@ def export_maze_kml(
         )
         folders.append(pe_xml)
 
-    # 7 — Entrances
+    # 7 — Individual cut path polygons (one closed polygon per carving pass)
+    cut_path_polygon_count = 0
+    if carved_paths:
+        cpp_xml, cut_path_polygon_count = _build_cut_path_polygons_folder(
+            carved_paths, crs, centroid_offset,
+        )
+        folders.append(cpp_xml)
+
+    # 9 — Entrances
     point_count = 0
     if entrances:
         ent_xml, ent_count = _build_entrances_folder(entrances, crs, centroid_offset)
@@ -849,14 +929,14 @@ def export_maze_kml(
             folders.append(ent_xml)
             point_count += ent_count
 
-    # 8 — Exits
+    # 10 — Exits
     if exits:
         exit_xml, exit_count = _build_exits_folder(exits, crs, centroid_offset)
         if exit_xml:
             folders.append(exit_xml)
             point_count += exit_count
 
-    # 9 — Emergency exits
+    # 11 — Emergency exits
     if emergency_exits:
         emex_xml, emex_count = _build_emergency_exits_folder(
             emergency_exits, crs, centroid_offset,
@@ -865,13 +945,13 @@ def export_maze_kml(
             folders.append(emex_xml)
             point_count += emex_count
 
-    # 10 — Solution path
+    # 12 — Solution path
     has_solution = False
     if solution_path and len(solution_path) >= 2:
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
         has_solution = True
 
-    # 11 — Design overlay image (GroundOverlay for KMZ)
+    # 13 — Design overlay image (GroundOverlay for KMZ)
     template_png_bytes = _render_design_png(field, walls)
     has_overlay = bool(template_png_bytes)
     if has_overlay:
@@ -927,6 +1007,7 @@ def export_maze_kml(
         "headland_count": headland_count,
         "carved_area_count": carved_area_count,
         "path_edge_count": path_edge_count,
+        "cut_path_polygon_count": cut_path_polygon_count,
         "point_count": point_count,
         "has_solution": has_solution,
         "has_overlay": has_overlay,

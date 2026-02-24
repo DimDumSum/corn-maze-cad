@@ -136,7 +136,7 @@ def export_prescription_map(
             })
 
     # Add carved path centerline features with individual path_width properties
-    from shapely.geometry import LineString as _LS
+    from shapely.geometry import LineString as _LS, MultiPolygon as _MP
     for cp in (carved_paths or []):
         pts = cp.get("points", [])
         width = cp.get("width")
@@ -152,6 +152,28 @@ def export_prescription_map(
                 "path_width": round(float(width), 4) if width is not None else path_width,
             },
             "geometry": mapping(cl_wgs84),
+        })
+
+    # Add individual cut path polygons — exact buffered shape of every carving pass.
+    # GPS apps use these to render smooth filled vector areas instead of a raster image.
+    for cp in (carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2 or not width:
+            continue
+        poly = smooth_buffer(_LS([(p[0], p[1]) for p in pts]), float(width) / 2.0, cap_style=1)
+        if poly is None or poly.is_empty:
+            continue
+        dense = densify_curves(poly)
+        cpp_geo = _uncenter_geometry(dense, centroid_offset)
+        cpp_wgs84 = transform(transformer.transform, cpp_geo)
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "type": "cut_path_polygon",
+                "path_width": round(float(width), 4),
+            },
+            "geometry": mapping(cpp_wgs84),
         })
 
     geojson = {
