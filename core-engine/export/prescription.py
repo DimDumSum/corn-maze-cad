@@ -24,6 +24,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
 
 from .shapefile import get_downloads_folder
+from geometry.operations import smooth_buffer, densify_curves, extract_path_edge_lines
 
 
 def _uncenter_geometry(geom: BaseGeometry, centroid_offset: Tuple[float, float]) -> BaseGeometry:
@@ -36,6 +37,7 @@ def export_prescription_map(
     walls: BaseGeometry,
     crs: str,
     centroid_offset: Tuple[float, float],
+    carved_areas: Optional[BaseGeometry] = None,
     path_width: float = 2.5,
     seed_rate_corn: float = 38000,
     seed_rate_path: float = 0,
@@ -75,9 +77,9 @@ def export_prescription_map(
         png_path = output_dir / f"{base_name}_{timestamp}_preview.png"
 
     # Build path zones: areas between walls where paths exist
-    # Paths = field minus (walls buffered by path_width/2)
+    # Paths = field minus (walls buffered by path_width/2), smooth arc caps
     if walls and not walls.is_empty:
-        corn_zone = walls.buffer(path_width / 2.0, cap_style=2, join_style=2)
+        corn_zone = smooth_buffer(walls, path_width / 2.0, cap_style=2, join_style=2)
         corn_zone = corn_zone.intersection(field)
         path_zone = field.difference(corn_zone)
     else:
@@ -94,7 +96,7 @@ def export_prescription_map(
     features = []
 
     if not corn_geo.is_empty:
-        corn_wgs84 = transform(transformer.transform, corn_geo)
+        corn_wgs84 = transform(transformer.transform, densify_curves(corn_geo))
         features.append({
             "type": "Feature",
             "properties": {
@@ -106,7 +108,7 @@ def export_prescription_map(
         })
 
     if path_geo and not path_geo.is_empty:
-        path_wgs84 = transform(transformer.transform, path_geo)
+        path_wgs84 = transform(transformer.transform, densify_curves(path_geo))
         features.append({
             "type": "Feature",
             "properties": {
@@ -116,6 +118,19 @@ def export_prescription_map(
             },
             "geometry": mapping(path_wgs84),
         })
+
+    # Add path edge LineString features (the physical cut/stand boundary lines)
+    if carved_areas and not carved_areas.is_empty:
+        for edge_line in extract_path_edge_lines(carved_areas):
+            edge_geo = _uncenter_geometry(edge_line, centroid_offset)
+            edge_wgs84 = transform(transformer.transform, edge_geo)
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "type": "path_edge",
+                },
+                "geometry": mapping(edge_wgs84),
+            })
 
     geojson = {
         "type": "FeatureCollection",

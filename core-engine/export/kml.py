@@ -30,6 +30,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
 
 from .shapefile import get_downloads_folder
+from geometry.operations import smooth_buffer, densify_curves, extract_path_edge_lines
 
 
 # ---------------------------------------------------------------------------
@@ -182,8 +183,8 @@ def _walls_to_polygons(walls: BaseGeometry, buffer_width: float = 1.0) -> List[P
     if walls is None or walls.is_empty:
         return polygons
 
-    # Buffer the walls to create polygon strips
-    buffered = walls.buffer(buffer_width, cap_style=2, join_style=2)
+    # Buffer the walls to create polygon strips (high vertex density on arc sections)
+    buffered = smooth_buffer(walls, buffer_width, cap_style=2, join_style=2)
 
     if buffered.is_empty:
         return polygons
@@ -376,6 +377,9 @@ def _build_styles() -> str:
     </Style>
     <Style id="solution">
       <LineStyle><color>ff3232dc</color><width>4</width></LineStyle>
+    </Style>
+    <Style id="path_edge">
+      <LineStyle><color>ff00ffff</color><width>2</width></LineStyle>
     </Style>"""
 
 
@@ -389,7 +393,7 @@ def _build_boundary_folder(
     offset: Tuple[float, float],
 ) -> str:
     """Build the Boundary folder containing the outer-field polygon."""
-    uncentered = _uncenter_geometry(field, offset)
+    uncentered = _uncenter_geometry(densify_curves(field), offset)
     wgs84 = _reproject_to_wgs84(uncentered, crs)
 
     placemark = _polygon_to_kml_placemark(
@@ -414,7 +418,7 @@ def _build_walls_folder(
 
     placemarks = []
     for i, poly in enumerate(wall_polygons):
-        uncentered = _uncenter_geometry(poly, offset)
+        uncentered = _uncenter_geometry(densify_curves(poly), offset)
         wgs84_poly = _reproject_to_wgs84(uncentered, crs)
         placemarks.append(
             _polygon_to_kml_placemark(wgs84_poly, f"Wall {i + 1}", style_url="#wall")
@@ -470,7 +474,7 @@ def _build_headland_folder(
 
     placemarks = []
     for i, poly in enumerate(polygons):
-        uncentered = _uncenter_geometry(poly, offset)
+        uncentered = _uncenter_geometry(densify_curves(poly), offset)
         wgs84_poly = _reproject_to_wgs84(uncentered, crs)
         placemarks.append(
             _polygon_to_kml_placemark(wgs84_poly, f"Headland {i + 1}", style_url="#headland")
@@ -596,7 +600,7 @@ def _build_carved_areas_folder(
 
     placemarks = []
     for i, poly in enumerate(polygons):
-        uncentered = _uncenter_geometry(poly, offset)
+        uncentered = _uncenter_geometry(densify_curves(poly), offset)
         wgs84_poly = _reproject_to_wgs84(uncentered, crs)
         placemarks.append(
             _polygon_to_kml_placemark(
@@ -613,6 +617,40 @@ def _build_carved_areas_folder(
     </Folder>"""
 
     return folder, len(polygons)
+
+
+def _build_path_edges_folder(
+    carved_areas: BaseGeometry,
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the PathEdges folder (perimeter edges of carved paths). Returns (xml, count).
+
+    Each placemark is the exterior boundary of one carved-path polygon —
+    i.e. the physical line where standing corn meets cut corn on all sides
+    of a cutting pass.  Styled bright yellow for GPS visibility.
+    """
+    edge_lines = extract_path_edge_lines(carved_areas)
+
+    placemarks = []
+    for i, line in enumerate(edge_lines):
+        uncentered = _uncenter_geometry(line, offset)
+        wgs84_line = _reproject_to_wgs84(uncentered, crs)
+        coords = list(wgs84_line.coords)
+        placemarks.append(
+            _linestring_to_kml_placemark(
+                coords, f"Path Edge {i + 1}", style_url="#path_edge",
+            )
+        )
+
+    placemarks_xml = "\n".join(placemarks)
+    folder = f"""    <Folder>
+      <name>PathEdges</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(edge_lines)
 
 
 def _build_solution_folder(
@@ -738,7 +776,15 @@ def export_maze_kml(
         )
         folders.append(carved_xml)
 
-    # 6 — Entrances
+    # 6 — Path edges (perimeter of each carved path — the cut/stand boundary)
+    path_edge_count = 0
+    if carved_areas and not carved_areas.is_empty:
+        pe_xml, path_edge_count = _build_path_edges_folder(
+            carved_areas, crs, centroid_offset,
+        )
+        folders.append(pe_xml)
+
+    # 7 — Entrances
     point_count = 0
     if entrances:
         ent_xml, ent_count = _build_entrances_folder(entrances, crs, centroid_offset)
@@ -746,14 +792,14 @@ def export_maze_kml(
             folders.append(ent_xml)
             point_count += ent_count
 
-    # 7 — Exits
+    # 8 — Exits
     if exits:
         exit_xml, exit_count = _build_exits_folder(exits, crs, centroid_offset)
         if exit_xml:
             folders.append(exit_xml)
             point_count += exit_count
 
-    # 8 — Emergency exits
+    # 9 — Emergency exits
     if emergency_exits:
         emex_xml, emex_count = _build_emergency_exits_folder(
             emergency_exits, crs, centroid_offset,
@@ -762,13 +808,13 @@ def export_maze_kml(
             folders.append(emex_xml)
             point_count += emex_count
 
-    # 9 — Solution path
+    # 10 — Solution path
     has_solution = False
     if solution_path and len(solution_path) >= 2:
         folders.append(_build_solution_folder(solution_path, crs, centroid_offset))
         has_solution = True
 
-    # 10 — Design overlay image (GroundOverlay for KMZ)
+    # 11 — Design overlay image (GroundOverlay for KMZ)
     template_png_bytes = _render_design_png(field, walls)
     has_overlay = bool(template_png_bytes)
     if has_overlay:
@@ -823,6 +869,7 @@ def export_maze_kml(
         "centerline_count": centerline_count,
         "headland_count": headland_count,
         "carved_area_count": carved_area_count,
+        "path_edge_count": path_edge_count,
         "point_count": point_count,
         "has_solution": has_solution,
         "has_overlay": has_overlay,

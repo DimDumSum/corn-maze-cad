@@ -450,6 +450,7 @@ def compute_planter_grid(req: PlanterGridRequest):
     """
     from shapely.geometry import LineString, Polygon
     from shapely.ops import unary_union
+    from geometry.operations import smooth_buffer
     import math
 
     field = app_state.get_field()
@@ -471,7 +472,7 @@ def compute_planter_grid(req: PlanterGridRequest):
         for i in range(total_headland_rows):
             # Offset from boundary edge: first row at half-spacing, then each row_spacing
             offset = row_spacing_m * (i + 0.5)
-            ring = field.buffer(-offset)
+            ring = smooth_buffer(field, -offset)
 
             if ring.is_empty or ring.area <= 0:
                 break
@@ -500,7 +501,7 @@ def compute_planter_grid(req: PlanterGridRequest):
         headland_poly = None
         planting_area = field
         if headland_inset > 0:
-            inset = field.buffer(-headland_inset)
+            inset = smooth_buffer(field, -headland_inset)
             if not inset.is_empty and inset.area > 0:
                 if inset.geom_type == 'MultiPolygon':
                     planting_area = max(inset.geoms, key=lambda g: g.area)

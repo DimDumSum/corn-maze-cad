@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from state import app_state
-from .operations import carve_path, flatten_geometry
+from .operations import carve_path, flatten_geometry, smooth_buffer, densify_curves
 
 router = APIRouter()
 
@@ -72,9 +72,9 @@ def carve_path_endpoint(req: PathRequest):
         # Convert points to list of tuples
         points = [(p[0], p[1]) for p in req.points]
 
-        # Create the carve polygon for edge tracking
+        # Create the carve polygon for edge tracking (smooth, high vertex density)
         path_line = LineString(points)
-        carve_polygon = path_line.buffer(req.width / 2.0, cap_style=1)
+        carve_polygon = smooth_buffer(path_line, req.width / 2.0, cap_style=1)
 
         # Carve the path
         updated_walls, warning = carve_path(
@@ -152,7 +152,7 @@ def uncarve_path_endpoint(req: PathRequest):
             raise ValueError("Path too short (need at least 2 points)")
 
         path_line = LineString(points)
-        restore_region = path_line.buffer(req.width / 2.0, cap_style=1)
+        restore_region = smooth_buffer(path_line, req.width / 2.0, cap_style=1)
 
         # Get original walls clipped to the restore region
         restored_segments = original_walls.intersection(restore_region)
@@ -432,8 +432,8 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
         if req.fillMode == 'stroke' and req.strokeWidth and req.strokeWidth > 0:
             stroke_w = req.strokeWidth * scale_factor  # scale stroke width to match
             # Buffer outward and inward, then subtract to get the outline ring
-            outer = combined.buffer(stroke_w / 2)
-            inner = combined.buffer(-stroke_w / 2)
+            outer = smooth_buffer(combined, stroke_w / 2)
+            inner = smooth_buffer(combined, -stroke_w / 2)
             combined = outer.difference(inner)
             print(f"[Text] Stroke mode: strokeWidth={req.strokeWidth}m (scaled={stroke_w:.4f}), created outline")
 
@@ -1235,7 +1235,7 @@ def validate_design(req: ValidateRequest):
                 continue
 
             line = LineString(points)
-            buffered = line.buffer(el.width / 2.0, cap_style=1)
+            buffered = smooth_buffer(line, el.width / 2.0, cap_style=1)
             print(f"[Validation]   -> Created buffered line, length={line.length:.2f}m, width={el.width}m")
             element_geometries.append((el.id, el.type, buffered, points, el.width))
 
@@ -1420,7 +1420,7 @@ def validate_design(req: ValidateRequest):
             field_coords = [(p[0], p[1]) for p in req.field['exterior']]
             field_polygon = Polygon(field_coords)
             # Create inset boundary for edge buffer
-            inset_boundary = field_polygon.buffer(-req.constraints.edgeBuffer)
+            inset_boundary = smooth_buffer(field_polygon, -req.constraints.edgeBuffer)
 
             for el_id, el_type, geom, points, width in element_geometries:
                 if inset_boundary.is_empty:
@@ -1561,14 +1561,14 @@ def auto_fix_violations(req: AutoFixRequest):
             line = LineString(points)
             width = el_data.get("width", 3.0)
             if width > 0:
-                return line.buffer(width / 2.0, cap_style=1)
+                return smooth_buffer(line, width / 2.0, cap_style=1)
             return line
 
         # Fix 1: Edge buffer violations - move elements inward
         if req.field and 'exterior' in req.field:
             field_coords = [(p[0], p[1]) for p in req.field['exterior']]
             field_polygon = Polygon(field_coords)
-            inset_boundary = field_polygon.buffer(-req.constraints.edgeBuffer)
+            inset_boundary = smooth_buffer(field_polygon, -req.constraints.edgeBuffer)
 
             for el_data in elements_data:
                 geom = build_geom(el_data)
@@ -1932,7 +1932,7 @@ def carve_batch(req: CarveBatchRequest):
                     # PATHS/LINES: Buffer the line to create width (stroke)
                     print(f"[Batch Carve] Processing as BUFFERED LINE: {el.id[:8]} (type={el.type}, width={el.width}m)")
                     line = LineString(points)
-                    buffered = line.buffer(el.width / 2.0, cap_style=1, join_style=1)
+                    buffered = smooth_buffer(line, el.width / 2.0, cap_style=1, join_style=1)
                     carve_geoms.append(buffered)
                     print(f"[Batch Carve]   -> ADDED buffered line to carve_geoms")
 
