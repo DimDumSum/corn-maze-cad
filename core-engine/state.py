@@ -44,6 +44,11 @@ class AppState:
             # Carved path centerlines: [{'points': [[x,y],...], 'width': float}]
             # Populated by /carve and /carve-batch; reset when all carvings are cleared.
             cls._instance.carved_paths: List[Dict] = []
+            # Individual carved polygon areas: [{'wkt': str, 'type': str}]
+            # Populated by /carve-batch for closed/polygon elements (text, clipart).
+            # Kept separate from the merged carved_areas so the KML exporter can emit
+            # one polygon placemark per element rather than one merged blob.
+            cls._instance.carved_polygons: List[Dict] = []
         return cls._instance
 
     def set_field(self, field: BaseGeometry, crs: str, centroid_offset: tuple = None):
@@ -59,6 +64,7 @@ class AppState:
         self.carved_edges = None
         self.carved_areas = None
         self.carved_paths = []
+        self.carved_polygons = []
 
     def set_walls(self, walls: BaseGeometry):
         """Set the current maze walls."""
@@ -113,6 +119,7 @@ class AppState:
         self.carved_areas = areas
         if areas is None:
             self.carved_paths = []
+            self.carved_polygons = []
 
     def get_carved_areas(self) -> Optional[BaseGeometry]:
         """Get the accumulated carve eraser polygons."""
@@ -128,6 +135,23 @@ class AppState:
     def get_carved_paths(self) -> List[Dict]:
         """Return all stored carved path centerlines with widths."""
         return list(self.carved_paths)
+
+    def add_carved_polygon(self, polygon: BaseGeometry, element_type: str = "polygon"):
+        """Record an individual carved polygon area (text, clipart, etc.).
+
+        Unlike carved_areas (which is the running union of all carved eraser shapes),
+        this list keeps one entry per design element so the KML exporter can emit a
+        separate, clean polygon placemark for each letter / clipart shape instead of
+        one large merged blob.
+        """
+        self.carved_polygons.append({
+            'wkt': polygon.wkt,
+            'type': element_type,
+        })
+
+    def get_carved_polygons(self) -> List[Dict]:
+        """Return individually stored carved polygon areas."""
+        return list(self.carved_polygons)
 
     # --- Layer management ---
 
@@ -169,6 +193,7 @@ class AppState:
         self.carved_edges = None
         self.carved_areas = None
         self.carved_paths = []
+        self.carved_polygons = []
         self.layers = []
         self.entrances = []
         self.exits = []

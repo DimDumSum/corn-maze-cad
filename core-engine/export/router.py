@@ -114,6 +114,7 @@ def export_kml_endpoint(
             solution_path=solution_path,
             carved_areas=app_state.get_carved_areas(),
             carved_paths=app_state.get_carved_paths(),
+            carved_polygons=app_state.get_carved_polygons(),
             path_width=path_width,
             base_name=name,
         )

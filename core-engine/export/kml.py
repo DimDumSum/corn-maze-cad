@@ -413,6 +413,10 @@ def _build_styles() -> str:
     </Style>
     <Style id="path_edge">
       <LineStyle><color>ff00ffff</color><width>2</width></LineStyle>
+    </Style>
+    <Style id="design_area">
+      <LineStyle><color>ff0066ff</color><width>2</width></LineStyle>
+      <PolyStyle><color>6600aaff</color></PolyStyle>
     </Style>"""
 
 
@@ -737,18 +741,108 @@ def _build_carved_areas_folder(
     return folder, len(polygons)
 
 
+def _build_design_areas_folder(
+    carved_polygons: List[Dict],
+    crs: str,
+    offset: Tuple[float, float],
+) -> Tuple[str, int]:
+    """Build the DesignCutAreas folder.
+
+    Emits one KML Polygon placemark per individual carved design element
+    (text letter, clipart shape, etc.).  Unlike CarvedAreas (which merges
+    everything into one blob), each entry here is a separate polygon so
+    MazeGPS and other viewers can display individual letter shapes as
+    distinct GPS guidance areas — complete with interior rings for letters
+    like O, D, B, P, Q, and R that have enclosed counters.
+
+    Returns (xml, polygon_count).
+    """
+    import shapely.wkt as _wkt
+
+    placemarks = []
+
+    for i, cp in enumerate(carved_polygons):
+        wkt_str = cp.get('wkt', '')
+        elem_type = cp.get('type', 'design')
+        if not wkt_str:
+            continue
+        try:
+            geom = _wkt.loads(wkt_str)
+        except Exception:
+            continue
+        if geom is None or geom.is_empty:
+            continue
+
+        sub_polys = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
+        for sub in sub_polys:
+            if sub.is_empty or not isinstance(sub, Polygon):
+                continue
+            dense = densify_curves(sub)
+            uncentered = _uncenter_geometry(dense, offset)
+            wgs84_poly = _reproject_to_wgs84(uncentered, crs)
+            placemarks.append(
+                _polygon_to_kml_placemark(
+                    wgs84_poly,
+                    f"Design Cut Area {i + 1}",
+                    style_url="#design_area",
+                    extended_data={"element_type": elem_type},
+                )
+            )
+
+    placemarks_xml = "\n".join(placemarks)
+    folder = f"""    <Folder>
+      <name>DesignCutAreas</name>
+      <open>1</open>
+{placemarks_xml}
+    </Folder>"""
+
+    return folder, len(placemarks)
+
+
 def _build_path_edges_folder(
     carved_areas: BaseGeometry,
     crs: str,
     offset: Tuple[float, float],
+    carved_polygons: Optional[List[Dict]] = None,
 ) -> Tuple[str, int]:
     """Build the PathEdges folder (perimeter edges of carved paths). Returns (xml, count).
 
-    Each placemark is the exterior boundary of one carved-path polygon —
-    i.e. the physical line where standing corn meets cut corn on all sides
-    of a cutting pass.  Styled bright yellow for GPS visibility.
+    When individual carved_polygons are available (from text / clipart carving)
+    each polygon's exterior ring AND its interior rings (letter counters like the
+    hole in O, D, B, etc.) are exported as separate LineString placemarks.  This
+    gives MazeGPS a clean edge line on BOTH sides of every letter stroke.
+
+    Falls back to the exterior ring of the merged carved_areas when no individual
+    polygon data is present (e.g. projects saved before this feature was added).
+    Styled bright yellow-cyan for GPS visibility.
     """
-    edge_lines = extract_path_edge_lines(carved_areas)
+    import shapely.wkt as _wkt
+
+    edge_lines: List[LineString] = []
+
+    if carved_polygons:
+        # Per-element rings give clean, per-letter edges on both sides.
+        for cp in carved_polygons:
+            wkt_str = cp.get('wkt', '')
+            if not wkt_str:
+                continue
+            try:
+                geom = _wkt.loads(wkt_str)
+            except Exception:
+                continue
+            if geom is None or geom.is_empty:
+                continue
+            sub_polys = list(geom.geoms) if isinstance(geom, MultiPolygon) else [geom]
+            for sub in sub_polys:
+                if sub.is_empty or not isinstance(sub, Polygon):
+                    continue
+                # Outer edge of the letter stroke
+                edge_lines.append(densify_curves(LineString(list(sub.exterior.coords))))
+                # Inner edge(s) — the counter inside letters like O, D, B, P, Q, R
+                for interior in sub.interiors:
+                    edge_lines.append(densify_curves(LineString(list(interior.coords))))
+    else:
+        edge_lines = extract_path_edge_lines(carved_areas)
 
     placemarks = []
     for i, line in enumerate(edge_lines):
@@ -813,6 +907,7 @@ def export_maze_kml(
     solution_path: Optional[List[Tuple[float, float]]] = None,
     carved_areas: Optional[BaseGeometry] = None,
     carved_paths: Optional[List[Dict]] = None,
+    carved_polygons: Optional[List[Dict]] = None,
     wall_buffer: float = 1.0,
     path_width: Optional[float] = None,
     base_name: str = "maze",
@@ -880,7 +975,7 @@ def export_maze_kml(
         )
         folders.append(cl_xml)
 
-    # 5 — Carved areas (cutting guide)
+    # 5 — Carved areas (cutting guide — merged union, reference layer)
     carved_area_count = 0
     if carved_areas and not carved_areas.is_empty:
         carved_xml, carved_area_count = _build_carved_areas_folder(
@@ -888,11 +983,24 @@ def export_maze_kml(
         )
         folders.append(carved_xml)
 
-    # 6 — Path edges (perimeter of each carved path — the cut/stand boundary)
+    # 5b — Individual design element areas (text letters, clipart shapes).
+    # Each polygon is emitted separately so GPS viewers show clean per-letter
+    # shapes instead of one merged blob, and so interior rings (letter counters
+    # like the hole in O, D, B) are preserved.
+    design_area_count = 0
+    if carved_polygons:
+        da_xml, design_area_count = _build_design_areas_folder(
+            carved_polygons, crs, centroid_offset,
+        )
+        folders.append(da_xml)
+
+    # 6 — Path edges (perimeter of each carved path — the cut/stand boundary).
+    # Uses individual polygon rings when available for clean per-letter edges.
     path_edge_count = 0
     if carved_areas and not carved_areas.is_empty:
         pe_xml, path_edge_count = _build_path_edges_folder(
             carved_areas, crs, centroid_offset,
+            carved_polygons=carved_polygons or [],
         )
         folders.append(pe_xml)
 
@@ -987,6 +1095,7 @@ def export_maze_kml(
         "path": str(output_path),
         "centerline_count": centerline_count,
         "carved_area_count": carved_area_count,
+        "design_area_count": design_area_count,
         "path_edge_count": path_edge_count,
         "cut_path_polygon_count": cut_path_polygon_count,
         "point_count": point_count,
