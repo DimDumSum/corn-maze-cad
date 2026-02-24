@@ -13,6 +13,7 @@ from shapely.geometry import Polygon, LineString, MultiLineString
 from shapely.geometry.base import BaseGeometry
 
 from .shapefile import get_downloads_folder
+from geometry.operations import densify_curves
 
 
 def _write_dxf_header() -> str:
@@ -196,9 +197,9 @@ def export_maze_dxf(
 
     content = _write_dxf_header()
 
-    # Write field boundary
+    # Write field boundary (densify curves for smooth polylines at sub-metre zoom)
     if field and not field.is_empty:
-        coords = list(field.exterior.coords)
+        coords = list(densify_curves(field).exterior.coords)
         content += _polyline_to_dxf(coords, "BOUNDARY", closed=True)
 
     # Write maze walls

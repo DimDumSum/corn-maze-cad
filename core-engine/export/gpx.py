@@ -16,6 +16,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform
 
 from .shapefile import get_downloads_folder
+from geometry.operations import densify_curves
 
 
 def _uncenter_geometry(geom: BaseGeometry, centroid_offset: Tuple[float, float]) -> BaseGeometry:
@@ -58,7 +59,7 @@ def export_boundary_gpx(
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_path = output_dir / f"{base_name}_{timestamp}.gpx"
 
-    uncentered = _uncenter_geometry(field, centroid_offset)
+    uncentered = _uncenter_geometry(densify_curves(field), centroid_offset)
     wgs84_field = _reproject_to_wgs84(uncentered, crs)
 
     coords = list(wgs84_field.exterior.coords)
@@ -183,7 +184,7 @@ def export_cutting_guide_gpx(
     waypoints_xml = "\n".join(waypoints) if waypoints else ""
 
     # Boundary route
-    uncentered_field = _uncenter_geometry(field, centroid_offset)
+    uncentered_field = _uncenter_geometry(densify_curves(field), centroid_offset)
     wgs84_field = _reproject_to_wgs84(uncentered_field, crs)
     boundary_pts = _coords_to_gpx_routepoints(list(wgs84_field.exterior.coords))
 

@@ -24,6 +24,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
 
 from .shapefile import get_downloads_folder
+from geometry.operations import smooth_buffer, densify_curves
 
 
 def _uncenter_geometry(geom: BaseGeometry, centroid_offset: Tuple[float, float]) -> BaseGeometry:
@@ -75,9 +76,9 @@ def export_prescription_map(
         png_path = output_dir / f"{base_name}_{timestamp}_preview.png"
 
     # Build path zones: areas between walls where paths exist
-    # Paths = field minus (walls buffered by path_width/2)
+    # Paths = field minus (walls buffered by path_width/2), smooth arc caps
     if walls and not walls.is_empty:
-        corn_zone = walls.buffer(path_width / 2.0, cap_style=2, join_style=2)
+        corn_zone = smooth_buffer(walls, path_width / 2.0, cap_style=2, join_style=2)
         corn_zone = corn_zone.intersection(field)
         path_zone = field.difference(corn_zone)
     else:
@@ -94,7 +95,7 @@ def export_prescription_map(
     features = []
 
     if not corn_geo.is_empty:
-        corn_wgs84 = transform(transformer.transform, corn_geo)
+        corn_wgs84 = transform(transformer.transform, densify_curves(corn_geo))
         features.append({
             "type": "Feature",
             "properties": {
@@ -106,7 +107,7 @@ def export_prescription_map(
         })
 
     if path_geo and not path_geo.is_empty:
-        path_wgs84 = transform(transformer.transform, path_geo)
+        path_wgs84 = transform(transformer.transform, densify_curves(path_geo))
         features.append({
             "type": "Feature",
             "properties": {

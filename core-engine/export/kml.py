@@ -30,6 +30,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
 
 from .shapefile import get_downloads_folder
+from geometry.operations import smooth_buffer, densify_curves
 
 
 # ---------------------------------------------------------------------------
@@ -182,8 +183,8 @@ def _walls_to_polygons(walls: BaseGeometry, buffer_width: float = 1.0) -> List[P
     if walls is None or walls.is_empty:
         return polygons
 
-    # Buffer the walls to create polygon strips
-    buffered = walls.buffer(buffer_width, cap_style=2, join_style=2)
+    # Buffer the walls to create polygon strips (high vertex density on arc sections)
+    buffered = smooth_buffer(walls, buffer_width, cap_style=2, join_style=2)
 
     if buffered.is_empty:
         return polygons
@@ -389,7 +390,7 @@ def _build_boundary_folder(
     offset: Tuple[float, float],
 ) -> str:
     """Build the Boundary folder containing the outer-field polygon."""
-    uncentered = _uncenter_geometry(field, offset)
+    uncentered = _uncenter_geometry(densify_curves(field), offset)
     wgs84 = _reproject_to_wgs84(uncentered, crs)
 
     placemark = _polygon_to_kml_placemark(
@@ -414,7 +415,7 @@ def _build_walls_folder(
 
     placemarks = []
     for i, poly in enumerate(wall_polygons):
-        uncentered = _uncenter_geometry(poly, offset)
+        uncentered = _uncenter_geometry(densify_curves(poly), offset)
         wgs84_poly = _reproject_to_wgs84(uncentered, crs)
         placemarks.append(
             _polygon_to_kml_placemark(wgs84_poly, f"Wall {i + 1}", style_url="#wall")
@@ -470,7 +471,7 @@ def _build_headland_folder(
 
     placemarks = []
     for i, poly in enumerate(polygons):
-        uncentered = _uncenter_geometry(poly, offset)
+        uncentered = _uncenter_geometry(densify_curves(poly), offset)
         wgs84_poly = _reproject_to_wgs84(uncentered, crs)
         placemarks.append(
             _polygon_to_kml_placemark(wgs84_poly, f"Headland {i + 1}", style_url="#headland")
@@ -596,7 +597,7 @@ def _build_carved_areas_folder(
 
     placemarks = []
     for i, poly in enumerate(polygons):
-        uncentered = _uncenter_geometry(poly, offset)
+        uncentered = _uncenter_geometry(densify_curves(poly), offset)
         wgs84_poly = _reproject_to_wgs84(uncentered, crs)
         placemarks.append(
             _polygon_to_kml_placemark(

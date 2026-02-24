@@ -11,6 +11,7 @@ from shapely.affinity import rotate as shapely_rotate
 from shapely.geometry.base import BaseGeometry
 from shapely.ops import unary_union
 from typing import List, Optional
+from geometry.operations import smooth_buffer
 
 
 def generate_standing_rows(
@@ -49,7 +50,7 @@ def generate_standing_rows(
     # Determine the working area (optionally inset for headlands)
     working_area = field_boundary
     if headland_inset > 0:
-        inset = field_boundary.buffer(-headland_inset)
+        inset = smooth_buffer(field_boundary, -headland_inset)
         if not inset.is_empty and inset.area > 0:
             if inset.geom_type == 'MultiPolygon':
                 working_area = max(inset.geoms, key=lambda g: g.area)
