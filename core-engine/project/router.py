@@ -89,6 +89,10 @@ def save_project(req: SaveRequest):
     if offset:
         project["_backend_offset"] = list(offset)
 
+    carved_polygons = app_state.get_carved_polygons()
+    if carved_polygons:
+        project["_backend_carved_polygons"] = carved_polygons
+
     with open(filepath, 'w') as f:
         json.dump(project, f, indent=2)
 
@@ -135,6 +139,9 @@ def load_project(filename: str):
 
     if "_backend_offset" in project:
         app_state.centroid_offset = tuple(project["_backend_offset"])
+
+    if "_backend_carved_polygons" in project:
+        app_state.carved_polygons = list(project["_backend_carved_polygons"])
 
     # Restore field
     if project.get("field") and project["field"].get("geometry"):
@@ -262,6 +269,10 @@ def autosave(req: SaveRequest):
     if offset:
         project["_backend_offset"] = list(offset)
 
+    carved_polygons = app_state.get_carved_polygons()
+    if carved_polygons:
+        project["_backend_carved_polygons"] = carved_polygons
+
     with open(filepath, 'w') as f:
         json.dump(project, f)
 
@@ -321,6 +332,9 @@ def recover_autosave():
 
     if "_backend_offset" in project:
         app_state.centroid_offset = tuple(project["_backend_offset"])
+
+    if "_backend_carved_polygons" in project:
+        app_state.carved_polygons = list(project["_backend_carved_polygons"])
 
     return {"success": True, "project": project}
 

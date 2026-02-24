@@ -1917,6 +1917,7 @@ def carve_batch(req: CarveBatchRequest):
                     print(f"[Batch Carve]   -> Polygon valid: {poly.is_valid}, area: {poly.area:.2f}m², holes: {len(hole_rings)}")
                     if poly.is_valid and poly.area > 0.1:  # Minimum 0.1 m² to filter degenerate polygons
                         carve_geoms.append(poly)
+                        app_state.add_carved_polygon(poly, el.type)
                         print(f"[Batch Carve]   -> ADDED polygon to carve_geoms")
                     elif not poly.is_valid:
                         # Try to fix invalid polygon
@@ -1924,6 +1925,7 @@ def carve_batch(req: CarveBatchRequest):
                         poly = poly.buffer(0)
                         if poly.is_valid and not poly.is_empty:
                             carve_geoms.append(poly)
+                            app_state.add_carved_polygon(poly, el.type)
                             print(f"[Batch Carve]   -> FIXED and ADDED polygon")
                         else:
                             print(f"[Batch Carve]   -> SKIPPING invalid polygon (cannot fix)")
