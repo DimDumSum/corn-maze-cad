@@ -41,6 +41,9 @@ class AppState:
             cls._instance.entrances: List[Tuple[float, float]] = []
             cls._instance.exits: List[Tuple[float, float]] = []
             cls._instance.emergency_exits: List[Tuple[float, float]] = []
+            # Carved path centerlines: [{'points': [[x,y],...], 'width': float}]
+            # Populated by /carve and /carve-batch; reset when all carvings are cleared.
+            cls._instance.carved_paths: List[Dict] = []
         return cls._instance
 
     def set_field(self, field: BaseGeometry, crs: str, centroid_offset: tuple = None):
@@ -55,6 +58,7 @@ class AppState:
         self.original_headland_walls = None
         self.carved_edges = None
         self.carved_areas = None
+        self.carved_paths = []
 
     def set_walls(self, walls: BaseGeometry):
         """Set the current maze walls."""
@@ -107,10 +111,23 @@ class AppState:
     def set_carved_areas(self, areas: Optional[BaseGeometry]):
         """Set the carved areas directly (used for undo/redo restore)."""
         self.carved_areas = areas
+        if areas is None:
+            self.carved_paths = []
 
     def get_carved_areas(self) -> Optional[BaseGeometry]:
         """Get the accumulated carve eraser polygons."""
         return self.carved_areas
+
+    def add_carved_path(self, points: List, width: float):
+        """Record a carved path centerline with its cutting width (metres)."""
+        self.carved_paths.append({
+            'points': [list(p) for p in points],
+            'width': float(width),
+        })
+
+    def get_carved_paths(self) -> List[Dict]:
+        """Return all stored carved path centerlines with widths."""
+        return list(self.carved_paths)
 
     # --- Layer management ---
 
@@ -151,6 +168,7 @@ class AppState:
         self.centroid_offset = None
         self.carved_edges = None
         self.carved_areas = None
+        self.carved_paths = []
         self.layers = []
         self.entrances = []
         self.exits = []

@@ -96,6 +96,7 @@ def carve_path_endpoint(req: PathRequest):
         # Track carved edges for validation and carve areas for retention
         app_state.add_carved_edges(carve_polygon.boundary)
         app_state.add_carved_area(carve_polygon)
+        app_state.add_carved_path(points, req.width)
 
         # Serialize carved areas as WKT for frontend snapshot
         carved_areas = app_state.get_carved_areas()
@@ -1934,6 +1935,7 @@ def carve_batch(req: CarveBatchRequest):
                     line = LineString(points)
                     buffered = smooth_buffer(line, el.width / 2.0, cap_style=1, join_style=1)
                     carve_geoms.append(buffered)
+                    app_state.add_carved_path(points, el.width)
                     print(f"[Batch Carve]   -> ADDED buffered line to carve_geoms")
 
             except Exception as e:

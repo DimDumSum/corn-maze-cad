@@ -115,6 +115,7 @@ def export_kml_endpoint(
             emergency_exits=app_state.get_emergency_exits(),
             solution_path=solution_path,
             carved_areas=app_state.get_carved_areas(),
+            carved_paths=app_state.get_carved_paths(),
             wall_buffer=wall_buffer,
             path_width=path_width,
             base_name=name,
@@ -236,6 +237,7 @@ def export_dxf_endpoint(
             exits=app_state.get_exits(),
             emergency_exits=app_state.get_emergency_exits(),
             carved_areas=app_state.get_carved_areas(),
+            carved_paths=app_state.get_carved_paths(),
             base_name=name,
         )
         return result
@@ -315,6 +317,7 @@ def export_prescription_endpoint(req: PrescriptionRequest):
         result = export_prescription_map(
             field, walls, crs, offset,
             carved_areas=app_state.get_carved_areas(),
+            carved_paths=app_state.get_carved_paths(),
             path_width=req.pathWidth,
             seed_rate_corn=req.seedRateCorn,
             seed_rate_path=req.seedRatePath,

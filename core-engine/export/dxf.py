@@ -7,7 +7,7 @@ QGIS, and other CAD/GIS applications.
 
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from shapely.geometry import Polygon, LineString, MultiLineString
 from shapely.geometry.base import BaseGeometry
@@ -40,7 +40,7 @@ TABLE
   2
 LAYER
  70
-4
+6
   0
 LAYER
   2
@@ -82,6 +82,26 @@ PATHEDGES
   6
 CONTINUOUS
   0
+LAYER
+  2
+CENTERLINES
+ 70
+0
+ 62
+3
+  6
+CONTINUOUS
+  0
+LAYER
+  2
+CutPathPolygons
+ 70
+0
+ 62
+2
+  6
+CONTINUOUS
+  0
 ENDTAB
   0
 ENDSEC
@@ -120,7 +140,17 @@ def _polyline_to_dxf(coords: List[Tuple[float, float]], layer: str, closed: bool
     return "\n".join(lines) + "\n"
 
 
-def _line_to_dxf(coords: List[Tuple[float, float]], layer: str) -> str:
+def _line_to_dxf(
+    coords: List[Tuple[float, float]],
+    layer: str,
+    path_width: float = None,
+) -> str:
+    """Write an open LWPOLYLINE.
+
+    If *path_width* is given, appends an XDATA block (application name
+    CORNMAZECAD, group code 1040 double) so consumers can read the cutting
+    width directly from the entity.
+    """
     if len(coords) < 2:
         return ""
 
@@ -140,7 +170,16 @@ def _line_to_dxf(coords: List[Tuple[float, float]], layer: str) -> str:
         lines.append(" 20")
         lines.append(f"{y:.6f}")
 
-    return "\n".join(lines) + "\n"
+    result = "\n".join(lines) + "\n"
+
+    if path_width is not None:
+        result += (
+            "1001\nCORNMAZECAD\n"
+            "1000\npath_width\n"
+            f"1040\n{path_width:.4f}\n"
+        )
+
+    return result
 
 
 def _point_to_dxf(x: float, y: float, layer: str, label: str = "") -> str:
@@ -175,6 +214,8 @@ def export_maze_dxf(
     exits: List[Tuple[float, float]] = None,
     emergency_exits: List[Tuple[float, float]] = None,
     carved_areas: BaseGeometry = None,
+    carved_paths: List[Dict] = None,
+    default_path_width: float = None,
     base_name: str = "maze_design",
     output_dir: Path = None,
 ) -> Dict:
@@ -183,9 +224,10 @@ def export_maze_dxf(
 
     Layers:
     - BOUNDARY: Field boundary polygon
-    - WALLS: Maze wall line segments
+    - WALLS: Maze wall line segments (corn row centerlines)
     - ANNOTATIONS: Entrance/exit/emergency exit points
     - PATHEDGES: Perimeter edges of carved paths (cut/stand boundary)
+    - CENTERLINES: Carved path centerlines with path_width XDATA
 
     Args:
         field: Field boundary polygon (centered coordinates)
@@ -194,6 +236,8 @@ def export_maze_dxf(
         exits: List of exit (x,y) points
         emergency_exits: List of emergency exit (x,y) points
         carved_areas: Union polygon of all carved path areas
+        carved_paths: List of {'points': [...], 'width': float} per carved pass
+        default_path_width: Document-level default path width (metres)
         base_name: Output filename stem
         output_dir: Output directory
 
@@ -250,6 +294,50 @@ def export_maze_dxf(
             content += _line_to_dxf(coords, "PATHEDGES")
             path_edge_count += 1
 
+    # Write carved path centerlines on CENTERLINES layer with path_width XDATA
+    centerline_count = 0
+    for cp in (carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2:
+            continue
+        from shapely.geometry import LineString as _LS
+        from geometry.operations import densify_curves as _dc, smooth_buffer as _sb
+        line = _dc(_LS([(p[0], p[1]) for p in pts]))
+        coords = list(line.coords)
+        pw = float(width) if width is not None else default_path_width
+        content += _line_to_dxf(coords, "CENTERLINES", path_width=pw)
+        centerline_count += 1
+
+    # Write individual cut path polygons on CutPathPolygons layer
+    # Each polygon is the exact buffered shape of one carving pass, so GPS
+    # apps can fill smooth vector shapes without a raster template image.
+    cut_path_polygon_count = 0
+    from shapely.geometry import LineString as _LS2, MultiPolygon as _MP2
+    from geometry.operations import densify_curves as _dc2, smooth_buffer as _sb2
+    for cp in (carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2 or not width:
+            continue
+        poly = _sb2(_LS2([(p[0], p[1]) for p in pts]), float(width) / 2.0, cap_style=1)
+        if poly is None or poly.is_empty:
+            continue
+        pw = float(width) if width is not None else default_path_width
+        sub_polys = list(poly.geoms) if isinstance(poly, _MP2) else [poly]
+        for sub in sub_polys:
+            if sub.is_empty:
+                continue
+            ring = list(_dc2(sub).exterior.coords)
+            content += _polyline_to_dxf(ring, "CutPathPolygons", closed=True)
+            if pw is not None:
+                content += (
+                    "1001\nCORNMAZECAD\n"
+                    "1000\npath_width\n"
+                    f"1040\n{pw:.4f}\n"
+                )
+            cut_path_polygon_count += 1
+
     content += _write_dxf_footer()
 
     with open(output_path, 'w') as f:
@@ -260,4 +348,6 @@ def export_maze_dxf(
         "path": str(output_path),
         "wall_count": wall_count,
         "path_edge_count": path_edge_count,
+        "centerline_count": centerline_count,
+        "cut_path_polygon_count": cut_path_polygon_count,
     }

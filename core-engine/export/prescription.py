@@ -38,6 +38,7 @@ def export_prescription_map(
     crs: str,
     centroid_offset: Tuple[float, float],
     carved_areas: Optional[BaseGeometry] = None,
+    carved_paths: Optional[list] = None,
     path_width: float = 2.5,
     seed_rate_corn: float = 38000,
     seed_rate_path: float = 0,
@@ -56,7 +57,9 @@ def export_prescription_map(
         walls: Maze wall geometry (centered) - walls = corn, gaps = paths
         crs: Projected CRS
         centroid_offset: Offset for geo-referencing
-        path_width: Width of paths in meters
+        carved_areas: Union polygon of all carved path areas (for path_edge features)
+        carved_paths: List of {'points': [...], 'width': float} for centerline features
+        path_width: Default path width in meters
         seed_rate_corn: Seeds per acre for corn zones
         seed_rate_path: Seeds per acre for path zones (usually 0)
         base_name: Output filename stem
@@ -132,6 +135,47 @@ def export_prescription_map(
                 "geometry": mapping(edge_wgs84),
             })
 
+    # Add carved path centerline features with individual path_width properties
+    from shapely.geometry import LineString as _LS, MultiPolygon as _MP
+    for cp in (carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2:
+            continue
+        line = densify_curves(_LS([(p[0], p[1]) for p in pts]))
+        cl_geo = _uncenter_geometry(line, centroid_offset)
+        cl_wgs84 = transform(transformer.transform, cl_geo)
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "type": "centerline",
+                "path_width": round(float(width), 4) if width is not None else path_width,
+            },
+            "geometry": mapping(cl_wgs84),
+        })
+
+    # Add individual cut path polygons — exact buffered shape of every carving pass.
+    # GPS apps use these to render smooth filled vector areas instead of a raster image.
+    for cp in (carved_paths or []):
+        pts = cp.get("points", [])
+        width = cp.get("width")
+        if len(pts) < 2 or not width:
+            continue
+        poly = smooth_buffer(_LS([(p[0], p[1]) for p in pts]), float(width) / 2.0, cap_style=1)
+        if poly is None or poly.is_empty:
+            continue
+        dense = densify_curves(poly)
+        cpp_geo = _uncenter_geometry(dense, centroid_offset)
+        cpp_wgs84 = transform(transformer.transform, cpp_geo)
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "type": "cut_path_polygon",
+                "path_width": round(float(width), 4),
+            },
+            "geometry": mapping(cpp_wgs84),
+        })
+
     geojson = {
         "type": "FeatureCollection",
         "features": features,
@@ -141,6 +185,7 @@ def export_prescription_map(
             "crs": "EPSG:4326",
             "seed_rate_corn": seed_rate_corn,
             "seed_rate_path": seed_rate_path,
+            "default_path_width": path_width,
         }
     }
 
