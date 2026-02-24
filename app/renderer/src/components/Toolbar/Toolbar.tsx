@@ -20,6 +20,7 @@ import {
   Move,
   FlipHorizontal,
   Download,
+  FolderOpen,
   Undo2,
   Redo2,
   RotateCcw,
@@ -100,13 +101,14 @@ export type ExportFormat = 'kml' | 'png' | 'shapefile' | 'gpx' | 'dxf' | 'printa
 interface ToolbarProps {
   onImportField?: () => void;
   onImportFromSatellite?: () => void;
+  onLoadBoundary?: () => void;
   onExport: (format: ExportFormat) => void;
   onSave?: () => void;
   onLoad?: () => void;
 }
 
 
-export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave, onLoad }: ToolbarProps) {
+export function Toolbar({ onImportField, onImportFromSatellite, onLoadBoundary, onExport, onSave, onLoad }: ToolbarProps) {
   const { selectedTool, setTool, camera, rotateCanvas } = useUiStore();
   const {
     designElements,
@@ -389,6 +391,18 @@ export function Toolbar({ onImportField, onImportFromSatellite, onExport, onSave
             >
               <Map size={16} />
               <span>Draw Boundary</span>
+            </button>
+          </Tooltip>
+        )}
+        {onLoadBoundary && (
+          <Tooltip tip="Load Field Boundary from a previously saved project">
+            <button
+              className="toolbar-dropdown-button"
+              onClick={onLoadBoundary}
+              aria-label="Load Boundary from Project"
+            >
+              <FolderOpen size={16} />
+              <span>Load Boundary</span>
             </button>
           </Tooltip>
         )}

@@ -33,6 +33,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [showSatellitePicker, setShowSatellitePicker] = useState(false);
   const [crashRecovery, setCrashRecovery] = useState<{ savedAt: string } | null>(null);
+  const [showBoundaryPicker, setShowBoundaryPicker] = useState(false);
+  const [boundaryProjects, setBoundaryProjects] = useState<Array<{ filename: string; name: string; savedAt: string }>>([]);
 
   // Zustand stores - Use selectors to avoid unnecessary re-renders
   const camera = useUiStore((state) => state.camera);
@@ -111,6 +113,43 @@ function App() {
     };
 
     input.click();
+  };
+
+  const handleOpenBoundaryPicker = async () => {
+    try {
+      const result = await api.listProjects();
+      const withField = (result.projects || []).filter((p) => p.hasField);
+      setBoundaryProjects(withField.length > 0 ? withField : result.projects || []);
+      setShowBoundaryPicker(true);
+    } catch {
+      setError('Failed to list saved projects');
+    }
+  };
+
+  const handleLoadBoundaryFromProject = async (filename: string) => {
+    setShowBoundaryPicker(false);
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.loadBoundaryFromProject(filename);
+      if (result.error || !result.success) {
+        setError(result.error || 'Failed to load boundary');
+        return;
+      }
+      setField(result.field);
+      if (result.field?.geometry) {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const bounds = calculateBounds(result.field.geometry);
+          const newCamera = zoomToFit(bounds, canvas.width, canvas.height);
+          setCamera(newCamera);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load boundary');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSatelliteBoundaryConfirm = async (coordinates: [number, number][]) => {
@@ -1054,6 +1093,7 @@ function App() {
       <Toolbar
         onImportField={handleImportField}
         onImportFromSatellite={() => setShowSatellitePicker(true)}
+        onLoadBoundary={handleOpenBoundaryPicker}
         onExport={handleExport}
         onSave={handleSave}
       />
@@ -1121,6 +1161,51 @@ function App() {
                   Recover
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Boundary picker modal */}
+      {showBoundaryPicker && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000,
+        }}>
+          <div style={{
+            background: '#f0f0f0', borderRadius: 4, width: 400, maxHeight: '70vh',
+            display: 'flex', flexDirection: 'column',
+            border: '1px solid #b0b0b0', boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 12,
+          }}>
+            <div style={{ padding: '6px 10px', background: '#3a7bc8', borderBottom: '1px solid #2a5fa0', fontWeight: 600, fontSize: 11, color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Load Field Boundary from Saved Project</span>
+              <button onClick={() => setShowBoundaryPicker(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ padding: '8px 10px', color: '#555', borderBottom: '1px solid #d0d0d0' }}>
+              Select a project to import its field boundary into the current design.
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {boundaryProjects.length === 0 ? (
+                <div style={{ padding: 16, color: '#888', textAlign: 'center' }}>No saved projects found.</div>
+              ) : (
+                boundaryProjects.map((p) => (
+                  <div key={p.filename} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderBottom: '1px solid #e0e0e0' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: '#222' }}>{p.name}</div>
+                      {p.savedAt && (
+                        <div style={{ color: '#888', fontSize: 10 }}>{new Date(p.savedAt).toLocaleString()}</div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleLoadBoundaryFromProject(p.filename)}
+                      style={{ padding: '3px 10px', borderRadius: 2, border: '1px solid #3a7bc8', background: '#4a90d9', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}
+                    >
+                      Load Boundary
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
