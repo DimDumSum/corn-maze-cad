@@ -222,6 +222,59 @@ def densify_curves(
     return geom  # Unknown type — pass through unchanged.
 
 
+def extract_path_edge_lines(
+    carved_areas: BaseGeometry,
+    max_chord_dev: float = MAX_CHORD_DEV,
+) -> "List[LineString]":
+    """
+    Extract the perimeter edges of all carved path polygons as LineStrings.
+
+    Each carved-path polygon's exterior ring marks the physical boundary
+    between cut corn (path) and standing corn — the line the GPS mower
+    operator tracks against while cutting.
+
+    When paths don't overlap each polygon corresponds to one cut path and
+    its exterior ring is the left edge + right edge + round end caps.
+    When paths do overlap the unioned exterior ring still correctly
+    represents every visible cut/stand boundary.
+
+    Args:
+        carved_areas: Union polygon (or MultiPolygon) of all carved path areas.
+        max_chord_dev: Maximum chord deviation for arc densification (metres).
+
+    Returns:
+        List of densified LineString geometries, one per polygon component.
+    """
+    from shapely.geometry import Polygon, MultiPolygon
+
+    if carved_areas is None or carved_areas.is_empty:
+        return []
+
+    polygons: List = []
+    if carved_areas.geom_type == "Polygon":
+        polygons.append(carved_areas)
+    elif carved_areas.geom_type == "MultiPolygon":
+        polygons.extend(carved_areas.geoms)
+    else:
+        for geom in getattr(carved_areas, "geoms", []):
+            if geom.geom_type == "Polygon":
+                polygons.append(geom)
+            elif geom.geom_type == "MultiPolygon":
+                polygons.extend(geom.geoms)
+
+    edges: List[LineString] = []
+    for poly in polygons:
+        if poly.is_empty:
+            continue
+        # Convert exterior ring to a LineString then densify arcs.
+        edge = densify_curves(
+            LineString(list(poly.exterior.coords)), max_chord_dev=max_chord_dev
+        )
+        edges.append(edge)
+
+    return edges
+
+
 def flatten_geometry(geom: BaseGeometry) -> List[List[Tuple[float, float]]]:
     """
     Recursively flatten MultiLineString/GeometryCollection to list of line segments.

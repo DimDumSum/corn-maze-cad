@@ -13,7 +13,7 @@ from shapely.geometry import Polygon, LineString, MultiLineString
 from shapely.geometry.base import BaseGeometry
 
 from .shapefile import get_downloads_folder
-from geometry.operations import densify_curves
+from geometry.operations import densify_curves, extract_path_edge_lines
 
 
 def _write_dxf_header() -> str:
@@ -40,7 +40,7 @@ TABLE
   2
 LAYER
  70
-3
+4
   0
 LAYER
   2
@@ -69,6 +69,16 @@ ANNOTATIONS
 0
  62
 7
+  6
+CONTINUOUS
+  0
+LAYER
+  2
+PATHEDGES
+ 70
+0
+ 62
+4
   6
 CONTINUOUS
   0
@@ -164,6 +174,7 @@ def export_maze_dxf(
     entrances: List[Tuple[float, float]] = None,
     exits: List[Tuple[float, float]] = None,
     emergency_exits: List[Tuple[float, float]] = None,
+    carved_areas: BaseGeometry = None,
     base_name: str = "maze_design",
     output_dir: Path = None,
 ) -> Dict:
@@ -174,6 +185,7 @@ def export_maze_dxf(
     - BOUNDARY: Field boundary polygon
     - WALLS: Maze wall line segments
     - ANNOTATIONS: Entrance/exit/emergency exit points
+    - PATHEDGES: Perimeter edges of carved paths (cut/stand boundary)
 
     Args:
         field: Field boundary polygon (centered coordinates)
@@ -181,6 +193,7 @@ def export_maze_dxf(
         entrances: List of entrance (x,y) points
         exits: List of exit (x,y) points
         emergency_exits: List of emergency exit (x,y) points
+        carved_areas: Union polygon of all carved path areas
         base_name: Output filename stem
         output_dir: Output directory
 
@@ -229,6 +242,14 @@ def export_maze_dxf(
         for i, (x, y) in enumerate(emergency_exits):
             content += _point_to_dxf(x, y, "ANNOTATIONS", f"EMRG EXIT {i+1}")
 
+    # Write path edges on PATHEDGES layer
+    path_edge_count = 0
+    if carved_areas and not carved_areas.is_empty:
+        for edge_line in extract_path_edge_lines(carved_areas):
+            coords = list(edge_line.coords)
+            content += _line_to_dxf(coords, "PATHEDGES")
+            path_edge_count += 1
+
     content += _write_dxf_footer()
 
     with open(output_path, 'w') as f:
@@ -238,4 +259,5 @@ def export_maze_dxf(
         "success": True,
         "path": str(output_path),
         "wall_count": wall_count,
+        "path_edge_count": path_edge_count,
     }

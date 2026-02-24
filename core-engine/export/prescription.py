@@ -24,7 +24,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform, unary_union
 
 from .shapefile import get_downloads_folder
-from geometry.operations import smooth_buffer, densify_curves
+from geometry.operations import smooth_buffer, densify_curves, extract_path_edge_lines
 
 
 def _uncenter_geometry(geom: BaseGeometry, centroid_offset: Tuple[float, float]) -> BaseGeometry:
@@ -37,6 +37,7 @@ def export_prescription_map(
     walls: BaseGeometry,
     crs: str,
     centroid_offset: Tuple[float, float],
+    carved_areas: Optional[BaseGeometry] = None,
     path_width: float = 2.5,
     seed_rate_corn: float = 38000,
     seed_rate_path: float = 0,
@@ -117,6 +118,19 @@ def export_prescription_map(
             },
             "geometry": mapping(path_wgs84),
         })
+
+    # Add path edge LineString features (the physical cut/stand boundary lines)
+    if carved_areas and not carved_areas.is_empty:
+        for edge_line in extract_path_edge_lines(carved_areas):
+            edge_geo = _uncenter_geometry(edge_line, centroid_offset)
+            edge_wgs84 = transform(transformer.transform, edge_geo)
+            features.append({
+                "type": "Feature",
+                "properties": {
+                    "type": "path_edge",
+                },
+                "geometry": mapping(edge_wgs84),
+            })
 
     geojson = {
         "type": "FeatureCollection",

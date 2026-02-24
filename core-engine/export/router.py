@@ -235,6 +235,7 @@ def export_dxf_endpoint(
             entrances=app_state.get_entrances(),
             exits=app_state.get_exits(),
             emergency_exits=app_state.get_emergency_exits(),
+            carved_areas=app_state.get_carved_areas(),
             base_name=name,
         )
         return result
@@ -313,6 +314,7 @@ def export_prescription_endpoint(req: PrescriptionRequest):
     try:
         result = export_prescription_map(
             field, walls, crs, offset,
+            carved_areas=app_state.get_carved_areas(),
             path_width=req.pathWidth,
             seed_rate_corn=req.seedRateCorn,
             seed_rate_path=req.seedRatePath,
