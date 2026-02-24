@@ -218,19 +218,23 @@ export const MoveTool: Tool = {
           pt[0] + offset[0],
           pt[1] + offset[1],
         ]);
+        const newHoles = element.holes
+          ? element.holes.map(ring => ring.map((pt) => [pt[0] + offset[0], pt[1] + offset[1]] as [number, number]))
+          : undefined;
 
         if (copyMode) {
           // Create a copy at the new position
           addDesignElement({
             type: element.type,
             points: newPoints,
+            holes: newHoles,
             width: element.width,
             closed: element.closed,
             rotation: element.rotation,
           });
         } else {
           // Move the original element
-          updateElementNoHistory(id, { points: newPoints });
+          updateElementNoHistory(id, { points: newPoints, holes: newHoles });
         }
       }
 
