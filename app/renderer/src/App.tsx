@@ -19,6 +19,7 @@ import { parseWKTPolygons } from './utils/wkt';
 import { fmtShort } from './utils/fmt';
 import * as api from './api/client';
 import { calculateBounds, zoomToFit } from './utils/canvas';
+import { AUTOSAVE_INTERVAL_MS } from '../../shared/constants';
 import './App.css';
 
 // Cache decoded satellite image to avoid creating a new Image() every frame
@@ -31,6 +32,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSatellitePicker, setShowSatellitePicker] = useState(false);
+  const [crashRecovery, setCrashRecovery] = useState<{ savedAt: string } | null>(null);
 
   // Zustand stores - Use selectors to avoid unnecessary re-renders
   const camera = useUiStore((state) => state.camera);
@@ -270,7 +272,7 @@ function App() {
       } catch {
         // Silently fail autosave
       }
-    }, 30000); // 30 seconds
+    }, AUTOSAVE_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);
@@ -281,15 +283,40 @@ function App() {
       try {
         const check = await api.checkAutosave();
         if (check.exists) {
-          if (import.meta.env.DEV) {
-            console.log('[App] Autosave found from', check.savedAt);
-          }
+          setCrashRecovery({ savedAt: check.savedAt });
         }
       } catch {
         // Backend not ready yet
       }
     })();
   }, []);
+
+  const handleRecoverCrash = async () => {
+    setCrashRecovery(null);
+    try {
+      const result = await api.recoverAutosave();
+      if (!result.success || !result.project) {
+        setError('Failed to recover autosave');
+        return;
+      }
+      const project = result.project;
+      if (project.field) setField(project.field);
+      if (project.maze) setMaze(project.maze);
+      if (project.designElements) {
+        useDesignStore.getState().setDesignElements(project.designElements);
+      }
+      if (project.field?.geometry) {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const bounds = calculateBounds(project.field.geometry);
+          const newCamera = zoomToFit(bounds, canvas.width, canvas.height);
+          setCamera(newCamera);
+        }
+      }
+    } catch {
+      setError('Failed to recover autosave');
+    }
+  };
 
   // Listen for Electron menu events
   useEffect(() => {
@@ -508,6 +535,11 @@ function App() {
     const { designElements, violations } = useDesignStore.getState();
 
     ctx.save();
+    if (camera.rotation) {
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate(camera.rotation);
+      ctx.translate(-canvas.width / 2, -canvas.height / 2);
+    }
     ctx.translate(camera.x, camera.y);
     ctx.scale(camera.scale, -camera.scale);
 
@@ -1050,6 +1082,46 @@ function App() {
           onConfirm={handleSatelliteBoundaryConfirm}
           onCancel={() => setShowSatellitePicker(false)}
         />
+      )}
+
+      {/* Crash Recovery Dialog */}
+      {crashRecovery && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 10000,
+        }}>
+          <div style={{
+            background: '#f0f0f0', borderRadius: 4, padding: 0, width: 360,
+            border: '1px solid #b0b0b0', boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+            fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+            fontSize: 12,
+          }}>
+            <div style={{ padding: '6px 10px', background: '#e8a020', borderBottom: '1px solid #c88010', fontWeight: 600, fontSize: 11, color: '#fff' }}>
+              Unsaved Work Found
+            </div>
+            <div style={{ padding: 16 }}>
+              <p style={{ margin: '0 0 12px 0', color: '#333' }}>
+                An autosave from a previous session was found ({new Date(crashRecovery.savedAt).toLocaleString()}).
+                Would you like to recover it?
+              </p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setCrashRecovery(null)}
+                  style={{ padding: '4px 12px', borderRadius: 2, border: '1px solid #b0b0b0', background: '#ddd', color: '#555', cursor: 'pointer', fontSize: 11 }}
+                >
+                  Discard
+                </button>
+                <button
+                  onClick={handleRecoverCrash}
+                  style={{ padding: '4px 12px', borderRadius: 2, border: '1px solid #3a7bc8', background: '#4a90d9', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+                >
+                  Recover
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

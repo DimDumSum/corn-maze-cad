@@ -21,10 +21,6 @@ interface UIState {
   currentPath: [number, number][];
   angleConstraint: boolean; // Shift key held - constrain to 45° angles
 
-  // Selection state
-  selection: Set<string>;
-  hoveredElement: string | null;
-
   // Grid and snapping
   showGrid: boolean;
   snapToGrid: boolean;
@@ -66,12 +62,6 @@ interface UIState {
   cancelDrawing: () => void;
   setAngleConstraint: (enabled: boolean) => void;
 
-  // Actions - Selection
-  select: (id: string) => void;
-  addToSelection: (id: string) => void;
-  clearSelection: () => void;
-  setHoveredElement: (id: string | null) => void;
-
   // Actions - Grid
   toggleGrid: () => void;
   toggleSnap: () => void;
@@ -112,8 +102,6 @@ export const useUiStore = create<UIState>((set) => ({
   isDrawing: false,
   currentPath: [],
   angleConstraint: false,
-  selection: new Set(),
-  hoveredElement: null,
   showGrid: false,
   snapToGrid: false,
   gridSize: 1,
@@ -239,31 +227,6 @@ export const useUiStore = create<UIState>((set) => ({
   setAngleConstraint: (enabled) =>
     set({
       angleConstraint: enabled,
-    }),
-
-  // Selection actions
-  select: (id) =>
-    set({
-      selection: new Set([id]),
-    }),
-
-  addToSelection: (id) =>
-    set((state) => {
-      const newSelection = new Set(state.selection);
-      newSelection.add(id);
-      return {
-        selection: newSelection,
-      };
-    }),
-
-  clearSelection: () =>
-    set({
-      selection: new Set(),
-    }),
-
-  setHoveredElement: (id) =>
-    set({
-      hoveredElement: id,
     }),
 
   // Grid actions

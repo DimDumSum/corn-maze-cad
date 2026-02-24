@@ -86,15 +86,24 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         return;
       }
 
-      // Capture number keys and decimal point for dimension input (SketchUp-style type-to-specify)
+      // Capture number keys and decimal point for dimension input (SketchUp-style type-to-specify),
+      // but only if the key is not bound to a configurable action (e.g. tool shortcuts 1-5).
       if (/^[0-9.]$/.test(e.key)) {
-        const { appendInputBuffer } = useUiStore.getState();
-        e.preventDefault();
-        appendInputBuffer(e.key);
-        if (import.meta.env.DEV) {
-          console.log('[Keyboard] Captured key for dimension input:', e.key);
+        const { getActionForKey } = useSettingsStore.getState();
+        const boundAction = getActionForKey(e.key, {
+          ctrl: e.ctrlKey || e.metaKey,
+          shift: e.shiftKey,
+        });
+        if (!boundAction) {
+          const { appendInputBuffer } = useUiStore.getState();
+          e.preventDefault();
+          appendInputBuffer(e.key);
+          if (import.meta.env.DEV) {
+            console.log('[Keyboard] Captured key for dimension input:', e.key);
+          }
+          return;
         }
-        return;
+        // Fall through to configurable keybinding handler below
       }
 
       // Backspace - delete last character from input buffer
@@ -401,6 +410,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
             clipboard = selected.map(el => ({
               type: el.type,
               points: el.points.map(p => [...p] as [number, number]),
+              holes: el.holes ? el.holes.map(ring => ring.map(p => [...p] as [number, number])) : undefined,
               width: el.width,
               closed: el.closed,
               rotation: el.rotation,
@@ -425,6 +435,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
             const newId = addDesignElement({
               type: el.type,
               points: el.points.map(([x, y]) => [x + offset, y + offset] as [number, number]),
+              holes: el.holes ? el.holes.map(ring => ring.map(([x, y]) => [x + offset, y + offset] as [number, number])) : undefined,
               width: el.width,
               closed: el.closed,
               rotation: el.rotation,
