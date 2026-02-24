@@ -419,27 +419,24 @@ function App() {
       if (_cachedSatelliteImg && _cachedSatelliteImg.complete && _cachedSatelliteImg.naturalWidth > 0) {
         const { minx, miny, maxx, maxy } = aerialUnderlay.bounds;
 
-        // Draw satellite image using explicit screen coordinates to avoid
-        // drawImage ambiguity with the Y-flipped canvas transform.
-        // World→screen: sx = cam.x + wx*scale, sy = cam.y - wy*scale
+        // Draw satellite in world space so it rotates with the canvas.
+        // The current transform already includes canvas rotation, so rendering
+        // in world coordinates keeps the image locked to the field boundary.
+        // We translate to the NW corner (minx, maxy) then apply scale(1,-1)
+        // to un-flip Y for drawImage — image appears right-side-up at any rotation.
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset to identity (screen coords)
-
-        const screenLeft   = camera.x + minx * camera.scale;
-        const screenRight  = camera.x + maxx * camera.scale;
-        const screenTop    = camera.y - maxy * camera.scale; // north = top of screen
-        const screenBottom = camera.y - miny * camera.scale; // south = bottom of screen
-
+        ctx.translate(minx, maxy);
+        ctx.scale(1, -1);
         ctx.globalAlpha = aerialUnderlay.opacity;
         ctx.drawImage(
           _cachedSatelliteImg,
-          screenLeft,
-          screenTop,
-          screenRight - screenLeft,
-          screenBottom - screenTop,
+          0,
+          0,
+          maxx - minx,
+          maxy - miny,
         );
         ctx.globalAlpha = 1;
-        ctx.restore(); // Restores the world-space transform for subsequent layers
+        ctx.restore();
       }
     }
 
@@ -547,6 +544,19 @@ function App() {
           ctx.lineTo(el.points[i][0], el.points[i][1]);
         }
         if (el.closed) ctx.closePath();
+
+        // Add interior rings (letter counters for O, D, B, R, etc.)
+        if (el.holes && el.holes.length > 0) {
+          for (const hole of el.holes) {
+            if (hole.length > 0) {
+              ctx.moveTo(hole[0][0], hole[0][1]);
+              for (let i = 1; i < hole.length; i++) {
+                ctx.lineTo(hole[i][0], hole[i][1]);
+              }
+              ctx.closePath();
+            }
+          }
+        }
       }
       ctx.stroke();
       ctx.setLineDash([]);

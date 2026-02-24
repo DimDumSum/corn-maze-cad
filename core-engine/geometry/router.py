@@ -1138,6 +1138,7 @@ class DesignElement(BaseModel):
     id: str
     type: str  # 'path' | 'circle' | 'rectangle' | 'line' | 'arc' | 'text' | 'clipart'
     points: List[List[float]]  # [[x, y], ...]
+    holes: Optional[List[List[List[float]]]] = None  # Interior rings (letter counters)
     width: float
     closed: bool
     rotation: Optional[float] = 0  # Rotation in degrees (0-360)
@@ -1881,8 +1882,14 @@ def carve_batch(req: CarveBatchRequest):
                 # CLOSED SHAPES: Use polygon directly (filled area)
                 if is_closed_flag or points_close_loop:
                     print(f"[Batch Carve] Processing as POLYGON: {el.id[:8]} (type={el.type}, closed={el.closed}, points_close_loop={points_close_loop})")
-                    poly = Polygon(points)
-                    print(f"[Batch Carve]   -> Polygon valid: {poly.is_valid}, area: {poly.area:.2f}m²")
+                    # Include interior rings (letter counters) if present
+                    hole_rings = []
+                    if el.holes:
+                        for h in el.holes:
+                            if len(h) >= 3:
+                                hole_rings.append([(p[0], p[1]) for p in h])
+                    poly = Polygon(points, hole_rings) if hole_rings else Polygon(points)
+                    print(f"[Batch Carve]   -> Polygon valid: {poly.is_valid}, area: {poly.area:.2f}m², holes: {len(hole_rings)}")
                     if poly.is_valid and poly.area > 0.1:  # Minimum 0.1 m² to filter degenerate polygons
                         carve_geoms.append(poly)
                         print(f"[Batch Carve]   -> ADDED polygon to carve_geoms")

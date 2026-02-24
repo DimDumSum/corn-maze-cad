@@ -26,6 +26,7 @@ export interface DesignElement {
   id: string;
   type: 'path' | 'circle' | 'rectangle' | 'line' | 'arc' | 'text' | 'clipart';
   points: [number, number][];
+  holes?: [number, number][][]; // Interior rings (letter counters like O, D, B, R)
   width: number;
   closed: boolean;
   rotation?: number; // Rotation in degrees (0-360), defaults to 0
