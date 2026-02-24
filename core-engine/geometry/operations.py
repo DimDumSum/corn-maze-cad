@@ -266,11 +266,18 @@ def extract_path_edge_lines(
     for poly in polygons:
         if poly.is_empty:
             continue
-        # Convert exterior ring to a LineString then densify arcs.
-        edge = densify_curves(
+        # Exterior ring = outer perimeter of all mowed areas.
+        edges.append(densify_curves(
             LineString(list(poly.exterior.coords)), max_chord_dev=max_chord_dev
-        )
-        edges.append(edge)
+        ))
+        # Interior rings = boundaries of standing-corn islands inside the maze.
+        # These are the "other side" of every internal path corridor and must be
+        # exported so GPS viewers show both edges of each cutting pass, not just
+        # the outer field boundary.
+        for interior in poly.interiors:
+            edges.append(densify_curves(
+                LineString(list(interior.coords)), max_chord_dev=max_chord_dev
+            ))
 
     return edges
 
