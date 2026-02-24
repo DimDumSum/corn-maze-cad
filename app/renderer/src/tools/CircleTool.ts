@@ -39,7 +39,7 @@ function getCircleState(): CircleToolState {
         stage: 'idle',
         center: null,
         previewRadius: null,
-        segments: 24,
+        segments: 90,
         fillMode: 'outline',
       },
     } as any);

@@ -9,7 +9,7 @@ entrances/exits, and constraint settings.
 import json
 import os
 from pathlib import Path
-from datetime import datetime, timezone, timezone
+from datetime import datetime, timezone
 from typing import Optional, List, Dict
 
 from fastapi import APIRouter, HTTPException
