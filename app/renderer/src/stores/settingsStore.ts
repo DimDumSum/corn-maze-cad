@@ -138,10 +138,15 @@ function loadFromStorage(): Partial<SettingsState> {
           mouseButtons[Number(btn)] = action as MouseButtonAction;
         }
       }
+      const lastTextSettings: LastTextSettings = {
+        ...DEFAULT_LAST_TEXT_SETTINGS,
+        ...(parsed.lastTextSettings || {}),
+      };
       return {
         unitSystem: parsed.unitSystem || 'imperial',
         keybindings: { ...DEFAULT_KEYBINDINGS, ...(parsed.keybindings || {}) },
         mouseButtons,
+        lastTextSettings,
       };
     }
   } catch {
@@ -154,6 +159,7 @@ function saveToStorage(state: {
   unitSystem: UnitSystem;
   keybindings: Record<KeyAction, string>;
   mouseButtons: Record<number, MouseButtonAction>;
+  lastTextSettings: LastTextSettings;
 }) {
   try {
     // Only persist overrides (different from defaults)
@@ -175,6 +181,7 @@ function saveToStorage(state: {
         unitSystem: state.unitSystem,
         keybindings: overrides,
         mouseButtons: Object.keys(mouseOverrides).length > 0 ? mouseOverrides : undefined,
+        lastTextSettings: state.lastTextSettings,
       })
     );
   } catch {
@@ -182,12 +189,29 @@ function saveToStorage(state: {
   }
 }
 
+// --- Last text tool settings ---
+
+export interface LastTextSettings {
+  fontId: string;
+  fontSize: number;    // stored in meters
+  fillMode: 'fill' | 'stroke';
+  strokeWidth: number; // stored in meters
+}
+
+const DEFAULT_LAST_TEXT_SETTINGS: LastTextSettings = {
+  fontId: 'dejavu-sans-bold',
+  fontSize: 1.0,
+  fillMode: 'stroke',
+  strokeWidth: 0.2,
+};
+
 // --- Store ---
 
 interface SettingsState {
   unitSystem: UnitSystem;
   keybindings: Record<KeyAction, string>;
   mouseButtons: Record<number, MouseButtonAction>;
+  lastTextSettings: LastTextSettings;
 
   setUnitSystem: (system: UnitSystem) => void;
   setKeybinding: (action: KeyAction, key: string) => void;
@@ -196,6 +220,7 @@ interface SettingsState {
   setMouseButton: (button: number, action: MouseButtonAction) => void;
   resetMouseButtons: () => void;
   getMouseAction: (button: number) => MouseButtonAction;
+  setLastTextSettings: (settings: Partial<LastTextSettings>) => void;
 }
 
 const stored = loadFromStorage();
@@ -204,22 +229,23 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   unitSystem: stored.unitSystem || 'imperial',
   keybindings: stored.keybindings || { ...DEFAULT_KEYBINDINGS },
   mouseButtons: stored.mouseButtons || { ...DEFAULT_MOUSE_BUTTONS },
+  lastTextSettings: stored.lastTextSettings || { ...DEFAULT_LAST_TEXT_SETTINGS },
 
   setUnitSystem: (system) => {
     set({ unitSystem: system });
-    saveToStorage({ unitSystem: system, keybindings: get().keybindings, mouseButtons: get().mouseButtons });
+    saveToStorage({ unitSystem: system, keybindings: get().keybindings, mouseButtons: get().mouseButtons, lastTextSettings: get().lastTextSettings });
   },
 
   setKeybinding: (action, key) => {
     const updated = { ...get().keybindings, [action]: key };
     set({ keybindings: updated });
-    saveToStorage({ unitSystem: get().unitSystem, keybindings: updated, mouseButtons: get().mouseButtons });
+    saveToStorage({ unitSystem: get().unitSystem, keybindings: updated, mouseButtons: get().mouseButtons, lastTextSettings: get().lastTextSettings });
   },
 
   resetKeybindings: () => {
     const defaults = { ...DEFAULT_KEYBINDINGS };
     set({ keybindings: defaults });
-    saveToStorage({ unitSystem: get().unitSystem, keybindings: defaults, mouseButtons: get().mouseButtons });
+    saveToStorage({ unitSystem: get().unitSystem, keybindings: defaults, mouseButtons: get().mouseButtons, lastTextSettings: get().lastTextSettings });
   },
 
   getActionForKey: (key, modifiers) => {
@@ -243,16 +269,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setMouseButton: (button, action) => {
     const updated = { ...get().mouseButtons, [button]: action };
     set({ mouseButtons: updated });
-    saveToStorage({ unitSystem: get().unitSystem, keybindings: get().keybindings, mouseButtons: updated });
+    saveToStorage({ unitSystem: get().unitSystem, keybindings: get().keybindings, mouseButtons: updated, lastTextSettings: get().lastTextSettings });
   },
 
   resetMouseButtons: () => {
     const defaults = { ...DEFAULT_MOUSE_BUTTONS };
     set({ mouseButtons: defaults });
-    saveToStorage({ unitSystem: get().unitSystem, keybindings: get().keybindings, mouseButtons: defaults });
+    saveToStorage({ unitSystem: get().unitSystem, keybindings: get().keybindings, mouseButtons: defaults, lastTextSettings: get().lastTextSettings });
   },
 
   getMouseAction: (button) => {
     return get().mouseButtons[button] ?? 'none';
+  },
+
+  setLastTextSettings: (settings) => {
+    const updated = { ...get().lastTextSettings, ...settings };
+    set({ lastTextSettings: updated });
+    saveToStorage({ unitSystem: get().unitSystem, keybindings: get().keybindings, mouseButtons: get().mouseButtons, lastTextSettings: updated });
   },
 }));

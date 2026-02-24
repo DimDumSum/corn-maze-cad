@@ -10,7 +10,9 @@ import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useProjectStore } from '../stores/projectStore';
 import { useDesignStore } from '../stores/designStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { SnapEngine } from '../snapping/SnapEngine';
+import { fmtFromMeters, fmtToMeters, fmtUnit } from '../utils/fmt';
 import {
   fontLibrary,
   fontCategories,
@@ -44,16 +46,38 @@ interface GeoJSONPolygon {
   coordinates: [number, number][][];
 }
 
-// Default state - created once
-const defaultFont = getDefaultFont();
+// Default state — reads last-used settings from the settings store so
+// preferences (font choice, size, fill mode) persist across sessions.
+function buildDefaultTextState(): TextToolState {
+  const last = useSettingsStore.getState().lastTextSettings;
+  const savedFont = getFontById(last.fontId) || getDefaultFont();
+  return {
+    isActive: false,
+    stage: 'selectingPosition',
+    position: null,
+    text: '',
+    fontId: savedFont.id,
+    font: savedFont.backendFont,
+    fontWeight: savedFont.weight,
+    fontSize: last.fontSize,
+    fillMode: last.fillMode,
+    strokeWidth: last.strokeWidth,
+    rotation: 0,
+    previewPaths: null,
+    isDragging: false,
+    originalPosition: null,
+  };
+}
+// Keep a module-level fallback for synchronous initialization paths
+const _defaultFont = getDefaultFont();
 const DEFAULT_TEXT_STATE: TextToolState = {
   isActive: false,
   stage: 'selectingPosition',
   position: null,
   text: '',
-  fontId: defaultFont.id,
-  font: defaultFont.backendFont,
-  fontWeight: defaultFont.weight,
+  fontId: _defaultFont.id,
+  font: _defaultFont.backendFont,
+  fontWeight: _defaultFont.weight,
   fontSize: 1.0,
   fillMode: 'stroke',
   strokeWidth: 0.2,
@@ -77,7 +101,7 @@ const DOUBLE_CLICK_DISTANCE = 10; // world units
 function getTextState(): TextToolState {
   const state = (useUiStore.getState() as any).textToolState;
   if (!state) {
-    useUiStore.setState({ textToolState: { ...DEFAULT_TEXT_STATE } } as any);
+    useUiStore.setState({ textToolState: { ...buildDefaultTextState() } } as any);
     return (useUiStore.getState() as any).textToolState;
   }
   return state;
@@ -264,21 +288,26 @@ export const TextTool: Tool = {
         const geojsonPath = previewPaths[p];
         if (!geojsonPath?.coordinates?.[0]) continue;
 
-        const path = geojsonPath.coordinates[0];
-        const pathLen = path.length;
-        if (pathLen < 2) continue;
+        const rings = geojsonPath.coordinates; // [exterior, ...holes]
 
+        // Build the full path including all rings (exterior + interior holes).
+        // Using evenodd fill means overlapping rings cancel out, correctly
+        // rendering counters (the transparent interior of O, D, B, R, etc.).
         ctx.beginPath();
-        ctx.moveTo(path[0][0] + offsetX, path[0][1] + offsetY);
-        for (let i = 1; i < pathLen; i++) {
-          ctx.lineTo(path[i][0] + offsetX, path[i][1] + offsetY);
+        for (let r = 0; r < rings.length; r++) {
+          const ring = rings[r];
+          if (ring.length < 2) continue;
+          ctx.moveTo(ring[0][0] + offsetX, ring[0][1] + offsetY);
+          for (let i = 1; i < ring.length; i++) {
+            ctx.lineTo(ring[i][0] + offsetX, ring[i][1] + offsetY);
+          }
+          ctx.closePath();
         }
-        ctx.closePath();
 
         if (fillMode === 'fill') {
-          // Filled mode: show semi-transparent fill
+          // Filled mode: use evenodd so interior rings become transparent holes
           ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
-          ctx.fill();
+          ctx.fill('evenodd');
           ctx.lineWidth = lineWidth;
           ctx.strokeStyle = '#10b981';
           ctx.stroke();
@@ -334,6 +363,11 @@ function showTextDialog(): void {
     font-size: 11px;
   `;
 
+  // Compute display values in the user's current unit system
+  const unitLabel = fmtUnit();
+  const displayFontSize = parseFloat(fmtFromMeters(textState.fontSize).toFixed(2));
+  const displayStrokeWidth = parseFloat(fmtFromMeters(textState.strokeWidth).toFixed(2));
+
   dialog.innerHTML = `
     <div style="padding: 6px 10px; background: #d4d4d4; border-bottom: 1px solid #c0c0c0; font-weight: 600; font-size: 11px;">Text Properties</div>
 
@@ -372,22 +406,45 @@ function showTextDialog(): void {
 
       <div style="margin-bottom: 10px;">
         <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Font</label>
-        <select id="font-select" style="width: 100%; padding: 3px 4px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px;">
-          ${fontCategories.map(cat => `
-            <optgroup label="${cat.label} - ${cat.description}">
+        <div id="font-picker-wrapper" style="position: relative; width: 100%;">
+          <div id="font-picker-trigger" style="
+            width: 100%; padding: 3px 6px; border-radius: 2px; border: 1px solid #b0b0b0;
+            background: #fff; color: #333; font-size: 12px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            min-height: 22px; box-sizing: border-box; user-select: none;
+          ">
+            <span id="font-picker-label"></span>
+            <span style="color: #888; font-size: 9px; flex-shrink: 0; margin-left: 4px;">▼</span>
+          </div>
+          <input type="hidden" id="font-select" value="${textState.fontId}">
+          <div id="font-picker-dropdown" style="
+            display: none; position: absolute; z-index: 10002; left: 0; right: 0; top: 100%;
+            max-height: 200px; overflow-y: auto;
+            border: 1px solid #b0b0b0; background: #fff;
+            border-radius: 0 0 2px 2px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          ">
+            ${fontCategories.map(cat => `
+              <div style="padding: 2px 6px; background: #ebebeb; color: #555; font-size: 10px; font-weight: bold; border-bottom: 1px solid #ddd; position: sticky; top: 0;">
+                ${cat.label} — ${cat.description}
+              </div>
               ${fontLibrary.filter(f => f.category === cat.id).map(f => `
-                <option value="${f.id}" ${textState.fontId === f.id ? 'selected' : ''}${f.mazeRecommended ? ' style="font-weight: bold;"' : ''}>${f.name}${f.mazeRecommended ? ' \u2605' : ''}</option>
+                <div class="font-option" data-font-id="${f.id}" style="
+                  padding: 5px 8px; cursor: pointer; font-size: 13px;
+                  font-family: ${f.browserFont}; font-weight: ${f.weight};
+                  border-bottom: 1px solid #f0f0f0;
+                  ${f.id === textState.fontId ? 'background: #e8f0fe;' : ''}
+                ">${f.name}${f.mazeRecommended ? ' \u2605' : ''}</div>
               `).join('')}
-            </optgroup>
-          `).join('')}
-        </select>
+            `).join('')}
+          </div>
+        </div>
         <div style="font-size: 10px; color: #888; margin-top: 2px;">\u2605 = Recommended for mazes (thick, bold shapes)</div>
       </div>
 
       <div style="display: flex; gap: 12px; margin-bottom: 10px;">
         <div style="flex: 1;">
-          <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Height (meters)</label>
-          <input type="number" id="font-size-input" value="${textState.fontSize}" min="0.1" step="0.1"
+          <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Height (${unitLabel})</label>
+          <input type="number" id="font-size-input" value="${displayFontSize}" min="0.01" step="0.1"
             style="width: 100%; padding: 3px 6px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right; box-sizing: border-box;">
         </div>
         <div style="flex: 1;">
@@ -406,8 +463,8 @@ function showTextDialog(): void {
       </div>
 
       <div id="stroke-width-container" style="margin-bottom: 10px; ${textState.fillMode === 'fill' ? 'display: none;' : ''}">
-        <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Stroke Width (meters)</label>
-        <input type="number" id="stroke-width-input" value="${textState.strokeWidth}" min="0.05" step="0.05"
+        <label style="display: block; margin-bottom: 4px; color: #666; font-size: 11px;">Stroke Width (${unitLabel})</label>
+        <input type="number" id="stroke-width-input" value="${displayStrokeWidth}" min="0.01" step="0.05"
           style="width: 100px; padding: 3px 6px; border-radius: 2px; border: 1px solid #b0b0b0; background: #fff; color: #333; font-size: 11px; font-family: 'Courier New', monospace; text-align: right;">
       </div>
 
@@ -431,7 +488,7 @@ function showTextDialog(): void {
 
   // Get DOM elements once
   const textInput = document.getElementById('text-input') as HTMLInputElement;
-  const fontSelect = document.getElementById('font-select') as HTMLSelectElement;
+  const fontSelectHidden = document.getElementById('font-select') as HTMLInputElement;
   const fontSizeInput = document.getElementById('font-size-input') as HTMLInputElement;
   const strokeWidthInput = document.getElementById('stroke-width-input') as HTMLInputElement;
   const strokeWidthContainer = document.getElementById('stroke-width-container') as HTMLDivElement;
@@ -439,17 +496,65 @@ function showTextDialog(): void {
   const cancelBtn = document.getElementById('cancel-btn') as HTMLButtonElement;
   const okBtn = document.getElementById('ok-btn') as HTMLButtonElement;
   const textPreview = document.getElementById('text-preview') as HTMLDivElement;
+  const fontPickerTrigger = document.getElementById('font-picker-trigger') as HTMLDivElement;
+  const fontPickerDropdown = document.getElementById('font-picker-dropdown') as HTMLDivElement;
+  const fontPickerLabel = document.getElementById('font-picker-label') as HTMLSpanElement;
+
+  // Helper: update the trigger label to show the currently selected font in its own face
+  const refreshFontPickerLabel = () => {
+    const fontId = fontSelectHidden.value;
+    const f = getFontById(fontId) || getDefaultFont();
+    fontPickerLabel.textContent = f.name + (f.mazeRecommended ? ' \u2605' : '');
+    fontPickerLabel.style.fontFamily = f.browserFont;
+    fontPickerLabel.style.fontWeight = f.weight;
+  };
+  refreshFontPickerLabel();
+
+  // Toggle dropdown
+  fontPickerTrigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = fontPickerDropdown.style.display !== 'none';
+    fontPickerDropdown.style.display = isOpen ? 'none' : 'block';
+  });
+
+  // Close dropdown when clicking outside
+  const closeDropdown = (e: MouseEvent) => {
+    if (!fontPickerTrigger.contains(e.target as Node) && !fontPickerDropdown.contains(e.target as Node)) {
+      fontPickerDropdown.style.display = 'none';
+    }
+  };
+  document.addEventListener('click', closeDropdown);
+
+  // Handle font option clicks
+  fontPickerDropdown.querySelectorAll<HTMLDivElement>('.font-option').forEach((opt) => {
+    opt.addEventListener('mouseenter', () => { opt.style.background = '#f0f4ff'; });
+    opt.addEventListener('mouseleave', () => {
+      opt.style.background = opt.dataset.fontId === fontSelectHidden.value ? '#e8f0fe' : '';
+    });
+    opt.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const fontId = opt.dataset.fontId || '';
+      fontSelectHidden.value = fontId;
+      // Update selection highlight
+      fontPickerDropdown.querySelectorAll<HTMLDivElement>('.font-option').forEach(o => {
+        o.style.background = o.dataset.fontId === fontId ? '#e8f0fe' : '';
+      });
+      fontPickerDropdown.style.display = 'none';
+      refreshFontPickerLabel();
+      updatePreview();
+    });
+  });
 
   // Update preview function
   const updatePreview = () => {
     const text = textInput.value || 'Preview';
-    const fontId = fontSelect.value;
+    const fontId = fontSelectHidden.value;
     const selectedFont = getFontById(fontId) || getDefaultFont();
     const fillModeEl = document.querySelector<HTMLInputElement>('input[name="fill-mode"]:checked');
     const fillMode = fillModeEl?.value || 'fill';
 
     textPreview.textContent = text;
-    textPreview.style.fontFamily = selectedFont.backendFont;
+    textPreview.style.fontFamily = selectedFont.browserFont;
     textPreview.style.fontWeight = selectedFont.weight;
 
     // Style based on fill mode
@@ -477,7 +582,7 @@ function showTextDialog(): void {
   const stopPropagation = (e: Event) => e.stopPropagation();
 
   // Prevent keyboard shortcuts from interfering
-  const inputs = [textInput, fontSelect, fontSizeInput, strokeWidthInput];
+  const inputs = [textInput, fontSizeInput, strokeWidthInput];
   for (const input of inputs) {
     input.addEventListener('keydown', stopPropagation);
     input.addEventListener('keyup', stopPropagation);
@@ -486,9 +591,6 @@ function showTextDialog(): void {
 
   // Update preview on text input
   textInput.addEventListener('input', updatePreview);
-
-  // Update preview on font change
-  fontSelect.addEventListener('change', updatePreview);
 
   // Allow Enter to submit from text input
   textInput.addEventListener('keypress', (e) => {
@@ -513,6 +615,7 @@ function showTextDialog(): void {
 
   // Cleanup function
   const closeDialog = () => {
+    document.removeEventListener('click', closeDropdown);
     if (document.body.contains(modal)) {
       document.body.removeChild(modal);
     }
@@ -525,7 +628,7 @@ function showTextDialog(): void {
     textToolCancel();
   });
 
-  // OK button
+  // OK button — convert display-unit values back to meters before saving
   okBtn.addEventListener('click', async () => {
     const text = textInput.value.trim();
     if (!text) {
@@ -533,12 +636,21 @@ function showTextDialog(): void {
       return;
     }
 
-    const fontId = fontSelect.value;
+    const fontId = fontSelectHidden.value;
     const selectedFont = getFontById(fontId) || getDefaultFont();
-    const fontSize = parseFloat(fontSizeInput.value);
+    // Values entered by user are in display units (ft or m); convert to meters
+    const fontSize = fmtToMeters(parseFloat(fontSizeInput.value));
     const fillModeEl = document.querySelector<HTMLInputElement>('input[name="fill-mode"]:checked');
     const fillMode = (fillModeEl?.value as 'fill' | 'stroke') || 'stroke';
-    const strokeWidth = parseFloat(strokeWidthInput.value);
+    const strokeWidth = fmtToMeters(parseFloat(strokeWidthInput.value));
+
+    // Persist these choices for the next session
+    useSettingsStore.getState().setLastTextSettings({
+      fontId: selectedFont.id,
+      fontSize,
+      fillMode,
+      strokeWidth,
+    });
 
     updateTextState({
       text,
@@ -652,8 +764,13 @@ export async function textToolFinish(): Promise<void> {
       const geojsonPath = previewPaths[p] as any;
 
       let coords: [number, number][];
+      let holeRings: [number, number][][] = [];
       if (geojsonPath?.type === 'Polygon' && geojsonPath?.coordinates) {
         coords = geojsonPath.coordinates[0];
+        // Preserve interior rings (letter counters like O, D, B, R)
+        if (geojsonPath.coordinates.length > 1) {
+          holeRings = geojsonPath.coordinates.slice(1) as [number, number][][];
+        }
       } else if (Array.isArray(geojsonPath)) {
         coords = geojsonPath;
       } else {
@@ -674,9 +791,15 @@ export async function textToolFinish(): Promise<void> {
         ];
       }
 
+      // Apply the same offset to hole rings
+      const finalHoles: [number, number][][] = holeRings.map(ring =>
+        ring.map(pt => [pt[0] + offsetX, pt[1] + offsetY] as [number, number])
+      );
+
       const id = addDesignElement({
         type: 'text',
         points: finalCoords,
+        holes: finalHoles.length > 0 ? finalHoles : undefined,
         width: isFilled ? 0 : strokeWidth,
         closed: isFilled,
         rotation: 0, // Always 0, user can rotate with transform handles
