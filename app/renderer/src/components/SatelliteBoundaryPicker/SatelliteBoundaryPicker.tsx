@@ -23,7 +23,7 @@ export function SatelliteBoundaryPicker({ onConfirm, onCancel }: SatelliteBounda
   const mapRef = useRef<L.Map | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
   const arcPolygonRef = useRef<L.Polygon | null>(null);
-  const markersRef = useRef<L.CircleMarker[]>([]);
+  const markersRef = useRef<Array<L.CircleMarker | L.Marker>>([]);
   const polylineRef = useRef<L.Polyline | null>(null);
 
   const [points, setPoints] = useState<[number, number][]>([]);
@@ -131,27 +131,38 @@ export function SatelliteBoundaryPicker({ onConfirm, onCancel }: SatelliteBounda
     // Convert [lon, lat] to [lat, lng] for Leaflet
     const latLngs: L.LatLngExpression[] = points.map(p => [p[1], p[0]]);
 
-    // Add vertex markers for original placed points
+    // Add vertex markers for original placed points — rendered as DivIcon circles
+    // so they can carry Leaflet's built-in draggable support.
     points.forEach((p, i) => {
       const isFirst = i === 0;
-      const marker = L.circleMarker([p[1], p[0]], {
-        radius: isFirst ? 8 : 5,
-        color: isFirst ? '#22c55e' : '#94a3b8',
-        fillColor: isFirst ? '#22c55e' : '#94a3b8',
-        fillOpacity: 0.8,
-        weight: 2,
-      }).addTo(map);
+      const size   = isFirst ? 16 : 10;
+      const bg     = isFirst ? '#22c55e' : '#94a3b8';
+      const border = isFirst ? '#166534' : '#64748b';
 
-      if (isFirst && points.length >= 3) {
-        marker.bindTooltip('Click to close polygon', {
-          permanent: false,
-          direction: 'top',
-        });
+      const icon = L.divIcon({
+        className: '',
+        html: `<div style="width:${size}px;height:${size}px;background:${bg};border-radius:50%;border:2px solid ${border};cursor:grab;box-sizing:border-box;"></div>`,
+        iconSize:   [size, size] as L.PointExpression,
+        iconAnchor: [size / 2, size / 2] as L.PointExpression,
+      });
+
+      const marker = L.marker([p[1], p[0]], { icon, draggable: true }).addTo(map);
+
+      if (isFirst && !isClosed && points.length >= 3) {
+        marker.bindTooltip('Click to close polygon', { permanent: false, direction: 'top' });
         marker.on('click', (e: L.LeafletMouseEvent) => {
           L.DomEvent.stopPropagation(e);
           closePolygon();
         });
       }
+
+      // Drag: update that point's position in state when the user releases
+      marker.on('dragend', () => {
+        const { lat, lng } = marker.getLatLng();
+        setPoints(prev =>
+          prev.map((pt, idx) => (idx === i ? [lng, lat] as [number, number] : pt))
+        );
+      });
 
       markersRef.current.push(marker);
     });
@@ -309,12 +320,12 @@ export function SatelliteBoundaryPicker({ onConfirm, onCancel }: SatelliteBounda
         }}>
           <span style={{ color: '#9ca3af' }}>
             {points.length === 0
-              ? 'Click on the map to place boundary points around your field'
+              ? 'Click on the map to place boundary points — drag any dot to reposition it'
               : isClosed
-                ? `Boundary complete — ${points.length} corner points${hasArcs ? ', arcs applied' : ''}, ${formatArea(area)}`
+                ? `Boundary closed — ${points.length} points, ${formatArea(area)}${hasArcs ? ' (arcs applied)' : ''} — drag any dot to adjust`
                 : points.length < 3
-                  ? `${points.length} point${points.length > 1 ? 's' : ''} placed — need at least 3`
-                  : `${points.length} points — click first point (green) to close, or keep adding`}
+                  ? `${points.length} point${points.length > 1 ? 's' : ''} placed — need at least 3; drag to reposition`
+                  : `${points.length} points — drag any dot to reposition, click green dot to close`}
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={handleUndo} disabled={points.length === 0} style={{
