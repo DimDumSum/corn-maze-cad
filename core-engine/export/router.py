@@ -4,7 +4,7 @@ Export API Router: Shapefile, KML, GPX, DXF, printable map, and prescription map
 
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from state import app_state
 from .shapefile import export_cut_paths_to_shapefile
 from .kml import export_maze_kml, export_boundary_kml, export_walls_kml
@@ -130,7 +130,7 @@ def export_kml_endpoint(
 @router.get("/png")
 def export_png_endpoint(
     name: str = Query("maze_design", description="Base name for output files"),
-    width: int = Query(0, description="Explicit image width in pixels (0 = auto-compute from resolution)"),
+    width: int = Query(0, ge=0, le=50000, description="Explicit image width in pixels (0 = auto-compute from resolution)"),
     resolution: float = Query(
         DEFAULT_RESOLUTION_M_PER_PX,
         description="Ground resolution in metres per pixel (default 0.10 = 10 cm/px, max 0.15 = 15 cm/px)",
@@ -253,7 +253,7 @@ def export_dxf_endpoint(
 class PrintableMapRequest(BaseModel):
     title: str = "Corn Maze"
     showSolution: bool = False
-    widthPx: int = 2400
+    widthPx: int = Field(2400, ge=100, le=50000)
 
 
 @router.post("/printable")

@@ -184,7 +184,10 @@ function stopPythonBackend(): Promise<void> {
     // Set a timeout for forceful kill
     const killTimeout = setTimeout(() => {
       console.log('[Python] Force killing backend (SIGKILL)');
-      pythonProcess?.kill('SIGKILL');
+      if (pythonProcess) {
+        pythonProcess.kill('SIGKILL');
+        pythonProcess = null;
+      }
       resolve();
     }, 5000);
 

@@ -6,7 +6,7 @@ that can be loaded into GPS receivers for field cutting.
 """
 
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple
 from xml.sax.saxutils import escape
 
@@ -70,7 +70,7 @@ def export_boundary_gpx(
      xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
     <name>{escape(base_name)}</name>
-    <time>{datetime.utcnow().isoformat()}Z</time>
+    <time>{datetime.now(timezone.utc).isoformat()}Z</time>
   </metadata>
   <rte>
     <name>Field Boundary</name>
@@ -133,7 +133,7 @@ def export_walls_gpx(
      xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
     <name>{escape(base_name)}</name>
-    <time>{datetime.utcnow().isoformat()}Z</time>
+    <time>{datetime.now(timezone.utc).isoformat()}Z</time>
   </metadata>
 {tracks_xml}
 </gpx>
@@ -219,7 +219,7 @@ def export_cutting_guide_gpx(
   <metadata>
     <name>{escape(base_name)}</name>
     <desc>Complete cutting guide for GPS-guided mowing</desc>
-    <time>{datetime.utcnow().isoformat()}Z</time>
+    <time>{datetime.now(timezone.utc).isoformat()}Z</time>
   </metadata>
 {waypoints_xml}
   <rte>

@@ -165,8 +165,18 @@ def import_kmz(file_path: str) -> Dict:
     try:
         # KMZ is a ZIP file containing doc.kml (and potentially other files)
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Extract KMZ
+            # Extract KMZ - validate member paths to prevent zip slip
+            MAX_EXTRACT_SIZE = 100 * 1024 * 1024  # 100 MB
             with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                total_size = 0
+                for member in zip_ref.infolist():
+                    # Reject paths with directory traversal
+                    member_path = Path(member.filename)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        raise ImportError(f"Invalid path in KMZ archive: {member.filename}")
+                    total_size += member.file_size
+                    if total_size > MAX_EXTRACT_SIZE:
+                        raise ImportError("KMZ archive exceeds maximum allowed size (100 MB)")
                 zip_ref.extractall(temp_dir)
 
             # Look for doc.kml or any .kml file
