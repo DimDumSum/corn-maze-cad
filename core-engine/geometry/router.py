@@ -1534,8 +1534,10 @@ def auto_fix_violations(req: AutoFixRequest):
                 "id": el.id,
                 "type": el.type,
                 "points": [list(p) for p in el.points],
+                "holes": [[list(p) for p in ring] for ring in el.holes] if el.holes else None,
                 "width": el.width,
-                "closed": el.closed
+                "closed": el.closed,
+                "rotation": el.rotation,
             }
             for el in req.elements
         ]
@@ -1593,11 +1595,16 @@ def auto_fix_violations(req: AutoFixRequest):
                             move_x = (dx / dist) * move_dist
                             move_y = (dy / dist) * move_dist
 
-                            # Apply translation to points
+                            # Apply translation to points and holes
                             el_data["points"] = [
                                 [p[0] + move_x, p[1] + move_y]
                                 for p in el_data["points"]
                             ]
+                            if el_data.get("holes"):
+                                el_data["holes"] = [
+                                    [[p[0] + move_x, p[1] + move_y] for p in ring]
+                                    for ring in el_data["holes"]
+                                ]
                             changes.append({
                                 "elementId": el_data["id"],
                                 "change": f"Moved {move_dist:.1f}m away from edge"
@@ -1663,12 +1670,22 @@ def auto_fix_violations(req: AutoFixRequest):
                         [p[0] + move_x, p[1] + move_y]
                         for p in el2["points"]
                     ]
+                    if el2.get("holes"):
+                        el2["holes"] = [
+                            [[p[0] + move_x, p[1] + move_y] for p in ring]
+                            for ring in el2["holes"]
+                        ]
 
                     # Move el1 in opposite direction
                     el1["points"] = [
                         [p[0] - move_x, p[1] - move_y]
                         for p in el1["points"]
                     ]
+                    if el1.get("holes"):
+                        el1["holes"] = [
+                            [[p[0] - move_x, p[1] - move_y] for p in ring]
+                            for ring in el1["holes"]
+                        ]
 
                     change_type = "overlap" if intersects else "spacing"
                     changes.append({
@@ -1745,6 +1762,11 @@ def auto_fix_violations(req: AutoFixRequest):
                         [p[0] + move_x, p[1] + move_y]
                         for p in el_data["points"]
                     ]
+                    if el_data.get("holes"):
+                        el_data["holes"] = [
+                            [[p[0] + move_x, p[1] + move_y] for p in ring]
+                            for ring in el_data["holes"]
+                        ]
                     changes.append({
                         "elementId": el_data["id"],
                         "change": f"Moved {move_dist:.1f}m away from existing carved path"
@@ -1756,8 +1778,10 @@ def auto_fix_violations(req: AutoFixRequest):
                 "id": el["id"],
                 "type": el["type"],
                 "points": el["points"],
+                "holes": el.get("holes"),
                 "width": el["width"],
-                "closed": el["closed"]
+                "closed": el["closed"],
+                "rotation": el.get("rotation"),
             }
             for el in elements_data
         ]

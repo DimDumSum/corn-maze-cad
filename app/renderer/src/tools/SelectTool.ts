@@ -22,6 +22,7 @@ import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
 import { useDesignStore, type DesignElement, type TransformHandle } from '../stores/designStore';
+import { useConstraintStore } from '../stores/constraintStore';
 import { fmtLen, fmtShort } from '../utils/fmt';
 import { API_BASE_URL } from '../api/client';
 
@@ -61,7 +62,7 @@ async function triggerRevalidation() {
     }
 
     try {
-      // Get constraint values (use defaults if not available)
+      const { wallWidthMin, edgeBuffer, pathWidthMin } = useConstraintStore.getState();
       const res = await fetch(`${API_BASE_URL}/geometry/validate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,9 +70,9 @@ async function triggerRevalidation() {
           elements: designElements,
           field: field?.geometry,
           constraints: {
-            wallWidthMin: 2,
-            edgeBuffer: 3,
-            pathWidthMin: 4.0,
+            wallWidthMin,
+            edgeBuffer,
+            pathWidthMin,
           },
         }),
       });
@@ -587,6 +588,7 @@ export const SelectTool: Tool = {
             const newId = addDesignElement({
               type: el.type,
               points: originalData.points.map(p => [...p] as [number, number]),
+              holes: el.holes ? el.holes.map(ring => ring.map(p => [...p] as [number, number])) : undefined,
               width: el.width,
               closed: el.closed,
               rotation: el.rotation,
@@ -1172,6 +1174,7 @@ export function selectToolDuplicate() {
     const newId = addDesignElement({
       type: el.type,
       points: el.points.map(([x, y]) => [x + offset, y + offset] as [number, number]),
+      holes: el.holes ? el.holes.map(ring => ring.map(([x, y]) => [x + offset, y + offset] as [number, number])) : undefined,
       width: el.width,
       closed: el.closed,
       rotation: el.rotation,

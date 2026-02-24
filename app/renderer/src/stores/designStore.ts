@@ -249,7 +249,11 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set((state) => {
       // Push current state to undo stack (full snapshot including maze)
       const snapshot: UndoSnapshot = {
-        designElements: state.designElements.map(el => ({ ...el, points: [...el.points] })),
+        designElements: state.designElements.map(el => ({
+          ...el,
+          points: [...el.points],
+          holes: el.holes ? el.holes.map(ring => [...ring]) : undefined,
+        })),
         maze: state.maze,
       };
       const newUndoStack = [...state.undoStack, snapshot];
@@ -280,7 +284,11 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set((state) => {
       // Push current state to undo stack (full snapshot including maze)
       const snapshot: UndoSnapshot = {
-        designElements: state.designElements.map(el => ({ ...el, points: [...el.points] })),
+        designElements: state.designElements.map(el => ({
+          ...el,
+          points: [...el.points],
+          holes: el.holes ? el.holes.map(ring => [...ring]) : undefined,
+        })),
         maze: state.maze,
       };
       const newUndoStack = [...state.undoStack, snapshot];
@@ -307,7 +315,11 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set((state) => {
       // Push current state to undo stack (full snapshot including maze)
       const snapshot: UndoSnapshot = {
-        designElements: state.designElements.map(el => ({ ...el, points: [...el.points] })),
+        designElements: state.designElements.map(el => ({
+          ...el,
+          points: [...el.points],
+          holes: el.holes ? el.holes.map(ring => [...ring]) : undefined,
+        })),
         maze: state.maze,
       };
       const newUndoStack = [...state.undoStack, snapshot];
@@ -347,7 +359,11 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     // This captures both designElements AND maze state for full undo support
     set((state) => {
       const snapshot: UndoSnapshot = {
-        designElements: state.designElements.map(el => ({ ...el, points: [...el.points] })),
+        designElements: state.designElements.map(el => ({
+          ...el,
+          points: [...el.points],
+          holes: el.holes ? el.holes.map(ring => [...ring]) : undefined,
+        })),
         maze: state.maze,
       };
       const newUndoStack = [...state.undoStack, snapshot];
@@ -538,7 +554,11 @@ export const useDesignStore = create<DesignState>((set, get) => ({
     set((state) => {
       // Push current state to undo stack for undo capability (full snapshot including maze)
       const snapshot: UndoSnapshot = {
-        designElements: state.designElements.map(el => ({ ...el, points: [...el.points] })),
+        designElements: state.designElements.map(el => ({
+          ...el,
+          points: [...el.points],
+          holes: el.holes ? el.holes.map(ring => [...ring]) : undefined,
+        })),
         maze: state.maze,
       };
       const newUndoStack = [...state.undoStack, snapshot];

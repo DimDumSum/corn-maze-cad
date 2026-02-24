@@ -8,7 +8,6 @@
 import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
-import { useProjectStore } from '../stores/projectStore';
 import { useDesignStore } from '../stores/designStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { SnapEngine } from '../snapping/SnapEngine';
@@ -68,25 +67,6 @@ function buildDefaultTextState(): TextToolState {
     originalPosition: null,
   };
 }
-// Keep a module-level fallback for synchronous initialization paths
-const _defaultFont = getDefaultFont();
-const DEFAULT_TEXT_STATE: TextToolState = {
-  isActive: false,
-  stage: 'selectingPosition',
-  position: null,
-  text: '',
-  fontId: _defaultFont.id,
-  font: _defaultFont.backendFont,
-  fontWeight: _defaultFont.weight,
-  fontSize: 1.0,
-  fillMode: 'stroke',
-  strokeWidth: 0.2,
-  rotation: 0,
-  previewPaths: null,
-  isDragging: false,
-  originalPosition: null,
-};
-
 // Cached snap engine to avoid recreation on every mouse move
 let cachedSnapEngine: SnapEngine | null = null;
 let cachedSnapConfig: { gridSize: number; cameraScale: number } | null = null;
@@ -142,11 +122,13 @@ function applySnap(worldPos: [number, number]): [number, number] {
   }
 
   // Collect geometries for snapping
-  const { field, pathElements } = useProjectStore.getState();
+  const { field, designElements } = useDesignStore.getState();
   const geometries: any[] = [];
   if (field?.geometry) geometries.push(field.geometry);
-  for (const pathElement of pathElements.values()) {
-    if (pathElement.geometry) geometries.push(pathElement.geometry);
+  for (const el of designElements) {
+    if (el.points.length >= 2) {
+      geometries.push({ type: 'LineString', coordinates: el.points });
+    }
   }
 
   // Find snap
