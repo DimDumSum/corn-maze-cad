@@ -284,15 +284,22 @@ def _draw_geometry_lines(
 def _render_design_png(
     field: BaseGeometry,
     walls: Optional[BaseGeometry],
-    width_px: int = 800,
+    resolution_m_per_px: float = 0.10,
 ) -> bytes:
     """Render the maze design as a PNG image (in centered coordinates).
 
     White = paths to cut, dark green = standing corn.
 
+    The image is sized at *resolution_m_per_px* (default 10 cm/px) and never
+    coarser than 15 cm/px so the KMZ GroundOverlay stays crisp when operators
+    zoom in during cutting.  Wall line thickness scales with resolution to
+    maintain consistent visual corn-row width.
+
     Returns:
-        Raw PNG bytes.
+        Raw PNG bytes, or ``b""`` on invalid geometry.
     """
+    from export.png import compute_png_dimensions
+
     minx, miny, maxx, maxy = field.bounds
     field_w = maxx - minx
     field_h = maxy - miny
@@ -300,8 +307,7 @@ def _render_design_png(
     if field_w <= 0 or field_h <= 0:
         return b""
 
-    aspect = field_h / field_w
-    height_px = max(int(width_px * aspect), 1)
+    width_px, height_px, _ = compute_png_dimensions(field_w, field_h, resolution_m_per_px)
 
     px_per_m_x = width_px / field_w
     px_per_m_y = height_px / field_h
@@ -310,6 +316,9 @@ def _render_design_png(
         px = int((x - minx) * px_per_m_x)
         py = int((maxy - y) * px_per_m_y)
         return (px, py)
+
+    # Wall line width: ~0.75 m ground width converted to pixels
+    wall_line_px = max(2, int(round(px_per_m_x * 0.75)))
 
     img = Image.new('RGBA', (width_px, height_px), color=(0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -320,7 +329,7 @@ def _render_design_png(
 
     # Draw wall lines as green (standing corn) on top
     if walls is not None and not walls.is_empty:
-        _draw_geometry_lines(draw, walls, world_to_pixel, fill=(34, 85, 34, 255), width=3)
+        _draw_geometry_lines(draw, walls, world_to_pixel, fill=(34, 85, 34, 255), width=wall_line_px)
 
     # Draw field outline
     draw.polygon(field_pixels, outline=(0, 0, 0, 255), fill=None)

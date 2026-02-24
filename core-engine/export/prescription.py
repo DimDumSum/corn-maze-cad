@@ -192,13 +192,13 @@ def export_prescription_map(
     with open(geojson_path, 'w') as f:
         json.dump(geojson, f, indent=2)
 
-    # Generate preview PNG
+    # Generate preview PNG at ≥ 10 cm/px so field details are crisp
+    from export.png import compute_png_dimensions
     minx, miny, maxx, maxy = field.bounds
     fw = maxx - minx
     fh = maxy - miny
-    px_width = 800
-    px_height = int(px_width * (fh / fw)) if fw > 0 else 800
-    px_per_m = px_width / fw
+    px_width, px_height, _ = compute_png_dimensions(fw, fh)  # default 10 cm/px
+    px_per_m = px_width / fw if fw > 0 else 1
 
     def to_px(x, y):
         return (int((x - minx) * px_per_m), int((maxy - y) * px_per_m))

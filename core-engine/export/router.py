@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from state import app_state
 from .shapefile import export_walls_to_shapefile
 from .kml import export_maze_kml, export_boundary_kml, export_walls_kml
-from .png import export_georeferenced_png
+from .png import export_georeferenced_png, DEFAULT_RESOLUTION_M_PER_PX
 from .gpx import export_boundary_gpx, export_walls_gpx, export_cutting_guide_gpx
 from .dxf import export_maze_dxf
 from .printable import export_printable_map
@@ -133,12 +133,20 @@ def export_kml_endpoint(
 @router.get("/png")
 def export_png_endpoint(
     name: str = Query("maze_design", description="Base name for output files"),
-    width: int = Query(800, description="Image width in pixels"),
+    width: int = Query(0, description="Explicit image width in pixels (0 = auto-compute from resolution)"),
+    resolution: float = Query(
+        DEFAULT_RESOLUTION_M_PER_PX,
+        description="Ground resolution in metres per pixel (default 0.10 = 10 cm/px, max 0.15 = 15 cm/px)",
+    ),
 ):
     """
     Export maze as a georeferenced PNG + JSON sidecar.
 
     White pixels = paths to cut. Green pixels = corn to leave standing.
+
+    Resolution defaults to 10 cm/px (4 in/px).  The image is never coarser
+    than 15 cm/px regardless of the ``width`` or ``resolution`` arguments,
+    eliminating pixel staircases when the operator zooms in during cutting.
 
     Returns:
         {
@@ -146,7 +154,8 @@ def export_png_endpoint(
             "png_path": str,
             "json_path": str,
             "width_px": int,
-            "height_px": int
+            "height_px": int,
+            "resolution_m_per_px": float
         }
     """
     field = app_state.get_field()
@@ -169,7 +178,8 @@ def export_png_endpoint(
     try:
         result = export_georeferenced_png(
             field, walls, crs, offset,
-            width_px=width,
+            width_px=width if width > 0 else None,
+            resolution_m_per_px=resolution,
             base_name=name,
         )
         return result
