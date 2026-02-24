@@ -6,7 +6,7 @@ and other GIS tools.
 """
 
 from .shapefile import (
-    export_walls_to_shapefile,
+    export_cut_paths_to_shapefile,
     get_downloads_folder,
     create_wkt_prj_file,
 )
@@ -20,7 +20,7 @@ from .png import (
 )
 
 __all__ = [
-    "export_walls_to_shapefile",
+    "export_cut_paths_to_shapefile",
     "get_downloads_folder",
     "create_wkt_prj_file",
     "export_maze_kml",

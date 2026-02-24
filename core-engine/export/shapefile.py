@@ -8,9 +8,7 @@ with proper coordinate system projection files.
 import shapefile
 from pathlib import Path
 from datetime import datetime
-from shapely.geometry.base import BaseGeometry
 from typing import List, Dict, Tuple
-from geometry.operations import flatten_geometry
 
 
 def get_downloads_folder() -> Path:
@@ -63,69 +61,59 @@ def create_wkt_prj_file(filepath: str, crs: str = "EPSG:4326"):
         f.write(prj_content)
 
 
-def export_walls_to_shapefile(
-    walls: BaseGeometry,
-    base_name: str = "maze_walls",
+def export_cut_paths_to_shapefile(
+    carved_paths: List[Dict],
+    base_name: str = "maze_cut_paths",
     output_dir: Path = None,
     crs: str = "EPSG:4326",
 ) -> Dict[str, any]:
     """
-    Export maze walls to ESRI Shapefile format.
+    Export maze cut-path centerlines to ESRI Shapefile format.
+
+    Each carved tractor pass becomes one line record with an ID and the
+    cutting WIDTH_M attribute.  Corn-row wall centerlines are not included
+    — they are a visual design aid with no value to the GPS operator.
 
     Creates .shp, .shx, .dbf, and .prj files in the Downloads folder
-    (or specified output directory). Automatically adds timestamp
-    if file already exists.
+    (or specified output directory). Automatically adds timestamp if a
+    file with the same name already exists.
 
     Args:
-        walls: Shapely geometry containing maze walls
-        base_name: Base name for output files (default: "maze_walls")
+        carved_paths: List of {'points': [[x,y],...], 'width': float}
+        base_name: Base name for output files (default: "maze_cut_paths")
         output_dir: Optional output directory (default: Downloads folder)
+        crs: Coordinate reference system of the input coordinates
 
     Returns:
-        Dictionary with:
-        {
-            "success": bool,
-            "path": str (path to .shp file),
-            "files": list[str] (all generated file paths)
-        }
+        {"success": bool, "path": str, "files": list[str]}
 
     Raises:
-        ValueError: If walls geometry is None or empty
-
-    Example:
-        >>> from shapely.geometry import MultiLineString
-        >>> walls = MultiLineString([...])
-        >>> result = export_walls_to_shapefile(walls)
-        >>> print(result["path"])
-        'C:\\Users\\Username\\Downloads\\maze_walls.shp'
+        ValueError: If carved_paths is empty
     """
-    if walls is None:
-        raise ValueError("No walls geometry to export")
+    if not carved_paths:
+        raise ValueError("No cut paths to export")
 
-    # Determine output directory
     if output_dir is None:
         output_dir = get_downloads_folder()
 
-    # Build output path
     output_path = output_dir / f"{base_name}.shp"
-
-    # Avoid overwriting - add timestamp if exists
     if output_path.exists():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = f"{base_name}_{timestamp}"
         output_path = output_dir / f"{base_name}.shp"
 
-    # Create shapefile writer
     with shapefile.Writer(str(output_path)) as writer:
-        writer.field('ID', 'N')  # Numeric ID field
+        writer.field('ID', 'N')
+        writer.field('WIDTH_M', 'N', decimal=4)
 
-        # Write geometries
-        flattened = flatten_geometry(walls)
-        for i, line_coords in enumerate(flattened):
-            writer.line([line_coords])
-            writer.record(i)
+        for i, cp in enumerate(carved_paths):
+            pts = cp.get("points", [])
+            width = float(cp.get("width") or 0)
+            if len(pts) < 2:
+                continue
+            writer.line([[(p[0], p[1]) for p in pts]])
+            writer.record(i, width)
 
-    # Create .prj file with actual coordinate system from import
     prj_path = output_path.with_suffix('.prj')
     create_wkt_prj_file(str(prj_path), crs=crs)
 
@@ -133,9 +121,9 @@ def export_walls_to_shapefile(
         "success": True,
         "path": str(output_path),
         "files": [
-            str(output_path),                          # .shp
-            str(output_path.with_suffix('.shx')),      # .shx
-            str(output_path.with_suffix('.dbf')),      # .dbf
-            str(prj_path)                               # .prj
-        ]
+            str(output_path),
+            str(output_path.with_suffix('.shx')),
+            str(output_path.with_suffix('.dbf')),
+            str(prj_path),
+        ],
     }

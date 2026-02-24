@@ -6,7 +6,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from state import app_state
-from .shapefile import export_walls_to_shapefile
+from .shapefile import export_cut_paths_to_shapefile
 from .kml import export_maze_kml, export_boundary_kml, export_walls_kml
 from .png import export_georeferenced_png, DEFAULT_RESOLUTION_M_PER_PX
 from .gpx import export_boundary_gpx, export_walls_gpx, export_cutting_guide_gpx
@@ -20,21 +20,23 @@ router = APIRouter()
 @router.get("/shapefile")
 def export_shapefile_endpoint():
     """
-    Export current maze walls to ESRI Shapefile format.
+    Export maze cut-path centerlines to ESRI Shapefile format.
 
-    Creates .shp, .shx, .dbf, and .prj files in the Downloads folder.
+    Each carved tractor pass becomes one line record with ID and WIDTH_M
+    attributes.  Creates .shp, .shx, .dbf, and .prj files in the Downloads
+    folder.
     """
-    current_walls = app_state.get_walls()
+    carved_paths = app_state.get_carved_paths()
 
-    if not current_walls:
+    if not carved_paths:
         raise HTTPException(
             status_code=400,
-            detail={"error": "No maze to export", "error_code": "NO_MAZE"}
+            detail={"error": "No cut paths to export — carve the maze first", "error_code": "NO_CUT_PATHS"}
         )
 
     try:
         crs = app_state.get_crs() or "EPSG:3857"
-        result = export_walls_to_shapefile(current_walls, crs=crs)
+        result = export_cut_paths_to_shapefile(carved_paths, crs=crs)
         return result
 
     except Exception as e:
@@ -47,7 +49,6 @@ def export_shapefile_endpoint():
 @router.get("/kml")
 def export_kml_endpoint(
     name: str = Query("maze", description="Base name for output file"),
-    wall_buffer: float = Query(1.0, description="Buffer width (meters) to convert wall lines to polygons"),
     path_width: float = Query(None, description="Navigable path width (meters) for metadata"),
     include_solution: bool = Query(False, description="Compute and include solution path"),
 ):
@@ -56,21 +57,19 @@ def export_kml_endpoint(
 
     The file contains styled Folder layers for:
     - Boundary polygon
-    - Maze wall polygons (buffered)
-    - Cutting path centerlines (unbuffered LineStrings for GPS guidance)
-    - Headland wall polygons (if present)
+    - Cut-path centerlines (one per tractor pass, with cutting width)
     - Carved area polygons (cutting guide)
+    - Individual cut-path polygons
+    - Path edge linestrings (cut/stand boundaries)
     - Entrance / exit / emergency-exit point placemarks
     - Solution path linestring (optional)
-    - Design overlay image (GroundOverlay)
+    - Design overlay image (GroundOverlay raster — visual aid only)
 
     Returns:
         {
             "success": bool,
             "path": str,
-            "wall_count": int,
             "centerline_count": int,
-            "headland_count": int,
             "carved_area_count": int,
             "point_count": int,
             "has_solution": bool,
@@ -109,14 +108,12 @@ def export_kml_endpoint(
             crs=crs,
             centroid_offset=offset,
             walls=walls,
-            headland_walls=app_state.get_headland_walls(),
             entrances=app_state.get_entrances(),
             exits=app_state.get_exits(),
             emergency_exits=app_state.get_emergency_exits(),
             solution_path=solution_path,
             carved_areas=app_state.get_carved_areas(),
             carved_paths=app_state.get_carved_paths(),
-            wall_buffer=wall_buffer,
             path_width=path_width,
             base_name=name,
         )
@@ -194,16 +191,15 @@ def export_png_endpoint(
 @router.get("/gpx")
 def export_gpx_endpoint(
     name: str = Query("maze_cutting_guide", description="Base name for output file"),
-    include_walls: bool = Query(True, description="Include wall tracks"),
 ):
     """
     Export maze as GPX file for handheld GPS devices.
 
-    Includes field boundary as a route, maze walls as tracks,
-    and entrance/exit positions as waypoints.
+    Includes field boundary as a route, one track per carved tractor pass
+    (each named "Cut Path N" with cutting width in the comment), and
+    entrance/exit positions as waypoints.
     """
     field = app_state.get_field()
-    walls = app_state.get_walls()
     crs = app_state.get_crs()
     offset = app_state.get_centroid_offset()
 
@@ -214,8 +210,8 @@ def export_gpx_endpoint(
 
     try:
         result = export_cutting_guide_gpx(
-            field, walls if include_walls else None,
-            crs, offset,
+            field, crs, offset,
+            carved_paths=app_state.get_carved_paths(),
             entrances=app_state.get_entrances(),
             exits=app_state.get_exits(),
             base_name=name,
@@ -232,17 +228,16 @@ def export_dxf_endpoint(
     """
     Export maze as DXF file for CAD interoperability.
 
-    Layers: BOUNDARY, WALLS, ANNOTATIONS (entrances/exits).
+    Layers: BOUNDARY, ANNOTATIONS, PATHEDGES, CENTERLINES, CutPathPolygons.
     """
     field = app_state.get_field()
-    walls = app_state.get_walls()
 
     if not field:
         raise HTTPException(status_code=400, detail={"error": "No field boundary"})
 
     try:
         result = export_maze_dxf(
-            field, walls,
+            field,
             entrances=app_state.get_entrances(),
             exits=app_state.get_exits(),
             emergency_exits=app_state.get_emergency_exits(),
