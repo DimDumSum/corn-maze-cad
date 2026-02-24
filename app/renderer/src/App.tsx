@@ -269,8 +269,10 @@ function App() {
           emergencyExits: state.emergencyExits,
         };
         await api.autosave(projectData);
-      } catch {
-        // Silently fail autosave
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('[Autosave] Failed to autosave:', err);
+        }
       }
     }, AUTOSAVE_INTERVAL_MS);
 

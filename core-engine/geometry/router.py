@@ -4,7 +4,7 @@ Updated: Image import endpoints added.
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from state import app_state
 from .operations import carve_path, flatten_geometry, smooth_buffer, densify_curves
@@ -476,8 +476,8 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
 
 class ImageToPathsRequest(BaseModel):
     """Request model for converting raster images to vector paths."""
-    imageData: str  # base64 encoded image data
-    threshold: int = 128  # 0-255, pixels darker than this become carveable
+    imageData: str = Field(..., max_length=50_000_000)  # base64 encoded image data (~37 MB raw)
+    threshold: int = Field(128, ge=0, le=255)  # 0-255, pixels darker than this become carveable
     invert: bool = False  # if True, light areas become carveable instead of dark
     simplify: float = 2.0  # polygon simplification tolerance in pixels
     targetWidth: float = 50.0  # target width in meters
@@ -709,8 +709,8 @@ def image_to_paths_endpoint(req: ImageToPathsRequest):
 
 class ImagePreviewRequest(BaseModel):
     """Request model for generating image vectorization preview."""
-    imageData: str  # base64 encoded image
-    threshold: int = 128
+    imageData: str = Field(..., max_length=50_000_000)  # base64 encoded image
+    threshold: int = Field(128, ge=0, le=255)
     invert: bool = False
 
 

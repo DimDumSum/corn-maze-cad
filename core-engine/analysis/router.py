@@ -5,8 +5,8 @@ constraint validation, and MazeGPS import.
 """
 
 import json
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException, UploadFile, File, Query
+from pydantic import BaseModel, Field
 from typing import Optional, List, Tuple
 from state import app_state
 from .metrics import analyze_maze
@@ -23,7 +23,7 @@ router = APIRouter()
 class PathfindRequest(BaseModel):
     start: Tuple[float, float]
     goal: Tuple[float, float]
-    resolution: float = 2.0
+    resolution: float = Field(2.0, ge=0.5, le=50.0)
 
 
 @router.get("/metrics")
@@ -113,7 +113,7 @@ def get_entrances_exits():
 # === SOLVABILITY CHECK ===
 
 @router.post("/verify-solvable")
-def verify_solvable(resolution: float = 2.0):
+def verify_solvable(resolution: float = Query(2.0, ge=0.5, le=50.0)):
     """
     Verify that the maze is solvable from all entrances to all exits.
 
@@ -181,8 +181,8 @@ def get_emergency_exits():
 
 
 class EmergencyAnalysisRequest(BaseModel):
-    max_distance: float = 50.0
-    resolution: float = 3.0
+    max_distance: float = Field(50.0, ge=1.0, le=1000.0)
+    resolution: float = Field(3.0, ge=0.5, le=50.0)
 
 
 @router.post("/analyze-emergency-coverage")
@@ -279,8 +279,8 @@ def validate_constraints(req: ConstraintValidationRequest):
 # === VISITOR FLOW SIMULATION ===
 
 class FlowSimulationRequest(BaseModel):
-    num_visitors: int = 100
-    resolution: float = 2.0
+    num_visitors: int = Field(100, ge=1, le=10000)
+    resolution: float = Field(2.0, ge=0.5, le=50.0)
     seed: Optional[int] = None
 
 
@@ -316,8 +316,8 @@ def simulate_flow(req: FlowSimulationRequest):
 # === DIFFICULTY PHASES ===
 
 class DifficultyPhasesRequest(BaseModel):
-    num_phases: int = 3
-    resolution: float = 2.0
+    num_phases: int = Field(3, ge=1, le=20)
+    resolution: float = Field(2.0, ge=0.5, le=50.0)
 
 
 @router.post("/difficulty-phases")
@@ -434,10 +434,10 @@ def import_mazegps_data(req: MazeGPSImportRequest):
 # === PLANTER-BASED ROW GRID ===
 
 class PlanterGridRequest(BaseModel):
-    planter_rows: int = 16          # Number of rows on the planter
-    spacing_inches: float = 30.0    # Row spacing in inches
+    planter_rows: int = Field(16, ge=1, le=100)     # Number of rows on the planter
+    spacing_inches: float = Field(30.0, ge=4.0, le=120.0)  # Row spacing in inches
     direction_deg: float = 0.0      # Planting direction: 0=North, 90=East
-    headlands: int = 2              # Number of headland passes around perimeter
+    headlands: int = Field(2, ge=0, le=20)          # Number of headland passes around perimeter
 
 
 @router.post("/planter-grid")

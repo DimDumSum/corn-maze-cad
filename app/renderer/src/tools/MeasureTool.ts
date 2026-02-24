@@ -5,14 +5,14 @@
 import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
-import { useProjectStore } from '../stores/projectStore';
+import { useDesignStore } from '../stores/designStore';
 import { SnapEngine } from '../snapping/SnapEngine';
 import { fmtLen } from '../utils/fmt';
 
 // Helper to apply snapping to a world position
 function applySnap(worldPos: [number, number]): [number, number] {
   const { snapToGrid, gridSize, camera, setCurrentSnap } = useUiStore.getState();
-  const { field, pathElements } = useProjectStore.getState();
+  const { field } = useDesignStore.getState();
 
   if (!snapToGrid) {
     setCurrentSnap(null);
@@ -29,9 +29,6 @@ function applySnap(worldPos: [number, number]): [number, number] {
   // Collect geometries
   const geometries: any[] = [];
   if (field?.geometry) geometries.push(field.geometry);
-  for (const pathElement of pathElements.values()) {
-    if (pathElement.geometry) geometries.push(pathElement.geometry);
-  }
 
   // Find snap
   const snap = snapEngine.findSnap(worldPos, geometries, [

@@ -110,7 +110,7 @@ async def import_boundary_file(
         # Save uploaded files
         saved_files = []
         for uploaded_file in uploaded_files:
-            filename = uploaded_file.filename
+            filename = os.path.basename(uploaded_file.filename or "upload")
             temp_path = os.path.join(temp_dir, filename)
             content = await uploaded_file.read()
 

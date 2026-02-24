@@ -208,7 +208,7 @@ def _walls_to_polygons(walls: BaseGeometry, buffer_width: float = 1.0) -> List[P
         return polygons
 
     # Buffer the walls to create polygon strips (high vertex density on arc sections)
-    buffered = smooth_buffer(walls, buffer_width, cap_style=2, join_style=2)
+    buffered = smooth_buffer(walls, buffer_width, cap_style="flat", join_style="mitre")
 
     if buffered.is_empty:
         return polygons

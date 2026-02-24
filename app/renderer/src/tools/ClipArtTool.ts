@@ -11,7 +11,6 @@
 import type { Tool } from './types';
 import type { Camera } from '../../../shared/types';
 import { useUiStore } from '../stores/uiStore';
-import { useProjectStore } from '../stores/projectStore';
 import { useDesignStore } from '../stores/designStore';
 import { SnapEngine } from '../snapping/SnapEngine';
 import {
@@ -112,12 +111,9 @@ function applySnap(worldPos: [number, number]): [number, number] {
     cachedSnapConfig = newConfig;
   }
 
-  const { field, pathElements } = useProjectStore.getState();
+  const { field } = useDesignStore.getState();
   const geometries: any[] = [];
   if (field?.geometry) geometries.push(field.geometry);
-  for (const pathElement of pathElements.values()) {
-    if (pathElement.geometry) geometries.push(pathElement.geometry);
-  }
 
   const snap = cachedSnapEngine.findSnap(worldPos, geometries, [
     'endpoint',

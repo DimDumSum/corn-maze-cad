@@ -82,7 +82,7 @@ def export_prescription_map(
     # Build path zones: areas between walls where paths exist
     # Paths = field minus (walls buffered by path_width/2), smooth arc caps
     if walls and not walls.is_empty:
-        corn_zone = smooth_buffer(walls, path_width / 2.0, cap_style=2, join_style=2)
+        corn_zone = smooth_buffer(walls, path_width / 2.0, cap_style="flat", join_style="mitre")
         corn_zone = corn_zone.intersection(field)
         path_zone = field.difference(corn_zone)
     else:

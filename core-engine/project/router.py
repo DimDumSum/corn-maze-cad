@@ -9,7 +9,7 @@ entrances/exits, and constraint settings.
 import json
 import os
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timezone
 from typing import Optional, List, Dict
 
 from fastapi import APIRouter, HTTPException
@@ -59,12 +59,17 @@ def save_project(req: SaveRequest):
     if not filename.endswith('.cmz'):
         filename += '.cmz'
 
+    # Prevent path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail={"error": "Invalid filename"})
     filepath = PROJECTS_DIR / filename
+    if not str(filepath.resolve()).startswith(str(PROJECTS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail={"error": "Invalid filename"})
 
     project = {
         **req.projectData,
         "version": 2,
-        "savedAt": datetime.utcnow().isoformat(),
+        "savedAt": datetime.now(timezone.utc).isoformat(),
     }
 
     # Include backend state (walls geometry)
@@ -196,7 +201,7 @@ def autosave(req: SaveRequest):
     project = {
         **req.projectData,
         "version": 2,
-        "savedAt": datetime.utcnow().isoformat(),
+        "savedAt": datetime.now(timezone.utc).isoformat(),
         "isAutosave": True,
     }
 
