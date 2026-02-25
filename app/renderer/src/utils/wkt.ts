@@ -58,16 +58,19 @@ export function parseWKTPolygons(wkt: string): ParsedPolygon[] {
   // MULTIPOLYGON (((x y, ...), (...)), ((x y, ...)))
   if (trimmed.startsWith('MULTIPOLYGON')) {
     const content = trimmed.slice('MULTIPOLYGON'.length).trim();
-    // Split by ")),((" to separate polygons
-    // First strip outermost parens
-    const inner = content.slice(1, -1); // Remove outer ( )
+    // Strip outermost parens: (((rings)), ((rings))) → ((rings)), ((rings))
+    const inner = content.slice(1, -1);
     const polygons: ParsedPolygon[] = [];
 
-    // Split on ")),((" — each polygon group is wrapped in ((...))
-    const groups = inner.split(/\)\s*,\s*\(/);
+    // Split on ")), ((" to separate polygons — the DOUBLE-paren boundary.
+    // IMPORTANT: must NOT split on single "), (" because that separates
+    // rings WITHIN a polygon (e.g. exterior ring from hole ring).
+    // Each polygon group in WKT MULTIPOLYGON is wrapped in (( ... )).
+    const groups = inner.split(/\)\s*\)\s*,\s*\(\s*\(/);
     for (const group of groups) {
-      // Re-add parens that were consumed by split
-      const normalized = '(' + group.replace(/^\(+/, '').replace(/\)+$/, '') + ')';
+      // Re-add the (( ... )) wrapper that was consumed by the split,
+      // then pass to parseRingGroup which extracts individual rings.
+      const normalized = '((' + group.replace(/^\(+/, '').replace(/\)+$/, '') + '))';
       const parsed = parseRingGroup(normalized);
       if (parsed) polygons.push(parsed);
     }

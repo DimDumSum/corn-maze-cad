@@ -367,7 +367,7 @@ def _build_styles() -> str:
     """Return a block of <Style> elements for the KML document."""
     return """    <Style id="boundary">
       <LineStyle><color>ff3c783c</color><width>3</width></LineStyle>
-      <PolyStyle><color>4000ff00</color></PolyStyle>
+      <PolyStyle><color>1a00ff00</color></PolyStyle>
     </Style>
     <Style id="wall">
       <LineStyle><color>ff1e641e</color><width>1</width></LineStyle>
@@ -975,14 +975,6 @@ def export_maze_kml(
         )
         folders.append(cl_xml)
 
-    # 5 — Carved areas (cutting guide — merged union, reference layer)
-    carved_area_count = 0
-    if carved_areas and not carved_areas.is_empty:
-        carved_xml, carved_area_count = _build_carved_areas_folder(
-            carved_areas, crs, centroid_offset,
-        )
-        folders.append(carved_xml)
-
     # 5b — Individual design element areas (text letters, clipart shapes).
     # Each polygon is emitted separately so GPS viewers show clean per-letter
     # shapes instead of one merged blob, and so interior rings (letter counters
@@ -993,6 +985,24 @@ def export_maze_kml(
             carved_polygons, crs, centroid_offset,
         )
         folders.append(da_xml)
+
+    # 5 — Carved areas (cutting guide — merged union, reference layer).
+    # When individual DesignCutAreas are available they provide better
+    # per-letter shapes with interior rings intact, so the merged blob
+    # is kept as a hidden reference layer to avoid double-rendering that
+    # fills in letter holes.
+    carved_area_count = 0
+    if carved_areas and not carved_areas.is_empty:
+        carved_xml, carved_area_count = _build_carved_areas_folder(
+            carved_areas, crs, centroid_offset,
+        )
+        if design_area_count > 0:
+            # Hide the merged layer — DesignCutAreas already shows the shapes
+            carved_xml = carved_xml.replace(
+                '<open>1</open>',
+                '<open>0</open>\n      <visibility>0</visibility>',
+            )
+        folders.append(carved_xml)
 
     # 6 — Path edges (perimeter of each carved path — the cut/stand boundary).
     # Uses individual polygon rings when available for clean per-letter edges.
