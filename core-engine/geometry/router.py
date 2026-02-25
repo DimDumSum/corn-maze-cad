@@ -1938,7 +1938,10 @@ def carve_batch(req: CarveBatchRequest):
                     print(f"[Batch Carve]   -> Polygon valid: {poly.is_valid}, area: {poly.area:.2f}m², holes: {len(hole_rings)}")
                     if poly.is_valid and poly.area > 0.1:  # Minimum 0.1 m² to filter degenerate polygons
                         carve_geoms.append(poly)
-                        app_state.add_carved_polygon(poly, el.type)
+                        # Clip to field boundary for clean KML export
+                        field = app_state.get_field()
+                        clipped_poly = poly.intersection(field) if field else poly
+                        app_state.add_carved_polygon(clipped_poly, el.type)
                         print(f"[Batch Carve]   -> ADDED polygon to carve_geoms")
                     elif not poly.is_valid:
                         # Try to fix invalid polygon
@@ -1946,7 +1949,9 @@ def carve_batch(req: CarveBatchRequest):
                         poly = poly.buffer(0)
                         if poly.is_valid and not poly.is_empty:
                             carve_geoms.append(poly)
-                            app_state.add_carved_polygon(poly, el.type)
+                            field = app_state.get_field()
+                            clipped_poly = poly.intersection(field) if field else poly
+                            app_state.add_carved_polygon(clipped_poly, el.type)
                             print(f"[Batch Carve]   -> FIXED and ADDED polygon")
                         else:
                             print(f"[Batch Carve]   -> SKIPPING invalid polygon (cannot fix)")
@@ -1984,12 +1989,17 @@ def carve_batch(req: CarveBatchRequest):
                     app_state.set_headland_walls(updated_headland)
                     print(f"[Batch Carve] Also carved headland walls")
 
+                # Clip carved area to field boundary so the overlay doesn't
+                # extend beyond the field in the CAD canvas or KML export.
+                field = app_state.get_field()
+                clipped_carves = all_carves.intersection(field) if field else all_carves
+
                 # Track carved edges for validation and carve areas for retention
-                boundary = all_carves.boundary
-                print(f"[Batch Carve] all_carves type: {type(all_carves).__name__}, boundary type: {type(boundary).__name__}")
+                boundary = clipped_carves.boundary
+                print(f"[Batch Carve] all_carves type: {type(clipped_carves).__name__}, boundary type: {type(boundary).__name__}")
                 print(f"[Batch Carve] boundary is_empty: {boundary.is_empty}, bounds: {boundary.bounds}")
                 app_state.add_carved_edges(boundary)
-                app_state.add_carved_area(all_carves)
+                app_state.add_carved_area(clipped_carves)
                 carved_state = app_state.get_carved_edges()
                 print(f"[Batch Carve] After add - carved_edges type: {type(carved_state).__name__ if carved_state else 'None'}")
                 print(f"[Batch Carve] carved_edges is_empty: {carved_state.is_empty if carved_state else 'N/A'}")
