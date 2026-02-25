@@ -384,6 +384,13 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
         # matplotlib's to_polygons() returns both outer contours and inner holes as
         # separate polygons. We identify holes by checking containment: if a smaller
         # polygon is entirely inside a larger one, it's a hole and must be subtracted.
+        #
+        # IMPORTANT: We use representative_point().within() instead of contains()
+        # because to_polygons() converts Bézier curves to straight line segments.
+        # This approximation makes outer polygons slightly smaller and inner (hole)
+        # polygons slightly larger than the true curves, so the hole polygon can
+        # "poke through" the outer polygon at certain vertices, causing contains()
+        # to return False. representative_point().within() is robust against this.
         # Sort by area descending so outer contours come first.
         raw_polygons.sort(key=lambda p: p.area, reverse=True)
 
@@ -392,7 +399,7 @@ def text_to_paths_endpoint(req: TextToPathsRequest):
         for poly in raw_polygons:
             is_hole = False
             for outer in outers:
-                if outer.contains(poly):
+                if poly.representative_point().within(outer):
                     is_hole = True
                     break
             if is_hole:
@@ -1870,6 +1877,8 @@ def carve_batch(req: CarveBatchRequest):
                 continue
 
             points = [(p[0], p[1]) for p in el.points]
+            # Copy holes to a local variable so we can rotate them if needed
+            el_holes = el.holes
 
             # Apply rotation if specified
             rotation = el.rotation or 0
@@ -1889,6 +1898,18 @@ def carve_batch(req: CarveBatchRequest):
                     ry = dx * sin_r + dy * cos_r + cy
                     rotated_points.append((rx, ry))
                 points = rotated_points
+                # Also rotate hole rings around the same centroid
+                if el_holes:
+                    rotated_holes = []
+                    for hole in el_holes:
+                        rotated_hole = []
+                        for hp in hole:
+                            dx, dy = hp[0] - cx, hp[1] - cy
+                            rx = dx * cos_r - dy * sin_r + cx
+                            ry = dx * sin_r + dy * cos_r + cy
+                            rotated_hole.append([rx, ry])
+                        rotated_holes.append(rotated_hole)
+                    el_holes = rotated_holes
                 print(f"[Batch Carve] Applied {rotation}° rotation to element {el.id[:8]}")
 
             try:
@@ -1909,8 +1930,8 @@ def carve_batch(req: CarveBatchRequest):
                     print(f"[Batch Carve] Processing as POLYGON: {el.id[:8]} (type={el.type}, closed={el.closed}, points_close_loop={points_close_loop})")
                     # Include interior rings (letter counters) if present
                     hole_rings = []
-                    if el.holes:
-                        for h in el.holes:
+                    if el_holes:
+                        for h in el_holes:
                             if len(h) >= 3:
                                 hole_rings.append([(p[0], p[1]) for p in h])
                     poly = Polygon(points, hole_rings) if hole_rings else Polygon(points)
