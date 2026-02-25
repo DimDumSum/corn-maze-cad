@@ -426,8 +426,6 @@ function App() {
     const { aerialUnderlay, planterRowGrid, showPlanterRows } = useDesignStore.getState();
     if (field?.geometry) {
       ctx.beginPath();
-      ctx.strokeStyle = '#2e7d32';
-      ctx.lineWidth = 3 / camera.scale;
 
       const coords = field.geometry.exterior;
       coords.forEach((p: [number, number], i: number) =>
@@ -435,6 +433,14 @@ function App() {
       );
       ctx.closePath();
 
+      // Fill field interior with a subtle off-white so the canvas gray outside
+      // is visually distinct from the field area (prevents "green haze" confusion)
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fill();
+
+      // Stroke the boundary in a clear dark green
+      ctx.strokeStyle = '#2e7d32';
+      ctx.lineWidth = 3 / camera.scale;
       ctx.stroke();
     }
 
@@ -586,7 +592,6 @@ function App() {
 
     for (const el of designElements) {
       ctx.strokeStyle = '#2563eb'; // Blue (darker for light bg)
-      ctx.lineWidth = el.width;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.setLineDash([8 / camera.scale, 4 / camera.scale]);
@@ -630,6 +635,17 @@ function App() {
             }
           }
         }
+      }
+
+      // For closed (filled) elements: fill with semi-transparent blue using evenodd
+      // so interior rings (letter counters like O, D, R, A) appear as transparent holes.
+      // Fill-mode text has width=0 so we must NOT use el.width for the stroke here.
+      if (el.closed) {
+        ctx.fillStyle = 'rgba(37, 99, 235, 0.18)';
+        ctx.fill('evenodd');
+        ctx.lineWidth = 1.5 / camera.scale; // always-visible outline regardless of el.width
+      } else {
+        ctx.lineWidth = el.width;
       }
       ctx.stroke();
       ctx.setLineDash([]);

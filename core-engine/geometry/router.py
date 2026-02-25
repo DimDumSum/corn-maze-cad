@@ -93,9 +93,19 @@ def carve_path_endpoint(req: PathRequest):
             updated_headland = headland_walls.difference(carve_polygon)
             app_state.set_headland_walls(updated_headland)
 
-        # Track carved edges for validation and carve areas for retention
+        # Track carved edges for validation and carve areas for retention.
+        # Clip the carve polygon to the field boundary before storing so the
+        # peach overlay never renders outside the field on the canvas.
+        carve_area_to_store = carve_polygon
+        if current_field:
+            try:
+                clipped = carve_polygon.intersection(current_field)
+                if clipped.is_valid and not clipped.is_empty:
+                    carve_area_to_store = clipped
+            except Exception:
+                pass  # keep unclipped if intersection fails
         app_state.add_carved_edges(carve_polygon.boundary)
-        app_state.add_carved_area(carve_polygon)
+        app_state.add_carved_area(carve_area_to_store)
         app_state.add_carved_path(points, req.width)
 
         # Serialize carved areas as WKT for frontend snapshot
@@ -1984,12 +1994,23 @@ def carve_batch(req: CarveBatchRequest):
                     app_state.set_headland_walls(updated_headland)
                     print(f"[Batch Carve] Also carved headland walls")
 
-                # Track carved edges for validation and carve areas for retention
+                # Track carved edges for validation and carve areas for retention.
+                # Clip to field boundary before storing so the peach overlay stays
+                # inside the field on the canvas.
                 boundary = all_carves.boundary
                 print(f"[Batch Carve] all_carves type: {type(all_carves).__name__}, boundary type: {type(boundary).__name__}")
                 print(f"[Batch Carve] boundary is_empty: {boundary.is_empty}, bounds: {boundary.bounds}")
                 app_state.add_carved_edges(boundary)
-                app_state.add_carved_area(all_carves)
+                batch_field = app_state.get_field()
+                carve_area_to_store = all_carves
+                if batch_field:
+                    try:
+                        clipped = all_carves.intersection(batch_field)
+                        if clipped.is_valid and not clipped.is_empty:
+                            carve_area_to_store = clipped
+                    except Exception:
+                        pass  # keep unclipped if intersection fails
+                app_state.add_carved_area(carve_area_to_store)
                 carved_state = app_state.get_carved_edges()
                 print(f"[Batch Carve] After add - carved_edges type: {type(carved_state).__name__ if carved_state else 'None'}")
                 print(f"[Batch Carve] carved_edges is_empty: {carved_state.is_empty if carved_state else 'N/A'}")
